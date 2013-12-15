@@ -6,8 +6,8 @@ Package Summary
 
 **rosgo** is pure Go implementation of [ROS](http://www.ros.org/) client library. 
 
-- Author: akio
-- License: Apache 2.0
+- Author: akio <akio7141 AT gmail DOT com>
+- License: Apache License 2.0
 - Source: git [https://github.com/akio/rosgo](https://github.com/akio/rosgo)
 
 Status
