@@ -174,6 +174,7 @@ func (node *defaultNode) publisherUpdate(callerId string, topic string, publishe
     }
 }
 
+
 func (node *defaultNode) requestTopic(callerId string, topic string, protocols []interface{}) (interface{}, error) {
     node.logger.Debugf("Slave API requestTopic(%s, %s, ...) called.", callerId, topic)
     if pub, ok := node.publishers[topic]; !ok {
@@ -202,6 +203,7 @@ func (node *defaultNode) requestTopic(callerId string, topic string, protocols [
         return buildRosApiResult(1, "Success", selectedProtocol), nil
     }
 }
+
 
 func (node *defaultNode) NewPublisher(topic string, msgType MessageType) Publisher {
     pub, ok := node.publishers[topic]
@@ -264,9 +266,9 @@ func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callba
     return sub
 }
 
-func (*defaultNode) NewServiceClient(service string,
-    srvType ServiceType) ServiceClient {
-    return nil
+func (node *defaultNode) NewServiceClient(service string, srvType ServiceType) ServiceClient {
+    client := newDefaultServiceClient(node.logger, service, srvType)
+    return client
 }
 
 func (*defaultNode) NewServiceServer(service string, srvType ServiceType,

@@ -25,7 +25,8 @@ type defaultPublisher struct {
     listener          net.Listener
 }
 
-func newDefaultPublisher(logger Logger, nodeId string, nodeApiUri string, masterUri string, topic string, msgType MessageType) *defaultPublisher {
+func newDefaultPublisher(logger Logger, nodeId string, nodeApiUri string,
+                         masterUri string, topic string, msgType MessageType) *defaultPublisher {
     pub := new(defaultPublisher)
     pub.logger = logger
     pub.nodeId = nodeId

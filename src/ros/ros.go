@@ -66,6 +66,7 @@ type ServiceServer interface {
 
 
 type ServiceClient interface {
-    Call(req Message, res Message) bool
+    Call(srv Service) error
     Shutdown()
 }
+
