@@ -3,16 +3,6 @@ package ros
 import (
 )
 
-type LogLevel int
-
-const (
-    LogLevelDebug LogLevel = iota
-    LogLevelInfo
-    LogLevelWarn
-    LogLevelError
-    LogLevelFatal
-)
-
 
 type Node interface {
     NewPublisher(topic string, msgType MessageType) Publisher
@@ -31,7 +21,7 @@ type Node interface {
     SearchParam(name string) (string, error)
     DeleteParam(name string) error
 
-    GetLogger() Logger
+    Logger() Logger
 }
 
 

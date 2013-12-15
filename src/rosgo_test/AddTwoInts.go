@@ -1,4 +1,4 @@
-package test_srvs
+package rosgo_test
 
 import (
     "bytes"
@@ -23,8 +23,8 @@ func (t *type_AddTwoIntsRequest) NewMessage() ros.Message {
 var (
     TypeOfAddTwoIntsRequest = &type_AddTwoIntsRequest{
         "",
-        "test_msgs/AddTwoIntsRequest",
-        "992ce8a1687cec8c8bd883ec73ca41d1",
+        "rosgo_test/AddTwoIntsRequest",
+        "ef8322123148e475e3e93a1f609b2f70",
     }
 )
 
@@ -69,8 +69,8 @@ func (t *type_AddTwoIntsResponse) NewMessage() ros.Message {
 var (
     TypeOfAddTwoIntsResponse = &type_AddTwoIntsResponse{
         "",
-        "test_msgs/AddTwoIntsResponse",
-        "992ce8a1687cec8c8bd883ec73ca41d1",
+        "rosgo_test/AddTwoIntsResponse",
+        "034a8e20d6a306665e3a5b340fab3f09",
     }
 )
 
@@ -107,8 +107,8 @@ func (t *type_AddTwoInts) ResponseType() ros.MessageType { return t.resType }
 
 var (
     TypeOfAddTwoInts = &type_AddTwoInts {
-        "test_srvs",
-        "hoge",
+        "rosgo_test/AddTwoInts",
+        "a7d7d7065d45755acef7d4dcf908162a",
         TypeOfAddTwoIntsRequest,
         TypeOfAddTwoIntsResponse,
     }

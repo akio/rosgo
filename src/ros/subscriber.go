@@ -29,11 +29,11 @@ func newDefaultSubscriber(topic string, msgType MessageType, callback interface{
     sub := new(defaultSubscriber)
     sub.topic = topic
     sub.msgType = msgType
-    sub.msgChan = make(chan []byte)
-    sub.pubListChan = make(chan []string)
-    sub.addCallbackChan = make(chan interface{})
-    sub.shutdownChan = make(chan struct{})
-    sub.disconnectedChan = make(chan string)
+    sub.msgChan = make(chan []byte, 10)
+    sub.pubListChan = make(chan []string, 10)
+    sub.addCallbackChan = make(chan interface{}, 10)
+    sub.shutdownChan = make(chan struct{}, 10)
+    sub.disconnectedChan = make(chan string, 10)
     sub.connections = make(map[string]chan struct{})
     sub.callbacks = []interface{}{callback}
     return sub
@@ -43,6 +43,9 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeId string, nodeApiUr
     logger.Debugf("Subscriber goroutine for %s started.", sub.topic)
     wg.Add(1)
     defer wg.Done()
+    defer func() { 
+        logger.Debug("defaultSubscriber.start exit")
+    }()
     for {
         logger.Debug("Loop")
         select {
@@ -71,7 +74,7 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeId string, nodeApiUr
                     addr := protocolParams[1].(string)
                     port := protocolParams[2].(int32)
                     uri := fmt.Sprintf("%s:%d", addr, port)
-                    quitChan := make(chan struct{})
+                    quitChan := make(chan struct{}, 10)
                     sub.connections[pub] = quitChan
                     go startRemotePublisherConn(logger,
                         uri, sub.topic,
@@ -129,6 +132,10 @@ func startRemotePublisherConn(logger Logger,
     disconnectedChan chan string) {
     logger.Debug("startRemotePublisherConn()")
 
+    defer func() {
+        logger.Debug("startRemotePublisherConn() exit")
+    }()
+
     conn, err := net.Dial("tcp", pubUri)
     if err != nil {
         logger.Fatalf("Failed to connect %s!", pubUri)
@@ -159,7 +166,7 @@ func startRemotePublisherConn(logger Logger,
     resHeaderMap := make(map[string]string)
     for _, h := range resHeaders {
         resHeaderMap[h.key] = h.value
-        logger.Fatalf("  `%s` = `%s`", h.key, h.value)
+        logger.Debugf("  `%s` = `%s`", h.key, h.value)
     }
     if resHeaderMap["type"] != msgType || resHeaderMap["md5sum"] != md5sum {
         logger.Fatalf("Incomatible message type!")
@@ -217,3 +224,4 @@ func startRemotePublisherConn(logger Logger,
 func (sub *defaultSubscriber) Shutdown() {
     sub.shutdownChan <- struct{}{}
 }
+

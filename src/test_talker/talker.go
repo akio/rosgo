@@ -2,20 +2,20 @@ package main
 
 import (
     "fmt"
-    "ros"
-    "std_msgs"
     "time"
+    "ros"
+    "rosgo_test"
 )
 
 func main() {
     node := ros.NewNode("/talker")
     defer node.Shutdown()
-    pub := node.NewPublisher("/chatter", std_msgs.TypeOfString())
-    defer pub.Shutdown()
+    node.Logger().SetSeverity(ros.LogLevelDebug)
+    pub := node.NewPublisher("/chatter", rosgo_test.TypeOfHello())
 
     for node.OK() {
         node.SpinOnce()
-        var msg std_msgs.String
+        var msg rosgo_test.Hello
         msg.Data = fmt.Sprintf("hello %s", time.Now().String())
         fmt.Println(msg.Data)
         pub.Publish(&msg)

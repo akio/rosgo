@@ -1,4 +1,4 @@
-package std_msgs
+package rosgo_test
 
 import (
     "bytes"
@@ -6,39 +6,40 @@ import (
     "ros"
 )
 
-type _StringType struct {
+type _HelloType struct {
     definition string
     name       string
     md5sum     string
 }
 
-func (t *_StringType) Definition() string      { return t.definition }
-func (t *_StringType) Name() string            { return t.name }
-func (t *_StringType) MD5Sum() string          { return t.md5sum }
-func (t *_StringType) NewMessage() ros.Message { return new(String) }
+func (t *_HelloType) Definition() string      { return t.definition }
+func (t *_HelloType) Name() string            { return t.name }
+func (t *_HelloType) MD5Sum() string          { return t.md5sum }
+func (t *_HelloType) NewMessage() ros.Message { return new(Hello) }
 
-func TypeOfString() ros.MessageType {
-    t := _StringType{
+func TypeOfHello() ros.MessageType {
+    t := _HelloType{
         "",
-        "std_msgs/String",
+        "rosgo_test/Hello",
         "992ce8a1687cec8c8bd883ec73ca41d1",
     }
     return &t
 }
 
-type String struct {
+type Hello struct {
     Data string
 }
 
-func (s *String) Serialize() []byte {
+func (s *Hello) Serialize() []byte {
     var buf bytes.Buffer
     data := []byte(s.Data)
-    binary.Write(&buf, binary.LittleEndian, len(data))
+    size := uint32(len(data))
+    binary.Write(&buf, binary.LittleEndian, size)
     buf.Write(data)
     return buf.Bytes()
 }
 
-func (s *String) Deserialize(buffer []byte) error {
+func (s *Hello) Deserialize(buffer []byte) error {
     buf := bytes.NewBuffer(buffer)
     var size uint32
     if err := binary.Read(buf, binary.LittleEndian, &size); err != nil {

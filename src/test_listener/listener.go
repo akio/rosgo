@@ -3,17 +3,17 @@ package main
 import (
     "fmt"
     "ros"
-    "std_msgs"
+    "rosgo_test"
 )
 
-func callback(msg *std_msgs.String) {
+func callback(msg *rosgo_test.Hello) {
     fmt.Printf("Received: %s\n", msg.Data)
 }
 
 func main() {
     node := ros.NewNode("/listener")
     defer node.Shutdown()
-    sub := node.NewSubscriber("/chatter", std_msgs.TypeOfString(), callback)
-    defer sub.Shutdown()
+    node.Logger().SetSeverity(ros.LogLevelDebug)
+    node.NewSubscriber("/chatter", rosgo_test.TypeOfHello(), callback)
     node.Spin()
 }

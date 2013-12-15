@@ -34,10 +34,11 @@ func newDefaultPublisher(logger Logger, nodeId string, nodeApiUri string,
     pub.masterUri = masterUri
     pub.topic = topic
     pub.msgType = msgType
-    pub.shutdownChan = make(chan struct{})
-    pub.sessions = list.New()
+    pub.shutdownChan = make(chan struct{}, 10)
     pub.msgChan = make(chan []byte, 10)
-    pub.listenerErrorChan = make(chan error)
+    pub.listenerErrorChan = make(chan error, 10)
+    pub.sessionErrorChan = make(chan error, 10)
+    pub.sessions = list.New()
     if listener, err := listenRandomPort("127.0.0.1", 10); err != nil {
         panic(err)
     } else {
@@ -50,11 +51,12 @@ func (pub *defaultPublisher) start(wg *sync.WaitGroup) {
     logger := pub.logger
     logger.Debugf("Publisher goroutine for %s started.", pub.topic)
     wg.Add(1)
-    defer wg.Done()
+    defer func() { logger.Debug("defaultPublisher.start exit"); wg.Done() }()
 
     go pub.listenRemoteSubscriber()
 
     for {
+        logger.Debug("defaultPublisher.start loop")
         select {
         case msg := <-pub.msgChan:
             logger.Debug("Receive msgChan")
@@ -75,8 +77,9 @@ func (pub *defaultPublisher) start(wg *sync.WaitGroup) {
                 }
             }
         case <-pub.shutdownChan:
-            logger.Debug("Receive shutdownChan")
+            logger.Debug("defaultPublisher.start Receive shutdownChan")
             pub.listener.Close()
+            logger.Debug("defaultPublisher.start closed listener")
             _, err := callRosApi(pub.masterUri, "unregisterPublisher", pub.nodeId, pub.topic, pub.nodeApiUri)
             if err != nil {
                 logger.Warn(err)
@@ -94,9 +97,17 @@ func (pub *defaultPublisher) start(wg *sync.WaitGroup) {
 func (pub *defaultPublisher) listenRemoteSubscriber() {
     logger := pub.logger
     logger.Debugf("Start listen %s.", pub.listener.Addr().String())
+    defer func() {
+        logger.Debug("defaultPublisher.listenRemoteSubscriber exit");
+    }()
+
     for {
+        logger.Debug("defaultPublisher.listenRemoteSubscriber loop")
         if conn, err := pub.listener.Accept(); err != nil {
+            logger.Debugf("pub.listner.Accept() failed")
             pub.listenerErrorChan <- err
+            close(pub.listenerErrorChan)
+            logger.Debugf("defaultPublisher.listenRemoteSubscriber loop exit")
             return
         } else {
             logger.Debugf("Connected %s", conn.RemoteAddr().String())
@@ -151,6 +162,10 @@ func newRemoteSubscriberSession(pub *defaultPublisher, conn net.Conn) *remoteSub
 }
 
 func (session *remoteSubscriberSession) start() {
+    session.logger.Debug("remoteSubscriberSession.start enter")
+    defer func() {
+        session.logger.Debug("remoteSubscriberSession.start exit")
+    }()
     logger := session.logger
     defer func() {
         if err := recover(); err != nil {
@@ -194,6 +209,7 @@ func (session *remoteSubscriberSession) start() {
     queue := list.New()
     queueMaxSize := 100
     for {
+        //logger.Debug("session.remoteSubscriberSession")
         select {
         case msg := <-session.msgChan:
             logger.Debug("Receive msgChan")

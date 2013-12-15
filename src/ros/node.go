@@ -31,7 +31,6 @@ type defaultNode struct {
     subscribers    map[string]*defaultSubscriber
     publishers     map[string]*defaultPublisher
     jobChan        chan func()
-    shutdownChan   chan struct{}
     interruptChan  chan os.Signal
     logger         Logger
     ok             bool
@@ -64,7 +63,7 @@ func newDefaultNode(name string) *defaultNode {
     node.interruptChan = make(chan os.Signal)
     node.ok = true
 
-    logger := NewDefaultLogger(LogLevelInfo)
+    logger := NewDefaultLogger()
     node.logger = logger
 
     // Install signal handler
@@ -78,7 +77,6 @@ func newDefaultNode(name string) *defaultNode {
     }()
 
     node.jobChan = make(chan func(), 100)
-    node.shutdownChan = make(chan struct{}, 100)
 
     node.masterUri = os.Getenv("ROS_MASTER_URI")
     logger.Debugf("Master URI = %s", node.masterUri)
@@ -107,12 +105,14 @@ func newDefaultNode(name string) *defaultNode {
     return node
 }
 
+
 func (node *defaultNode) OK() bool {
     node.okMutex.RLock()
     ok := node.ok
     node.okMutex.RUnlock()
     return ok
 }
+
 
 func (node *defaultNode) getBusStats(callerId string) (interface{}, error) {
     return buildRosApiResult(-1, "Not implemented", 0), nil
@@ -162,7 +162,7 @@ func (node *defaultNode) paramUpdate(callerId string, key string, value interfac
 func (node *defaultNode) publisherUpdate(callerId string, topic string, publishers []interface{}) (interface{}, error) {
     node.logger.Debug("Slave API publisherUpdate() called.")
     if sub, ok := node.subscribers[topic]; !ok {
-        node.logger.Debug("publisherUpdate() called with not subscribing topic.")
+        node.logger.Debug("publisherUpdate() called without subscribing topic.")
         return buildRosApiResult(0, "No such topic", 0), nil
     } else {
         pubUris := make([]string, len(publishers))
@@ -266,57 +266,65 @@ func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callba
     return sub
 }
 
+
 func (node *defaultNode) NewServiceClient(service string, srvType ServiceType) ServiceClient {
-    client := newDefaultServiceClient(node.logger, service, srvType)
+    client := newDefaultServiceClient(node.logger, node.qualifiedName, node.masterUri, service, srvType)
     return client
 }
 
-func (*defaultNode) NewServiceServer(service string, srvType ServiceType,
-    handler interface{}) ServiceServer {
+func (*defaultNode) NewServiceServer(service string, srvType ServiceType, handler interface{}) ServiceServer {
     return nil
 }
 
 func (node *defaultNode) SpinOnce() {
     timeoutChan := time.After(10 * time.Millisecond)
-    for node.OK() {
-        select {
-        case job := <-node.jobChan:
-            job()
-        case <-timeoutChan:
-            return
-        }
+    select {
+    case job := <-node.jobChan:
+        job()
+    case <-timeoutChan:
+       break
     }
 }
 
 func (node *defaultNode) Spin() {
     logger := node.logger
     for node.OK() {
-        logger.Debug("Spin")
+        timeoutChan := time.After(10 * time.Millisecond)
         select {
         case job := <-node.jobChan:
             logger.Debug("Execute job")
             job()
-        case <-node.shutdownChan:
-            logger.Debug("Shutdown requested.")
-            for _, p := range node.publishers {
-                p.shutdownChan <- struct{}{}
-            }
-            for _, s := range node.publishers {
-                s.shutdownChan <- struct{}{}
-            }
-            return
+        case <-timeoutChan:
+            break
         }
     }
 }
 
 func (node *defaultNode) Shutdown() {
+    node.logger.Debug("Shutting node down")
     node.okMutex.Lock()
     node.ok = false
     node.okMutex.Unlock()
-    node.shutdownChan <- struct{}{}
+    node.logger.Debug("Shutdown subscribers")
+    for _, s := range node.subscribers {
+        s.Shutdown()
+    }
+    node.logger.Debug("Shutdown subscribers...done")
+    node.logger.Debug("Shutdown publishers")
+    for _, p := range node.publishers {
+        p.Shutdown()
+    }
+    node.logger.Debug("Shutdown publishers...done")
+    node.logger.Debug("Close XMLRPC lisetner")
     node.xmlrpcListener.Close()
+    node.logger.Debug("Close XMLRPC done")
+    node.logger.Debug("Wait XMLRPC server shutdown")
     node.xmlrpcHandler.WaitForShutdown()
+    node.logger.Debug("Wait XMLRPC server shutdown...Done")
+    node.logger.Debug("Wait all goroutines")
     node.waitGroup.Wait()
+    node.logger.Debug("Wait all goroutines...Done")
+    node.logger.Debug("Shutting node down completed")
     return
 }
 
@@ -367,5 +375,5 @@ func (node *defaultNode) DeleteParam(key string) error {
     }
 }
 
-func (node *defaultNode) GetLogger() Logger { return node.logger }
+func (node *defaultNode) Logger() Logger { return node.logger }
 

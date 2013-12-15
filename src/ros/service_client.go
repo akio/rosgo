@@ -2,7 +2,9 @@ package ros
 
 import (
     "io"
+    "fmt"
     "net"
+    "net/url"
     "time"
     "errors"
     "encoding/binary"
@@ -13,27 +15,40 @@ type defaultServiceClient struct {
     service string
     srvType ServiceType
     masterUri string
-    nodeApiUri string
     nodeId string
 }
 
 
-func newDefaultServiceClient(logger Logger, service string, srvType ServiceType) *defaultServiceClient {
+func newDefaultServiceClient(logger Logger, nodeId string, masterUri string, service string, srvType ServiceType) *defaultServiceClient {
     client := new(defaultServiceClient)
     client.logger = logger
     client.service = service
     client.srvType = srvType
+    client.masterUri = masterUri
+    client.nodeId = nodeId
     return client
 }
 
 func (c *defaultServiceClient) Call(srv Service) error {
     logger := c.logger
 
-    result, err := callRosApi(c.masterUri, "lookupService", c.service)
-    var serviceUri string = result.(string)
+    result, err := callRosApi(c.masterUri, "lookupService", c.nodeId, c.service)
+    if err != nil {
+        return err
+    }
+
+    serviceRawUrl, converted := result.(string)
+    if !converted {
+        return fmt.Errorf("Result of 'lookupService' is not a string")
+    }
+    var serviceUrl *url.URL
+    serviceUrl, err = url.Parse(serviceRawUrl)
+    if err != nil {
+        return err
+    }
 
     var conn net.Conn
-    conn, err = net.Dial("tcp", serviceUri)
+    conn, err = net.Dial("tcp", serviceUrl.Host)
     if err != nil {
         return err
     }
@@ -62,7 +77,7 @@ func (c *defaultServiceClient) Call(srv Service) error {
         resHeaderMap := make(map[string]string)
         for _, h := range resHeaders {
             resHeaderMap[h.key] = h.value
-            logger.Fatalf("  `%s` = `%s`", h.key, h.value)
+            logger.Debugf("  `%s` = `%s`", h.key, h.value)
         }
         if resHeaderMap["type"] != msgType || resHeaderMap["md5sum"] != md5sum {
             logger.Fatalf("Incompatible message type!")
