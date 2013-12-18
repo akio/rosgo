@@ -29,6 +29,7 @@ func newDefaultServiceClient(logger Logger, nodeId string, masterUri string, ser
     return client
 }
 
+
 func (c *defaultServiceClient) Call(srv Service) error {
     logger := c.logger
 
@@ -65,11 +66,13 @@ func (c *defaultServiceClient) Call(srv Service) error {
     for _, h := range headers {
         logger.Debugf("  `%s` = `%s`", h.key, h.value)
     }
+    conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
     if err := writeConnectionHeader(headers, conn); err != nil {
         return err
     }
 
     // 2. Read reponse header
+    conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
     if resHeaders, err := readConnectionHeader(conn); err != nil {
         return err
     } else {
@@ -86,9 +89,9 @@ func (c *defaultServiceClient) Call(srv Service) error {
     }
 
     // 3. Send request
-    reqMsg := srv.Request().Serialize()
-    conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
+    reqMsg := srv.ReqMessage().Serialize()
     size := uint32(len(reqMsg))
+    conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
     if err := binary.Write(conn, binary.LittleEndian, size); err != nil {
         return err
     }
@@ -100,15 +103,18 @@ func (c *defaultServiceClient) Call(srv Service) error {
 
     // 4. Read OK byte 
     var ok byte
+    conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
     if err := binary.Read(conn, binary.LittleEndian, &ok); err != nil {
         return err
     } else {
         if ok == 0 {
             var size uint32
+            conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
             if err := binary.Read(conn, binary.LittleEndian, &size); err != nil {
                 return err
             } else {
                 errMsg := make([]byte, int(size))
+                conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
                 if _, err := io.ReadFull(conn, errMsg); err != nil {
                     return err
                 } else {
@@ -131,7 +137,7 @@ func (c *defaultServiceClient) Call(srv Service) error {
     if _, err = io.ReadFull(conn, resBuffer); err != nil {
         return err
     }
-    if err := srv.Response().Deserialize(resBuffer); err != nil {
+    if err := srv.ResMessage().Deserialize(resBuffer); err != nil {
         return err
     }
     return nil

@@ -124,6 +124,7 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeId string, nodeApiUr
     }
 }
 
+
 func startRemotePublisherConn(logger Logger,
     pubUri string, topic string, md5sum string,
     msgType string, nodeId string,

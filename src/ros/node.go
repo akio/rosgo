@@ -30,6 +30,7 @@ type defaultNode struct {
     xmlrpcHandler  *xmlrpc.Handler
     subscribers    map[string]*defaultSubscriber
     publishers     map[string]*defaultPublisher
+    servers        map[string]*defaultServiceServer
     jobChan        chan func()
     interruptChan  chan os.Signal
     logger         Logger
@@ -60,6 +61,7 @@ func newDefaultNode(name string) *defaultNode {
     node.qualifiedName = name
     node.subscribers = make(map[string]*defaultSubscriber)
     node.publishers = make(map[string]*defaultPublisher)
+    node.servers = make(map[string]*defaultServiceServer)
     node.interruptChan = make(chan os.Signal)
     node.ok = true
 
@@ -272,8 +274,18 @@ func (node *defaultNode) NewServiceClient(service string, srvType ServiceType) S
     return client
 }
 
-func (*defaultNode) NewServiceServer(service string, srvType ServiceType, handler interface{}) ServiceServer {
-    return nil
+
+func (node *defaultNode) NewServiceServer(service string, srvType ServiceType, handler interface{}) ServiceServer {
+    server, ok := node.servers[service]
+    if ok {
+        server.Shutdown()
+    }
+    server = newDefaultServiceServer(node, service, srvType, handler)
+    if server == nil {
+        return nil
+    }
+    node.servers[service] = server
+    return server
 }
 
 func (node *defaultNode) SpinOnce() {
@@ -315,6 +327,11 @@ func (node *defaultNode) Shutdown() {
         p.Shutdown()
     }
     node.logger.Debug("Shutdown publishers...done")
+    node.logger.Debug("Shutdown servers")
+    for _, s := range node.servers {
+        s.Shutdown()
+    }
+    node.logger.Debug("Shutdown servers...done")
     node.logger.Debug("Close XMLRPC lisetner")
     node.xmlrpcListener.Close()
     node.logger.Debug("Close XMLRPC done")

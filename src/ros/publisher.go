@@ -1,6 +1,7 @@
 package ros
 
 import (
+    "fmt"
     "container/list"
     "encoding/binary"
     "encoding/hex"
@@ -9,6 +10,20 @@ import (
     "sync"
     "time"
 )
+
+
+type remoteSubscriberSessionError struct {
+    session *remoteSubscriberSession
+    err error
+}
+
+
+func (e *remoteSubscriberSessionError) Error() string {
+    return fmt.Sprintf("remoteSubscriberSession %v error: %v", e.session, e.err)
+}
+
+
+
 
 type defaultPublisher struct {
     logger            Logger
@@ -20,10 +35,11 @@ type defaultPublisher struct {
     msgChan           chan []byte
     shutdownChan      chan struct{}
     sessions          *list.List
-    listenerErrorChan chan error
     sessionErrorChan  chan error
+    listenerErrorChan chan error
     listener          net.Listener
 }
+
 
 func newDefaultPublisher(logger Logger, nodeId string, nodeApiUri string,
                          masterUri string, topic string, msgType MessageType) *defaultPublisher {
@@ -51,7 +67,10 @@ func (pub *defaultPublisher) start(wg *sync.WaitGroup) {
     logger := pub.logger
     logger.Debugf("Publisher goroutine for %s started.", pub.topic)
     wg.Add(1)
-    defer func() { logger.Debug("defaultPublisher.start exit"); wg.Done() }()
+    defer func() {
+        logger.Debug("defaultPublisher.start exit");
+        wg.Done()
+    }()
 
     go pub.listenRemoteSubscriber()
 
@@ -68,12 +87,14 @@ func (pub *defaultPublisher) start(wg *sync.WaitGroup) {
             logger.Debug("Listener closed unexpectedly: %s", err)
             pub.listener.Close()
             return
-        case session, err := <-pub.sessionErrorChan:
+        case err := <-pub.sessionErrorChan:
             logger.Error(err)
-            for e := pub.sessions.Front(); e != nil; e = e.Next() {
-                if e.Value == session {
-                    pub.sessions.Remove(e)
-                    break
+            if sessionError, ok := err.(*remoteSubscriberSessionError); ok {
+                for e := pub.sessions.Front(); e != nil; e = e.Next() {
+                    if e.Value == sessionError.session {
+                        pub.sessions.Remove(e)
+                        break
+                    }
                 }
             }
         case <-pub.shutdownChan:
@@ -162,18 +183,22 @@ func newRemoteSubscriberSession(pub *defaultPublisher, conn net.Conn) *remoteSub
 }
 
 func (session *remoteSubscriberSession) start() {
-    session.logger.Debug("remoteSubscriberSession.start enter")
-    defer func() {
-        session.logger.Debug("remoteSubscriberSession.start exit")
-    }()
     logger := session.logger
+    logger.Debug("remoteSubscriberSession.start enter")
+    defer func() {
+        logger.Debug("remoteSubscriberSession.start exit")
+    }()
     defer func() {
         if err := recover(); err != nil {
             if e, ok := err.(error); ok {
-                session.errorChan <- e
+                session.errorChan <- &remoteSubscriberSessionError{session, e}
             } else {
-                logger.Error("Unkonwn error value")
+                e = fmt.Errorf("Unkonwn error value")
+                session.errorChan <- &remoteSubscriberSessionError{session, e}
             }
+        } else {
+            e := fmt.Errorf("Normal exit")
+            session.errorChan <- &remoteSubscriberSessionError{session, e}
         }
     }()
     // 1. Read connection header

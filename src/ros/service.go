@@ -5,10 +5,11 @@ type ServiceType interface {
     Name() string
     RequestType() MessageType
     ResponseType() MessageType
+    NewService() Service
 }
 
 
 type Service interface {
-    Request() Message
-    Response() Message
+    ReqMessage() Message
+    ResMessage() Message
 }

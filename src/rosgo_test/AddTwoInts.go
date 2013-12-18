@@ -70,23 +70,23 @@ var (
     TypeOfAddTwoIntsResponse = &type_AddTwoIntsResponse{
         "",
         "rosgo_test/AddTwoIntsResponse",
-        "034a8e20d6a306665e3a5b340fab3f09",
+        "0ba699c25c9418c0366f3595c0c8e8ec",
     }
 )
 
 type AddTwoIntsResponse struct {
-    Result int32
+    Sum int32
 }
 
 func (m *AddTwoIntsResponse) Serialize() []byte {
     var buf bytes.Buffer
-    binary.Write(&buf, binary.LittleEndian, m.Result)
+    binary.Write(&buf, binary.LittleEndian, m.Sum)
     return buf.Bytes()
 }
 
 func (m *AddTwoIntsResponse) Deserialize(buffer []byte) error {
     buf := bytes.NewBuffer(buffer)
-    if err := binary.Read(buf, binary.LittleEndian, &m.Result); err != nil {
+    if err := binary.Read(buf, binary.LittleEndian, &m.Sum); err != nil {
         return err
     }
     return nil
@@ -104,11 +104,14 @@ func (t *type_AddTwoInts) Name() string { return t.name }
 func (t *type_AddTwoInts) MD5Sum() string { return t.md5sum }
 func (t *type_AddTwoInts) RequestType() ros.MessageType { return t.reqType }
 func (t *type_AddTwoInts) ResponseType() ros.MessageType { return t.resType }
+func (t *type_AddTwoInts) NewService() ros.Service {
+    return new(AddTwoInts)
+}
 
 var (
     TypeOfAddTwoInts = &type_AddTwoInts {
         "rosgo_test/AddTwoInts",
-        "a7d7d7065d45755acef7d4dcf908162a",
+        "f0b6d69ea10b0cf210cb349d58d59e8f",
         TypeOfAddTwoIntsRequest,
         TypeOfAddTwoIntsResponse,
     }
@@ -116,10 +119,10 @@ var (
 
 
 type AddTwoInts struct {
-    Req AddTwoIntsRequest
-    Res AddTwoIntsResponse
+    Request AddTwoIntsRequest
+    Response AddTwoIntsResponse
 }
 
-func (s *AddTwoInts) Request() ros.Message { return &s.Req }
-func (s *AddTwoInts) Response() ros.Message { return &s.Res }
+func (s *AddTwoInts) ReqMessage() ros.Message { return &s.Request }
+func (s *AddTwoInts) ResMessage() ros.Message { return &s.Response }
 
