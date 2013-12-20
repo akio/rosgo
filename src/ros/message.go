@@ -1,5 +1,9 @@
 package ros
 
+import (
+    "bytes"
+)
+
 type MessageType interface {
     Definition() string
     MD5Sum() string
@@ -8,6 +12,6 @@ type MessageType interface {
 }
 
 type Message interface {
-    Serialize() []byte
-    Deserialize(buffer []byte) error
+    Serialize(buf *bytes.Buffer) error
+    Deserialize(buf *bytes.Reader) error
 }

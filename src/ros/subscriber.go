@@ -8,6 +8,7 @@ import (
     "reflect"
     "sync"
     "time"
+    "bytes"
 )
 
 // The subscription object runs in own goroutine (startSubscription).
@@ -97,7 +98,10 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeId string, nodeApiUr
             copy(callbacks, sub.callbacks)
             jobChan <- func() {
                 m := sub.msgType.NewMessage()
-                m.Deserialize(chunk)
+                reader := bytes.NewReader(chunk)
+                if err := m.Deserialize(reader); err != nil {
+                    logger.Error(err)
+                }
                 args := []reflect.Value{reflect.ValueOf(m)}
                 for _, callback := range callbacks {
                     fun := reflect.ValueOf(callback)

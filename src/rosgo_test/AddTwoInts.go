@@ -33,15 +33,14 @@ type AddTwoIntsRequest struct {
     B int32
 }
 
-func (m *AddTwoIntsRequest) Serialize() []byte {
+func (m *AddTwoIntsRequest) Serialize(buf *bytes.Buffer) error {
     var buf bytes.Buffer
     binary.Write(&buf, binary.LittleEndian, m.A)
     binary.Write(&buf, binary.LittleEndian, m.B)
-    return buf.Bytes()
+    return nil
 }
 
-func (m *AddTwoIntsRequest) Deserialize(buffer []byte) error {
-    buf := bytes.NewBuffer(buffer)
+func (m *AddTwoIntsRequest) Deserialize(buf *bytes.Reader) error {
     if err := binary.Read(buf, binary.LittleEndian, &m.A); err != nil {
         return err
     }
@@ -78,14 +77,12 @@ type AddTwoIntsResponse struct {
     Sum int32
 }
 
-func (m *AddTwoIntsResponse) Serialize() []byte {
-    var buf bytes.Buffer
+func (m *AddTwoIntsResponse) Serialize(buf *bytes.Buffer) error {
     binary.Write(&buf, binary.LittleEndian, m.Sum)
-    return buf.Bytes()
+    return nil
 }
 
-func (m *AddTwoIntsResponse) Deserialize(buffer []byte) error {
-    buf := bytes.NewBuffer(buffer)
+func (m *AddTwoIntsResponse) Deserialize(buf *bytes.Reader) error {
     if err := binary.Read(buf, binary.LittleEndian, &m.Sum); err != nil {
         return err
     }

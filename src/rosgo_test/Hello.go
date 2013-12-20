@@ -30,8 +30,7 @@ type Hello struct {
     Data string
 }
 
-func (s *Hello) Serialize() []byte {
-    var buf bytes.Buffer
+func (s *Hello) Serialize(buf *bytes.Buffer) error {
     data := []byte(s.Data)
     size := uint32(len(data))
     binary.Write(&buf, binary.LittleEndian, size)
@@ -39,8 +38,7 @@ func (s *Hello) Serialize() []byte {
     return buf.Bytes()
 }
 
-func (s *Hello) Deserialize(buffer []byte) error {
-    buf := bytes.NewBuffer(buffer)
+func (s *Hello) Deserialize(buf *bytes.Reader) error {
     var size uint32
     if err := binary.Read(buf, binary.LittleEndian, &size); err != nil {
         return err

@@ -11,7 +11,7 @@ func main() {
     node := ros.NewNode("/talker")
     defer node.Shutdown()
     node.Logger().SetSeverity(ros.LogLevelDebug)
-    pub := node.NewPublisher("/chatter", rosgo_test.TypeOfHello())
+    pub := node.NewPublisher("/chatter", rosgo_test.TypeOfHello)
 
     for node.OK() {
         node.SpinOnce()

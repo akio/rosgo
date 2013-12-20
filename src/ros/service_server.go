@@ -5,6 +5,7 @@ import (
     "fmt"
     "net"
     "time"
+    "bytes"
     "reflect"
     "encoding/binary"
     "container/list"
@@ -148,7 +149,7 @@ type remoteClientSession struct {
     server *defaultServiceServer
     conn      net.Conn
     quitChan  chan struct{}
-    responseChan chan Message
+    responseChan chan []byte
     errorChan chan error
 }
 
@@ -157,7 +158,7 @@ func newRemoteClientSession(s *defaultServiceServer, conn net.Conn) *remoteClien
     session := new(remoteClientSession)
     session.server = s
     session.conn = conn
-    session.responseChan = make(chan Message)
+    session.responseChan = make(chan []byte)
     session.errorChan = make(chan error)
     return session
 }
@@ -242,7 +243,8 @@ func (s *remoteClientSession) start() {
 
     s.server.node.jobChan <- func() {
         srv := s.server.srvType.NewService()
-        err := srv.ReqMessage().Deserialize(resBuffer)
+        reader := bytes.NewReader(resBuffer)
+        err := srv.ReqMessage().Deserialize(reader)
         if err != nil {
             s.errorChan <- err
         }
@@ -258,7 +260,9 @@ func (s *remoteClientSession) start() {
         result := results[0]
         if result.IsNil() {
             logger.Debug("Service callback success")
-            s.responseChan <- srv.ResMessage()
+            var buf bytes.Buffer
+            _ = srv.ResMessage().Serialize(&buf)
+            s.responseChan <- buf.Bytes()
         } else {
             logger.Debug("Service callback failure")
             if err, ok := result.Interface().(error); ok {
@@ -271,7 +275,7 @@ func (s *remoteClientSession) start() {
 
     timeoutChan := time.After(1000 * time.Millisecond)
     select {
-    case res := <- s.responseChan:
+    case resMsg := <- s.responseChan:
         // 4. Write OK byte 
         var ok byte = 1
         conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
@@ -279,13 +283,12 @@ func (s *remoteClientSession) start() {
             panic(err)
         }
         // 5. Write response
-        resMsg := res.Serialize()
+        logger.Debug(len(resMsg))
         size := uint32(len(resMsg))
         conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
         if err := binary.Write(conn, binary.LittleEndian, size); err != nil {
             panic(err)
         }
-        logger.Debug(len(resMsg))
         conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
         if _, err := conn.Write(resMsg); err != nil {
             panic(err)

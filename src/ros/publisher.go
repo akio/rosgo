@@ -9,6 +9,7 @@ import (
     "net"
     "sync"
     "time"
+    "bytes"
 )
 
 
@@ -140,7 +141,9 @@ func (pub *defaultPublisher) listenRemoteSubscriber() {
 }
 
 func (pub *defaultPublisher) Publish(msg Message) {
-    pub.msgChan <- msg.Serialize()
+    var buf bytes.Buffer
+    _ = msg.Serialize(&buf)
+    pub.msgChan <- buf.Bytes()
 }
 
 func (pub *defaultPublisher) Shutdown() {

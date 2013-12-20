@@ -15,6 +15,7 @@ find_package(catkin REQUIRED)
 ## See http://ros.org/doc/groovy/api/catkin/html/user_guide/setup_dot_py.html
 # catkin_python_setup()
 
+
 #######################################
 ## Declare ROS messages and services ##
 #######################################
@@ -52,7 +53,10 @@ catkin_package(
 #  LIBRARIES rosgo
 #  CATKIN_DEPENDS other_catkin_pkg
 #  DEPENDS system_lib
+   CFG_EXTRAS rosgo-extras.cmake
 )
+
+catkin_add_env_hooks("99.", bash zsh tcsh DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/env-hooks)
 
 ###########
 ## Build ##
@@ -78,6 +82,39 @@ catkin_package(
 # target_link_libraries(rosgo_node
 #   ${catkin_LIBRARIES}
 # )
+
+set(ROSGO_ROOT "${CATKIN_DEVEL_PREFIX}/go")
+file(MAKE_DIRECTORY ${ROSGO_ROOT})
+
+set(ROSGO_PATH "${PROJECT_SOURCE_DIR}:${ROSGO_ROOT}")
+message(STATUS "ROSGO_PATH=${ROSGO_PATH}")
+
+set(ROSGO_SRC ${ROSGO_ROOT}/src)
+file(MAKE_DIRECTORY ${ROSGO_SRC})
+
+set(ROSGO_BIN ${ROSGO_ROOT}/bin)
+file(MAKE_DIRECTORY ${ROSGO_BIN})
+
+execute_process(
+    COMMAND go env GOARCH
+    OUTPUT_VARIABLE ROSGO_ARCH
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(
+    COMMAND go env GOOS
+    OUTPUT_VARIABLE ROSGO_OS
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+set(ROSGO_PKG ${ROSGO_ROOT}/pkg/${ROSGO_OS}_${ROSGO_ARCH})
+file(MAKE_DIRECTORY ${ROSGO_PKG})
+
+add_custom_command(
+    OUTPUT xmlrpc.a
+    COMMAND env GOPATH="${ROSGO_PATH}" go build -o ${ROSGO_PKG}/xmlrpc.a xmlrpc)
+add_custom_target(${PROJECT_NAME}_xmlrpc ALL DEPENDS xmlrpc.a)
+
+add_custom_command(
+    OUTPUT ros.a
+    COMMAND env GOPATH="${ROSGO_PATH}" go build -o ${ROSGO_PKG}/ros.a ros)
+add_custom_target(${PROJECT_NAME}_ros ALL DEPENDS ros.a)
 
 #############
 ## Install ##
@@ -113,6 +150,7 @@ catkin_package(
 #   # myfile2
 #   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 # )
+
 
 #############
 ## Testing ##

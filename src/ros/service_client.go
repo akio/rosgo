@@ -6,6 +6,7 @@ import (
     "net"
     "net/url"
     "time"
+    "bytes"
     "errors"
     "encoding/binary"
 )
@@ -89,7 +90,9 @@ func (c *defaultServiceClient) Call(srv Service) error {
     }
 
     // 3. Send request
-    reqMsg := srv.ReqMessage().Serialize()
+    var buf bytes.Buffer
+    _ = srv.ReqMessage().Serialize(&buf)
+    reqMsg := buf.Bytes()
     size := uint32(len(reqMsg))
     conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
     if err := binary.Write(conn, binary.LittleEndian, size); err != nil {
@@ -137,7 +140,8 @@ func (c *defaultServiceClient) Call(srv Service) error {
     if _, err = io.ReadFull(conn, resBuffer); err != nil {
         return err
     }
-    if err := srv.ResMessage().Deserialize(resBuffer); err != nil {
+    resReader := bytes.NewReader(resBuffer)
+    if err := srv.ResMessage().Deserialize(resReader); err != nil {
         return err
     }
     return nil
