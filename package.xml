@@ -13,7 +13,7 @@
   <!-- One license tag required, multiple allowed, one license per tag -->
   <!-- Commonly used license strings: -->
   <!--   BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3 -->
-  <license>Apache 2.0</license>
+  <license>Apache License 2.0</license>
 
 
   <!-- Url tags are optional, but mutiple are allowed, one per tag -->
@@ -41,6 +41,7 @@
   <!--   <test_depend>gtest</test_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
 
+  <build_depend>rosgo_build_tools</build_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

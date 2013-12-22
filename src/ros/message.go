@@ -5,7 +5,7 @@ import (
 )
 
 type MessageType interface {
-    Definition() string
+    Text() string
     MD5Sum() string
     Name() string
     NewMessage() Message
