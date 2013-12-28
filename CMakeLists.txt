@@ -4,7 +4,7 @@ project(rosgo_core)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS rosgo_build_tools)
+find_package(catkin REQUIRED COMPONENTS rosgo_build_tools gengo)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -127,6 +127,9 @@ catkin_rosgo_setup()
 
 rosgo_add_library(xmlrpc)
 rosgo_add_library(ros)
+
+rosgo_generate_message_in_package(std_msgs)
+rosgo_generate_message_in_package(rosgraph_msgs)
 
 #############
 ## Install ##

@@ -42,6 +42,7 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <build_depend>rosgo_build_tools</build_depend>
+  <build_depend>gengo</build_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
