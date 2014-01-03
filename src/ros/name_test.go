@@ -5,73 +5,58 @@ import (
 )
 
 
-func TestResolution1(t *testing.T) {
-    var remapping Remapping
-    resolver := newNameResolver("/node1", remapping)
-    var result string
-
-    result = resolver.resolve("bar")
-    if result != "/bar" {
+func TestRelativeResolution(t *testing.T) {
+    resolver := newNameResolver("/node1", nil)
+    if resolver.resolve("bar") != "/bar" {
         t.Fail()
     }
 
-    result = resolver.resolve("/bar")
-    if result != "/bar" {
+    resolver := newNameResolver("/go/node1", nil)
+    if resolver.resolve("bar") != "/go/bar" {
         t.Fail()
     }
 
-    result = resolver.resolve("~bar")
-    if result != "/node1/bar" {
+    if resolver.resolve("foo/bar") != "/bar" {
         t.Fail()
     }
 }
 
 
-func TestResolution2(t *testing.T) {
-    var remapping Remapping
-    resolver := newNameResolver("/go/node2", remapping)
-    var result string
-
-    result = resolver.resolve("bar")
-    if result != "/go/bar" {
+func TestGlobalResolution(t *testing.T) {
+    resolver := newNameResolver("/node1", nil)
+    if resolver.resolve("/bar") != "/bar" {
         t.Fail()
     }
 
-    result = resolver.resolve("/bar")
-    if result != "/bar" {
+    resolver := newNameResolver("/go/node1", nil)
+    if resolver.resolve("/bar") != "/bar" {
         t.Fail()
     }
 
-    result = resolver.resolve("~bar")
-    if result != "/go/node2/bar" {
+    if resolver.resolve("/foo/bar") != "/bar" {
         t.Fail()
     }
 }
 
 
-func TestResolution3(t *testing.T) {
-    var remapping Remapping
-    resolver := newNameResolver("/go/node3", remapping)
-    var result string
-
-    result = resolver.resolve("foo/bar")
-    if result != "/go/foo/bar" {
+func TestPrivateResolution(t *testing.T) {
+    resolver := newNameResolver("/node1", nil)
+    if resolver.resolve("~bar") != "/node1/bar" {
         t.Fail()
     }
 
-    result = resolver.resolve("/foo/bar")
-    if result != "/foo/bar" {
+    resolver := newNameResolver("/go/node1", nil)
+    if resolver.resolve("~bar") != "/go/node1/bar" {
         t.Fail()
     }
 
-    result = resolver.resolve("~foo/bar")
-    if result != "/go/node3/foo/bar" {
+    if resolver.resolve("~foo/bar") != "/go/node1/foo/bar" {
         t.Fail()
     }
 }
 
 
-func TestRemapping1(t *testing.T) {
+func TestRemappingRelativeToRelative(t *testing.T) {
     remapping := map[string]string {
         "foo": "bar",
     }
@@ -79,39 +64,27 @@ func TestRemapping1(t *testing.T) {
     resolver := newNameResolver("/", remapping)
     var result string
 
-    result = resolver.resolve("foo")
-    if result != "/bar" {
+    if resolver.resolve("foo") != "/bar" {
         t.Fail()
     }
 
-    result = resolver.resolve("/foo")
-    if result != "/bar" {
-        t.Fail()
-    }
-}
-
-
-func TestRemapping2(t *testing.T) {
-    remapping := map[string]string {
-        "foo": "bar",
-    }
-
-    resolver := newNameResolver("/baz", remapping)
-    var result string
-
-    result = resolver.resolve("foo")
-    if result != "/baz/bar" {
+    if resolver.resolve("/foo") != "/bar" {
         t.Fail()
     }
 
-    result = resolver.resolve("/baz/foo")
-    if result != "/baz/bar" {
+    resolver = newNameResolver("/baz", remapping)
+
+    if resolver.resolve("foo") != "/baz/bar" {
+        t.Fail()
+    }
+
+    if resolver.resolve("/baz/foo") != "/baz/bar" {
         t.Fail()
     }
 }
 
 
-func TestRemapping3(t *testing.T) {
+func TestRemappingGlobalToRelative(t *testing.T) {
     remapping := map[string]string {
         "/foo": "bar",
     }
@@ -119,34 +92,23 @@ func TestRemapping3(t *testing.T) {
     resolver := newNameResolver("/", remapping)
     var result string
 
-    result = resolver.resolve("foo")
-    if result != "/bar" {
+    if resolver.resolve("foo") != "/bar" {
         t.Fail()
     }
 
-    result = resolver.resolve("/foo")
-    if result != "/bar" {
+    if resolver.resolve("/foo") != "/bar" {
         t.Fail()
-    }
-}
-
-
-func TestRemapping4(t *testing.T) {
-    remapping := map[string]string {
-        "/foo": "bar",
     }
 
     resolver := newNameResolver("/baz", remapping)
-    var result string
 
-    result = resolver.resolve("/foo")
-    if result != "/baz/bar" {
+    if resolver.resolve("/foo") != "/baz/bar" {
         t.Fail()
     }
 }
 
 
-func TestRemapping5(t *testing.T) {
+func TestRemappingGlobalToGlobal(t *testing.T) {
     remapping := map[string]string {
         "/foo": "/a/b/c/bar",
     }
@@ -154,13 +116,9 @@ func TestRemapping5(t *testing.T) {
     resolver := newNameResolver("/baz", remapping)
     var result string
 
-    result = resolver.resolve("/foo")
-    if result != "/a/b/c/bar" {
+    if resolver.resolve("/foo") != "/a/b/c/bar" {
         t.Fail()
     }
 }
 
 
-func TestRemapping(t *testing.T) {
-
-}
