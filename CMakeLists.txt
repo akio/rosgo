@@ -55,7 +55,6 @@ catkin_package(
 #  DEPENDS system_lib
 )
 
-catkin_rosgo_setup()
 
 ###########
 ## Build ##
@@ -125,11 +124,12 @@ catkin_rosgo_setup()
 #    set(ENV{GOPATH} "${PROJECT_SOURCE_DIR}:${ROSGO_ROOT}")
 #endif()
 
-rosgo_add_library(xmlrpc)
-rosgo_add_library(ros)
 
-rosgo_generate_message_in_package(std_msgs)
-rosgo_generate_message_in_package(rosgraph_msgs)
+rosgo_setup()
+
+rosgo_force_generate_messages(std_msgs rosgraph_msgs)
+rosgo_add_library(${PROJECT_NAME}_ros ros
+                  DEPENDS std_msgs_gengo rosgraph_msgs_gengo)
 
 #############
 ## Install ##
@@ -165,17 +165,6 @@ rosgo_generate_message_in_package(rosgraph_msgs)
 #   # myfile2
 #   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 # )
-
-install(
-    FILES ${rosgo} ${xmlrpc}
-    DESTINATION ${ROSGO_PKG}
-)
-        
-install(
-    DIRECTORY src/xmlrpc src/ros DESTINATION ${ROSGO_SRC}
-    PATTERN "*.go"
-    PATTERN "*_test.go" EXCLUDE 
-)
 
 
 #############
