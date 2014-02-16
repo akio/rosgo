@@ -4,7 +4,9 @@ import (
     "testing"
 )
 
+
 func TestResolution1(t *testing.T) {
+    remapping := map[string]string{}
     resolver := newNameResolver("/node1", remapping)
     var result string
 
@@ -24,7 +26,9 @@ func TestResolution1(t *testing.T) {
     }
 }
 
+
 func TestResolution2(t *testing.T) {
+    remapping := map[string]string{}
     resolver := newNameResolver("/go/node2", remapping)
     var result string
 
@@ -44,7 +48,9 @@ func TestResolution2(t *testing.T) {
     }
 }
 
+
 func TestResolution3(t *testing.T) {
+    remapping := map[string]string{}
     resolver := newNameResolver("/go/node3", remapping)
     var result string
 
@@ -156,5 +162,5 @@ func TestRemapping5(t *testing.T) {
 
 
 func TestRemapping(t *testing.T) {
-
+    t.Fail()
 }

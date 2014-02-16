@@ -125,11 +125,16 @@ catkin_package(
 #endif()
 
 
-rosgo_setup()
-
 rosgo_force_generate_messages(std_msgs rosgraph_msgs)
-rosgo_add_library(${PROJECT_NAME}_ros ros
-                  DEPENDS std_msgs_gengo rosgraph_msgs_gengo)
+rosgo_add_library(xmlrpc TARGET ${PROJECT_NAME}_xmlrpc)
+rosgo_add_library(
+        ros
+        TARGET ${PROJECT_NAME}
+        DEPENDS ${PROJECT_NAME}_xmlrpc std_msgs_gengo rosgraph_msgs_gengo
+    )
+
+rosgo_add_test(xmlrpc DEPENDS ${PROJECT_NAME}_xmlrpc)
+rosgo_add_test(ros DEPENDS ${PROJECT_NAME})
 
 #############
 ## Install ##
