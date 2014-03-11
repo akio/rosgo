@@ -64,67 +64,6 @@ catkin_package(
 ## Your package locations should be listed before other locations
 # include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 
-## Declare a cpp library
-# add_library(rosgo
-#   src/${PROJECT_NAME}/rosgo.cpp
-# )
-
-## Declare a cpp executable
-# add_executable(rosgo_node src/rosgo_node.cpp)
-
-## Add cmake target dependencies of the executable/library
-## as an example, message headers may need to be generated before nodes
-# add_dependencies(rosgo_node rosgo_generate_messages_cpp)
-
-## Specify libraries to link a library or executable target against
-# target_link_libraries(rosgo_node
-#   ${catkin_LIBRARIES}
-# )
-
-#set(ROSGO_ROOT "${CATKIN_DEVEL_PREFIX}/go")
-#file(MAKE_DIRECTORY ${ROSGO_ROOT})
-#
-#set(ROSGO_PATH "${PROJECT_SOURCE_DIR}:${ROSGO_ROOT}")
-#message(STATUS "ROSGO_PATH=${ROSGO_PATH}")
-#
-#set(ROSGO_SRC ${ROSGO_ROOT}/src)
-#file(MAKE_DIRECTORY ${ROSGO_SRC})
-#
-#set(ROSGO_BIN ${ROSGO_ROOT}/bin)
-#file(MAKE_DIRECTORY ${ROSGO_BIN})
-#
-#execute_process(
-#    COMMAND go env GOARCH
-#    OUTPUT_VARIABLE ROSGO_ARCH
-#    OUTPUT_STRIP_TRAILING_WHITESPACE)
-#execute_process(
-#    COMMAND go env GOOS
-#    OUTPUT_VARIABLE ROSGO_OS
-#    OUTPUT_STRIP_TRAILING_WHITESPACE)
-#set(ROSGO_PKG ${ROSGO_ROOT}/pkg/${ROSGO_OS}_${ROSGO_ARCH})
-#file(MAKE_DIRECTORY ${ROSGO_PKG})
-#
-#
-#set(xmlrpc ${PROJECT_SOURCE_DIR}/pkg/${ROSGO_OS}_${ROSGO_ARCH}/xmlrpc.a)
-#add_custom_command(
-#    OUTPUT ${xmlrpc}
-#    COMMAND env GOPATH="${PROEJCT_SOURCE_DIR}" go install xmlrpc)
-#add_custom_target(${PROJECT_NAME}_xmlrpc ALL DEPENDS ${xmlrpc})
-#
-#set(rosgo ${PROJECT_SOURCE_DIR}/pkg/${ROSGO_OS}_${ROSGO_ARCH}/ros.a)
-#add_custom_command(
-#    OUTPUT ${rosgo} 
-#    COMMAND env GOPATH="${PROJECT_SOURCE_DIR}" go install ros
-#    DEPENDS ${PROJECT_NAME}_xmlrpc)
-#add_custom_target(${PROJECT_NAME}_ros ALL DEPENDS ${rosgo})
-#
-#if(ENV{GOPATH})
-#    set(ENV{GOPATH} "${PROJECT_SOURCE_DIR}:${ROSGO_ROOT}:ENV{GOPATH}")
-#else()
-#    set(ENV{GOPATH} "${PROJECT_SOURCE_DIR}:${ROSGO_ROOT}")
-#endif()
-
-
 rosgo_force_generate_messages(std_msgs rosgraph_msgs)
 rosgo_add_library(xmlrpc TARGET ${PROJECT_NAME}_xmlrpc)
 rosgo_add_library(
@@ -132,7 +71,6 @@ rosgo_add_library(
         TARGET ${PROJECT_NAME}
         DEPENDS ${PROJECT_NAME}_xmlrpc std_msgs_gengo rosgraph_msgs_gengo
     )
-
 rosgo_add_test(xmlrpc DEPENDS ${PROJECT_NAME}_xmlrpc)
 rosgo_add_test(ros DEPENDS ${PROJECT_NAME})
 
