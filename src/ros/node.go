@@ -229,7 +229,7 @@ func (node *defaultNode) NewPublisher(topic string, msgType MessageType) Publish
             topic, msgType.Name(),
             node.xmlrpcUri)
         if err != nil {
-            logger.Fatalf("Failed to call registerPublishr(): %s", err)
+            logger.Fatalf("Failed to call registerPublisher(): %s", err)
         }
 
         pub = newDefaultPublisher(logger, node.qualifiedName, node.xmlrpcUri, node.masterUri, topic, msgType)
