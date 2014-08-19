@@ -64,7 +64,7 @@ catkin_package(
 ## Your package locations should be listed before other locations
 # include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 
-rosgo_force_generate_messages(std_msgs rosgraph_msgs)
+rosgo_generate_messages(std_msgs rosgraph_msgs)
 rosgo_add_library(xmlrpc TARGET ${PROJECT_NAME}_xmlrpc)
 rosgo_add_library(
         ros
