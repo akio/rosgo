@@ -162,6 +162,7 @@ type remoteSubscriberSession struct {
     conn               net.Conn
     nodeId             string
     topic              string
+    typeText           string
     md5sum             string
     typeName           string
     quitChan           chan struct{}
@@ -177,6 +178,7 @@ func newRemoteSubscriberSession(pub *defaultPublisher, conn net.Conn) *remoteSub
     session.conn = conn
     session.nodeId = pub.nodeId
     session.topic = pub.topic
+    session.typeText = pub.msgType.Text()
     session.md5sum = pub.msgType.MD5Sum()
     session.typeName = pub.msgType.Name()
     session.quitChan = make(chan struct{})
@@ -215,7 +217,7 @@ func (session *remoteSubscriberSession) start() {
     ssp := &singleSubPub{
         topic:   session.topic,
         msgChan: session.msgChan,
-        // callerId is filled in later after header gets read later in this function.
+        // callerId is filled in after header gets read later in this function.
     }
 
     defer func() {
@@ -224,7 +226,6 @@ func (session *remoteSubscriberSession) start() {
         if session.disconnectCallback != nil {
             session.disconnectCallback(ssp)
         }
-
     }()
     defer func() {
         if err := recover(); err != nil {
@@ -260,7 +261,11 @@ func (session *remoteSubscriberSession) start() {
 
     // 2. Return reponse header
     var resHeaders []header
+    resHeaders = append(resHeaders, header{"message_definition", session.typeText})
+    resHeaders = append(resHeaders, header{"callerid", session.nodeId})
+    resHeaders = append(resHeaders, header{"latching", "0"})
     resHeaders = append(resHeaders, header{"md5sum", session.md5sum})
+    resHeaders = append(resHeaders, header{"topic", session.topic})
     resHeaders = append(resHeaders, header{"type", session.typeName})
     logger.Debug("TCPROS Response Header")
     for _, h := range resHeaders {
