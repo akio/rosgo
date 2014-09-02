@@ -1,6 +1,7 @@
 package ros
 
 import (
+    "bytes"
     "encoding/binary"
     "fmt"
     "io"
@@ -8,8 +9,12 @@ import (
     "reflect"
     "sync"
     "time"
-    "bytes"
 )
+
+type messageEvent struct {
+    bytes []byte
+    event MessageEvent
+}
 
 // The subscription object runs in own goroutine (startSubscription).
 // Do not access any properties from other goroutine.
@@ -18,7 +23,7 @@ type defaultSubscriber struct {
     msgType          MessageType
     pubList          []string
     pubListChan      chan []string
-    msgChan          chan []byte
+    msgChan          chan messageEvent
     callbacks        []interface{}
     addCallbackChan  chan interface{}
     shutdownChan     chan struct{}
@@ -30,7 +35,7 @@ func newDefaultSubscriber(topic string, msgType MessageType, callback interface{
     sub := new(defaultSubscriber)
     sub.topic = topic
     sub.msgType = msgType
-    sub.msgChan = make(chan []byte, 10)
+    sub.msgChan = make(chan messageEvent, 10)
     sub.pubListChan = make(chan []string, 10)
     sub.addCallbackChan = make(chan interface{}, 10)
     sub.shutdownChan = make(chan struct{}, 10)
@@ -44,7 +49,7 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeId string, nodeApiUr
     logger.Debugf("Subscriber goroutine for %s started.", sub.topic)
     wg.Add(1)
     defer wg.Done()
-    defer func() { 
+    defer func() {
         logger.Debug("defaultSubscriber.start exit")
     }()
     for {
@@ -91,21 +96,24 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeId string, nodeApiUr
         case callback := <-sub.addCallbackChan:
             logger.Debug("Receive addCallbackChan")
             sub.callbacks = append(sub.callbacks, callback)
-        case chunk := <-sub.msgChan:
+        case msgEvent := <-sub.msgChan:
             // Pop received message then bind callbacks and enqueue to the job channle.
             logger.Debug("Receive msgChan")
             callbacks := make([]interface{}, len(sub.callbacks))
             copy(callbacks, sub.callbacks)
             jobChan <- func() {
                 m := sub.msgType.NewMessage()
-                reader := bytes.NewReader(chunk)
+                reader := bytes.NewReader(msgEvent.bytes)
                 if err := m.Deserialize(reader); err != nil {
                     logger.Error(err)
                 }
-                args := []reflect.Value{reflect.ValueOf(m)}
+                args := []reflect.Value{reflect.ValueOf(m), reflect.ValueOf(msgEvent.event)}
                 for _, callback := range callbacks {
                     fun := reflect.ValueOf(callback)
-                    fun.Call(args)
+                    num_args_needed := fun.Type().NumIn()
+                    if num_args_needed <= 2 {
+                        fun.Call(args[0:num_args_needed])
+                    }
                 }
             }
             logger.Debug("Callback job enqueued.")
@@ -128,11 +136,10 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeId string, nodeApiUr
     }
 }
 
-
 func startRemotePublisherConn(logger Logger,
     pubUri string, topic string, md5sum string,
     msgType string, nodeId string,
-    msgChan chan []byte,
+    msgChan chan messageEvent,
     quitChan chan struct{},
     disconnectedChan chan string) {
     logger.Debug("startRemotePublisherConn()")
@@ -177,6 +184,10 @@ func startRemotePublisherConn(logger Logger,
         logger.Fatalf("Incomatible message type!")
     }
     logger.Debug("Start receiving messages...")
+    event := MessageEvent{ // Event struct to be sent with each message.
+        PublisherName:    resHeaderMap["callerid"],
+        ConnectionHeader: resHeaderMap,
+    }
 
     // 3. Start reading messages
     readingSize := true
@@ -219,7 +230,8 @@ func startRemotePublisherConn(logger Logger,
                         return
                     }
                 }
-                msgChan <- buffer
+                event.ReceiptTime = time.Now()
+                msgChan <- messageEvent{bytes: buffer, event: event}
                 readingSize = true
             }
         }
@@ -229,4 +241,3 @@ func startRemotePublisherConn(logger Logger,
 func (sub *defaultSubscriber) Shutdown() {
     sub.shutdownChan <- struct{}{}
 }
-
