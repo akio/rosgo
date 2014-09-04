@@ -1,58 +1,50 @@
 package ros
 
-
 type Node interface {
-    NewPublisher(topic string, msgType MessageType) Publisher
-    NewSubscriber(topic string, msgType MessageType, callback interface{}) Subscriber
-    NewServiceClient(service string, srvType ServiceType) ServiceClient
-    NewServiceServer(service string, srvType ServiceType, callback interface{}) ServiceServer
+	NewPublisher(topic string, msgType MessageType) Publisher
+	NewSubscriber(topic string, msgType MessageType, callback interface{}) Subscriber
+	NewServiceClient(service string, srvType ServiceType) ServiceClient
+	NewServiceServer(service string, srvType ServiceType, callback interface{}) ServiceServer
 
-    OK() bool
-    SpinOnce()
-    Spin()
-    Shutdown()
+	OK() bool
+	SpinOnce()
+	Spin()
+	Shutdown()
 
-    GetParam(name string) (interface{}, error)
-    SetParam(name string, value interface{}) error
-    HasParam(name string) (bool, error)
-    SearchParam(name string) (string, error)
-    DeleteParam(name string) error
+	GetParam(name string) (interface{}, error)
+	SetParam(name string, value interface{}) error
+	HasParam(name string) (bool, error)
+	SearchParam(name string) (string, error)
+	DeleteParam(name string) error
 
-    Logger() Logger
+	Logger() Logger
 }
-
 
 func NewNode(name string) Node {
-    return newDefaultNode(name)
+	return newDefaultNode(name)
 }
-
 
 type Publisher interface {
-    Publish(msg Message)
-    Shutdown()
+	Publish(msg Message)
+	Shutdown()
 }
-
 
 type Subscriber interface {
-    Shutdown()
+	Shutdown()
 }
 
-
-type ServiceHandler interface {}
-
+type ServiceHandler interface{}
 
 type ServiceFactory interface {
-    Name() string
-    MD5Sum() string
+	Name() string
+	MD5Sum() string
 }
-
 
 type ServiceServer interface {
-    Shutdown()
+	Shutdown()
 }
 
-
 type ServiceClient interface {
-    Call(srv Service) error
-    Shutdown()
+	Call(srv Service) error
+	Shutdown()
 }
