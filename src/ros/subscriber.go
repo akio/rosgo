@@ -241,3 +241,7 @@ func startRemotePublisherConn(logger Logger,
 func (sub *defaultSubscriber) Shutdown() {
     sub.shutdownChan <- struct{}{}
 }
+
+func (sub *defaultSubscriber) GetNumPublishers() int {
+    return len(sub.pubList)
+}

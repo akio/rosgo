@@ -57,6 +57,7 @@ type SingleSubscriberPublisher interface {
 }
 
 type Subscriber interface {
+    GetNumPublishers() int
     Shutdown()
 }
 
