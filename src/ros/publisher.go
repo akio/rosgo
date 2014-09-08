@@ -22,22 +22,25 @@ func (e *remoteSubscriberSessionError) Error() string {
 }
 
 type defaultPublisher struct {
-	logger            Logger
-	nodeId            string
-	nodeApiUri        string
-	masterUri         string
-	topic             string
-	msgType           MessageType
-	msgChan           chan []byte
-	shutdownChan      chan struct{}
-	sessions          *list.List
-	sessionErrorChan  chan error
-	listenerErrorChan chan error
-	listener          net.Listener
+	logger             Logger
+	nodeId             string
+	nodeApiUri         string
+	masterUri          string
+	topic              string
+	msgType            MessageType
+	msgChan            chan []byte
+	shutdownChan       chan struct{}
+	sessions           *list.List
+	sessionErrorChan   chan error
+	listenerErrorChan  chan error
+	listener           net.Listener
+	connectCallback    func(SingleSubscriberPublisher)
+	disconnectCallback func(SingleSubscriberPublisher)
 }
 
 func newDefaultPublisher(logger Logger, nodeId string, nodeApiUri string,
-	masterUri string, topic string, msgType MessageType) *defaultPublisher {
+	masterUri string, topic string, msgType MessageType,
+	connectCallback, disconnectCallback func(SingleSubscriberPublisher)) *defaultPublisher {
 	pub := new(defaultPublisher)
 	pub.logger = logger
 	pub.nodeId = nodeId
@@ -50,6 +53,8 @@ func newDefaultPublisher(logger Logger, nodeId string, nodeApiUri string,
 	pub.listenerErrorChan = make(chan error, 10)
 	pub.sessionErrorChan = make(chan error, 10)
 	pub.sessions = list.New()
+	pub.connectCallback = connectCallback
+	pub.disconnectCallback = disconnectCallback
 	if listener, err := listenRandomPort("127.0.0.1", 10); err != nil {
 		panic(err)
 	} else {
@@ -154,15 +159,18 @@ func (pub *defaultPublisher) hostAndPort() (string, string) {
 }
 
 type remoteSubscriberSession struct {
-	conn      net.Conn
-	nodeId    string
-	topic     string
-	md5sum    string
-	typeName  string
-	quitChan  chan struct{}
-	msgChan   chan []byte
-	errorChan chan error
-	logger    Logger
+	conn               net.Conn
+	nodeId             string
+	topic              string
+	typeText           string
+	md5sum             string
+	typeName           string
+	quitChan           chan struct{}
+	msgChan            chan []byte
+	errorChan          chan error
+	logger             Logger
+	connectCallback    func(SingleSubscriberPublisher)
+	disconnectCallback func(SingleSubscriberPublisher)
 }
 
 func newRemoteSubscriberSession(pub *defaultPublisher, conn net.Conn) *remoteSubscriberSession {
@@ -170,20 +178,54 @@ func newRemoteSubscriberSession(pub *defaultPublisher, conn net.Conn) *remoteSub
 	session.conn = conn
 	session.nodeId = pub.nodeId
 	session.topic = pub.topic
+	session.typeText = pub.msgType.Text()
 	session.md5sum = pub.msgType.MD5Sum()
 	session.typeName = pub.msgType.Name()
 	session.quitChan = make(chan struct{})
 	session.msgChan = make(chan []byte, 10)
 	session.errorChan = pub.sessionErrorChan
 	session.logger = pub.logger
+	session.connectCallback = pub.connectCallback
+	session.disconnectCallback = pub.disconnectCallback
 	return session
+}
+
+type singleSubPub struct {
+	subName string
+	topic   string
+	msgChan chan []byte
+}
+
+func (ssp *singleSubPub) Publish(msg Message) {
+	var buf bytes.Buffer
+	_ = msg.Serialize(&buf)
+	ssp.msgChan <- buf.Bytes()
+}
+
+func (ssp *singleSubPub) GetSubscriberName() string {
+	return ssp.subName
+}
+
+func (ssp *singleSubPub) GetTopic() string {
+	return ssp.topic
 }
 
 func (session *remoteSubscriberSession) start() {
 	logger := session.logger
 	logger.Debug("remoteSubscriberSession.start enter")
+
+	ssp := &singleSubPub{
+		topic:   session.topic,
+		msgChan: session.msgChan,
+		// callerId is filled in after header gets read later in this function.
+	}
+
 	defer func() {
 		logger.Debug("remoteSubscriberSession.start exit")
+
+		if session.disconnectCallback != nil {
+			session.disconnectCallback(ssp)
+		}
 	}()
 	defer func() {
 		if err := recover(); err != nil {
@@ -212,10 +254,18 @@ func (session *remoteSubscriberSession) start() {
 	if headerMap["type"] != session.typeName || headerMap["md5sum"] != session.md5sum {
 		panic(errors.New("Incomatible message type!"))
 	}
+	ssp.subName = headerMap["callerid"]
+	if session.connectCallback != nil {
+		go session.connectCallback(ssp)
+	}
 
 	// 2. Return reponse header
 	var resHeaders []header
+	resHeaders = append(resHeaders, header{"message_definition", session.typeText})
+	resHeaders = append(resHeaders, header{"callerid", session.nodeId})
+	resHeaders = append(resHeaders, header{"latching", "0"})
 	resHeaders = append(resHeaders, header{"md5sum", session.md5sum})
+	resHeaders = append(resHeaders, header{"topic", session.topic})
 	resHeaders = append(resHeaders, header{"type", session.typeName})
 	logger.Debug("TCPROS Response Header")
 	for _, h := range resHeaders {
