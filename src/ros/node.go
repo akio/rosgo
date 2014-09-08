@@ -225,7 +225,7 @@ func (node *defaultNode) NewPublisher(topic string, msgType MessageType) Publish
 }
 
 func (node *defaultNode) NewPublisherWithCallbacks(topic string, msgType MessageType,
-	connect_cb, disconnect_cb func(SingleSubscriberPublisher)) Publisher {
+	connectCallback, disconnectCallback func(SingleSubscriberPublisher)) Publisher {
     pub, ok := node.publishers[topic]
     logger := node.logger
     if !ok {
@@ -237,7 +237,7 @@ func (node *defaultNode) NewPublisherWithCallbacks(topic string, msgType Message
             logger.Fatalf("Failed to call registerPublisher(): %s", err)
         }
 
-        pub = newDefaultPublisher(logger, node.qualifiedName, node.xmlrpcUri, node.masterUri, topic, msgType, connect_cb, disconnect_cb)
+        pub = newDefaultPublisher(logger, node.qualifiedName, node.xmlrpcUri, node.masterUri, topic, msgType, connectCallback, disconnectCallback)
         node.publishers[topic] = pub
         go pub.start(&node.waitGroup)
     }
