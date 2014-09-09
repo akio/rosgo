@@ -4,6 +4,48 @@ import (
 	"testing"
 )
 
+func TestNameValidation(t *testing.T) {
+	// Positive testing
+	positives := [...]string{
+		"foo",
+		"foo/",
+		"foo/bar",
+		"foo/bar/",
+		"foo_0/bar1_/",
+		"/foo",
+		"/foo/",
+		"/foo/bar",
+		"/foo/bar/",
+		"~foo",
+		"~foo/",
+		"~foo/bar",
+		"~foo/bar/",
+	}
+	for _, p := range positives {
+		if !IsValidName(p) {
+			t.Fail()
+		}
+	}
+
+	// Negative testing
+	negatives := [...]string{
+		"foo//bar",
+		"^foo//bar",
+		"//foo",
+		"0foo",
+		"_0foo",
+		"foo/0bar",
+		"foo/_bar",
+		"foo/~bar",
+		"foo bar",
+	}
+	for _, n := range negatives {
+		if IsValidName(n) {
+			t.Fail()
+		}
+	}
+}
+
 func TestResolution1(t *testing.T) {
 	remapping := map[string]string{}
 	resolver := newNameResolver("/node1", remapping)

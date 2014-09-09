@@ -1,5 +1,16 @@
 package ros
 
+import (
+	"regexp"
+)
+
+const (
+	Sep         = "/"
+	GlobalNS    = "/"
+	PrivateName = "~"
+	Remap       = ":="
+)
+
 type Remapping map[string]string
 
 type NameResolver struct {
@@ -16,4 +27,14 @@ func newNameResolver(namespace string, remapping Remapping) *NameResolver {
 
 func (n *NameResolver) resolve(name string) string {
 	return name
+}
+
+func IsValidName(name string) bool {
+	if len(name) == 0 {
+		return true
+	}
+	if matched, _ := regexp.MatchString("^[~/]?([a-zA-Z]\\w*/)*[a-zA-Z]\\w*/?$", name); !matched {
+		return false
+	}
+	return true
 }
