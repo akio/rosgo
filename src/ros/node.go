@@ -223,6 +223,11 @@ func (node *defaultNode) requestTopic(callerId string, topic string, protocols [
 }
 
 func (node *defaultNode) NewPublisher(topic string, msgType MessageType) Publisher {
+	return node.NewPublisherWithCallbacks(topic, msgType, nil, nil)
+}
+
+func (node *defaultNode) NewPublisherWithCallbacks(topic string, msgType MessageType,
+	connectCallback, disconnectCallback func(SingleSubscriberPublisher)) Publisher {
 	pub, ok := node.publishers[topic]
 	logger := node.logger
 	if !ok {
@@ -234,7 +239,7 @@ func (node *defaultNode) NewPublisher(topic string, msgType MessageType) Publish
 			logger.Fatalf("Failed to call registerPublisher(): %s", err)
 		}
 
-		pub = newDefaultPublisher(logger, node.qualifiedName, node.xmlrpcUri, node.masterUri, topic, msgType)
+		pub = newDefaultPublisher(logger, node.qualifiedName, node.xmlrpcUri, node.masterUri, topic, msgType, connectCallback, disconnectCallback)
 		node.publishers[topic] = pub
 		go pub.start(&node.waitGroup)
 	}
