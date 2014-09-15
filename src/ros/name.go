@@ -5,14 +5,13 @@ import (
 )
 
 const (
-	Sep         = "/"
-	GlobalNS    = "/"
-	PrivateName = "~"
-	Remap       = ":="
+	Sep       = '/'
+	GlobalNS  = '/'
+	PrivateNS = '~'
+	Remap     = ":="
 )
 
 type Remapping map[string]string
-
 type NameResolver struct {
 	namespace string
 	remapping Remapping
@@ -29,7 +28,7 @@ func (n *NameResolver) resolve(name string) string {
 	return name
 }
 
-func IsValidName(name string) bool {
+func isValidName(name string) bool {
 	if len(name) == 0 {
 		return true
 	}
@@ -37,4 +36,12 @@ func IsValidName(name string) bool {
 		return false
 	}
 	return true
+}
+
+func isGlobalName(name string) bool {
+	return len(name) > 0 && name[0] == GlobalNS
+}
+
+func isPrivateName(name string) bool {
+	return len(name) > 0 && name[0] == PrivateNS
 }

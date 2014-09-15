@@ -22,7 +22,7 @@ func TestNameValidation(t *testing.T) {
 		"~foo/bar/",
 	}
 	for _, p := range positives {
-		if !IsValidName(p) {
+		if !isValidName(p) {
 			t.Fail()
 		}
 	}
@@ -40,9 +40,31 @@ func TestNameValidation(t *testing.T) {
 		"foo bar",
 	}
 	for _, n := range negatives {
-		if IsValidName(n) {
+		if isValidName(n) {
 			t.Fail()
 		}
+	}
+}
+
+func TestSpecialNamespace(t *testing.T) {
+	if !isGlobalName("/foo") {
+		t.Fail()
+	}
+	if isGlobalName("~foo") {
+		t.Fail()
+	}
+	if isGlobalName("foo") {
+		t.Fail()
+	}
+
+	if isPrivateName("/foo") {
+		t.Fail()
+	}
+	if !isPrivateName("~foo") {
+		t.Fail()
+	}
+	if isPrivateName("foo") {
+		t.Fail()
 	}
 }
 
