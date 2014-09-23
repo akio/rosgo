@@ -46,6 +46,22 @@ func TestNameValidation(t *testing.T) {
 	}
 }
 
+
+func TestCanonicalize(t *testing.T) {
+    if canonicalizeName("/") != "/" {
+        t.Fail()
+    }
+
+    if canonicalizeName("/foo//bar/") != "/foo/bar" {
+        t.Fail()
+    }
+
+    if canonicalizeName("foo//bar///baz/") != "foo/bar/baz" {
+        t.Fail()
+    }
+}
+
+
 func TestSpecialNamespace(t *testing.T) {
 	if !isGlobalName("/foo") {
 		t.Fail()
@@ -219,3 +235,4 @@ func TestRemapping5(t *testing.T) {
 func TestRemapping(t *testing.T) {
 	t.Fail()
 }
+
