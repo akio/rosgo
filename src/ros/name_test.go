@@ -7,6 +7,9 @@ import (
 func TestNameValidation(t *testing.T) {
 	// Positive testing
 	positives := [...]string{
+		"",
+		"/",
+		"~",
 		"foo",
 		"foo/",
 		"foo/bar",
@@ -23,7 +26,7 @@ func TestNameValidation(t *testing.T) {
 	}
 	for _, p := range positives {
 		if !isValidName(p) {
-			t.Fail()
+			t.Error(p)
 		}
 	}
 
@@ -41,11 +44,10 @@ func TestNameValidation(t *testing.T) {
 	}
 	for _, n := range negatives {
 		if isValidName(n) {
-			t.Fail()
+			t.Error(n)
 		}
 	}
 }
-
 
 func TestCanonicalize(t *testing.T) {
     if canonicalizeName("/") != "/" {
@@ -60,7 +62,6 @@ func TestCanonicalize(t *testing.T) {
         t.Fail()
     }
 }
-
 
 func TestSpecialNamespace(t *testing.T) {
 	if !isGlobalName("/foo") {
@@ -235,4 +236,3 @@ func TestRemapping5(t *testing.T) {
 func TestRemapping(t *testing.T) {
 	t.Fail()
 }
-

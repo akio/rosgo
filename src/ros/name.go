@@ -33,6 +33,9 @@ func isValidName(name string) bool {
 	if len(name) == 0 {
 		return true
 	}
+	if name == "/" || name == "~" {
+		return true
+	}
 	if matched, _ := regexp.MatchString("^[~/]?([a-zA-Z]\\w*/)*[a-zA-Z]\\w*/?$", name); !matched {
 		return false
 	}
@@ -64,4 +67,3 @@ func canonicalizeName(name string) string {
         }
     }
 }
-
