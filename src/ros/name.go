@@ -2,7 +2,7 @@ package ros
 
 import (
 	"regexp"
-    "strings"
+	"strings"
 )
 
 const (
@@ -43,27 +43,27 @@ func isValidName(name string) bool {
 }
 
 func isGlobalName(name string) bool {
-    return len(name) > 0 && name[0:1] == GlobalNS
+	return len(name) > 0 && name[0:1] == GlobalNS
 }
 
 func isPrivateName(name string) bool {
-    return len(name) > 0 && name[0:1] == PrivateNS
+	return len(name) > 0 && name[0:1] == PrivateNS
 }
 
 func canonicalizeName(name string) string {
-    if name == GlobalNS {
-        return name
-    } else {
-        components := []string{}
-        for _, word := range strings.Split(name, Sep) {
-            if len(word) > 0 {
-                components = append(components, word)
-            }
-        }
-        if name[0:1] == GlobalNS {
-            return GlobalNS + strings.Join(components, Sep)
-        } else {
-            return strings.Join(components, Sep)
-        }
-    }
+	if name == GlobalNS {
+		return name
+	} else {
+		components := []string{}
+		for _, word := range strings.Split(name, Sep) {
+			if len(word) > 0 {
+				components = append(components, word)
+			}
+		}
+		if name[0:1] == GlobalNS {
+			return GlobalNS + strings.Join(components, Sep)
+		} else {
+			return strings.Join(components, Sep)
+		}
+	}
 }
