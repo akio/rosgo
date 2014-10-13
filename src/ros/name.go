@@ -67,3 +67,33 @@ func canonicalizeName(name string) string {
 		}
 	}
 }
+
+type nodeArguments struct {
+	remapping   map[string]string
+	params      map[string]string
+	specialKeys map[string]string
+}
+
+func processArguments(args []string) (map[string]string, map[string]string, map[string]string, []string) {
+	mapping := make(map[string]string)
+	params := make(map[string]string)
+	specials := make(map[string]string)
+	rest := make([]string, 0)
+	for _, arg := range args {
+		components := strings.Split(arg, Remap)
+		if len(components) == 2 {
+			key := components[0]
+			value := components[1]
+			if strings.HasPrefix(key, "__") {
+				specials[key] = value
+			} else if strings.HasPrefix(key, "_") {
+				params[key] = value
+			} else {
+				mapping[key] = value
+			}
+		} else {
+			rest = append(rest, arg)
+		}
+	}
+	return mapping, params, specials, rest
+}

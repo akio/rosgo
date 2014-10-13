@@ -236,3 +236,30 @@ func TestRemapping5(t *testing.T) {
 func TestRemapping(t *testing.T) {
 	t.Fail()
 }
+
+func TestProcessArguments(t *testing.T) {
+	args := []string{
+		"foo:=bar",
+		"_param:=value",
+		"__master:=http://localhost:11311",
+		"foo",
+		"42",
+	}
+
+	mapping, params, specials, rest := processArguments(args)
+	if mapping["foo"] != "bar" {
+		t.Fail()
+	}
+	if params["_param"] != "value" {
+		t.Fail()
+	}
+	if specials["__master"] != "http://localhost:11311" {
+		t.Fail()
+	}
+	if len(rest) != 2 {
+		t.Fail()
+	}
+	if rest[0] != "foo" || rest[1] != "42" {
+		t.Fail()
+	}
+}
