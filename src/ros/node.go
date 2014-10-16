@@ -274,7 +274,7 @@ func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callba
 
 		logger.Debugf("Publisher URI list: ", publishers)
 
-		sub := newDefaultSubscriber(topic, msgType, callback)
+		sub = newDefaultSubscriber(topic, msgType, callback)
 		node.subscribers[topic] = sub
 
 		logger.Debugf("Start subscriber goroutine for topic '%s'", sub.topic)

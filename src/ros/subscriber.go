@@ -59,6 +59,7 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeId string, nodeApiUr
 			logger.Debug("Receive pubListChan")
 			deadPubs := setDifference(sub.pubList, list)
 			newPubs := setDifference(list, sub.pubList)
+			sub.pubList = list
 
 			for _, pub := range deadPubs {
 				quitChan := sub.connections[pub]
@@ -70,6 +71,7 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeId string, nodeApiUr
 				result, err := callRosApi(pub, "requestTopic", nodeId, sub.topic, protocols)
 				if err != nil {
 					logger.Fatal(err)
+					continue
 				}
 				protocolParams := result.([]interface{})
 				for _, x := range protocolParams {

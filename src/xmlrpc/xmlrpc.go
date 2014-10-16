@@ -6,9 +6,12 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+//	"io"
 	"net/http"
+//	"os"
 	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -164,182 +167,210 @@ func expectNextTag(d *xml.Decoder, name string) (xml.StartElement, error) {
 	return xml.StartElement{}, errors.New("Element name mismatch")
 }
 
+// Parse a value after the <value> tag has been read.  On (non-error)
+// return, the </value> closing tag will have been read.
 func parseValue(d *xml.Decoder) (interface{}, error) {
-	t, e := nextTag(d)
+	token, e := d.Token()
+	//	t, e := nextTag(d)
 	if e != nil {
 		return nil, e
 	}
 
-	switch t.Name.Local {
-	case "boolean":
-		token, e := d.Token()
-		if e != nil {
-			return nil, e
-		}
-		data, ok := token.(xml.CharData)
-		if !ok {
-			return nil, errors.New("boolean: Not a CharData")
-		}
-		var i int64
-		i, e = strconv.ParseInt(string(data), 10, 4)
-		if e != nil {
-			return nil, e
-		}
-		switch i {
-		case 0:
-			d.Skip()
-			return false, nil
-		case 1:
-			d.Skip()
-			return true, nil
-		default:
-			return nil, errors.New("Parse error")
-		}
-	case "i4", "int":
-		token, e := d.Token()
-		if e != nil {
-			return nil, e
-		}
-		data, ok := token.(xml.CharData)
-		if !ok {
-			return nil, errors.New("int: Not a CharData")
-		}
-		var i int64
-		i, e = strconv.ParseInt(string(data), 0, 32)
-		if e != nil {
-			return nil, e
-		}
-		d.Skip()
-		return int32(i), nil
-	case "double":
-		token, e := d.Token()
-		if e != nil {
-			return nil, e
-		}
-		data, ok := token.(xml.CharData)
-		if !ok {
-			return nil, errors.New("double: Not a CharData")
-		}
-		var f float64
-		f, e = strconv.ParseFloat(string(data), 64)
-		if e != nil {
-			return nil, e
-		}
-		d.Skip()
-		return f, nil
-	case "string":
-		token, e := d.Token()
-		if e != nil {
-			return nil, e
-		}
-		data, ok := token.(xml.CharData)
-		if ok {
-			s := string(data.Copy())
-			d.Skip()
-			return s, nil
-		} else {
-			var end xml.EndElement
-			end, ok = token.(xml.EndElement)
-			if ok && end.Name.Local == "string" {
-				return "", nil
+	switch t := token.(type) {
+	case xml.StartElement:
+		switch t.Name.Local {
+		case "boolean":
+			token, e := d.Token()
+			if e != nil {
+				return nil, e
+			}
+			data, ok := token.(xml.CharData)
+			if !ok {
+				return nil, errors.New("boolean: Not a CharData")
+			}
+			var i int64
+			i, e = strconv.ParseInt(string(data), 10, 4)
+			if e != nil {
+				return nil, e
+			}
+			switch i {
+			case 0:
+				d.Skip() // </bool>
+				d.Skip() // </value>
+				return false, nil
+			case 1:
+				d.Skip() // </bool>
+				d.Skip() // </value>
+				return true, nil
+			default:
+				return nil, errors.New("Parse error")
+			}
+		case "i4", "int":
+			token, e := d.Token()
+			if e != nil {
+				return nil, e
+			}
+			data, ok := token.(xml.CharData)
+			if !ok {
+				return nil, errors.New("int: Not a CharData")
+			}
+			var i int64
+			i, e = strconv.ParseInt(string(data), 0, 32)
+			if e != nil {
+				return nil, e
+			}
+			d.Skip() // </i4> or </int>
+			d.Skip() // </value>
+			return int32(i), nil
+		case "double":
+			token, e := d.Token()
+			if e != nil {
+				return nil, e
+			}
+			data, ok := token.(xml.CharData)
+			if !ok {
+				return nil, errors.New("double: Not a CharData")
+			}
+			var f float64
+			f, e = strconv.ParseFloat(string(data), 64)
+			if e != nil {
+				return nil, e
+			}
+			d.Skip() // </double>
+			d.Skip() // </value>
+			return f, nil
+		case "string":
+			token, e := d.Token()
+			if e != nil {
+				return nil, e
+			}
+			data, ok := token.(xml.CharData)
+			if ok {
+				s := string(data.Copy())
+				d.Skip() // </string>
+				d.Skip() // </value>
+				return s, nil
 			} else {
-				return nil, errors.New("string: parse error")
+				var end xml.EndElement
+				end, ok = token.(xml.EndElement)
+				if ok && end.Name.Local == "string" {
+					d.Skip() // </value>
+					return "", nil
+				} else {
+					return nil, errors.New("string: parse error")
+				}
 			}
-		}
-	case "dateTime.iso8601":
-		return nil, errors.New("Not supported")
-	case "base64":
-		token, e := d.Token()
-		if e != nil {
-			return nil, e
-		}
-		data, ok := token.(xml.CharData)
-		if !ok {
-			return nil, errors.New("base64: Not a CharData")
-		}
-		var bs []byte
-		bs, e = base64.StdEncoding.DecodeString(string(data))
-		if e != nil {
-			return nil, e
-		}
-		d.Skip()
-		return bs, nil
-	case "array":
-		_, e := expectNextTag(d, "data")
-		if e != nil {
-			return nil, e
-		}
-		var a []interface{}
-		for {
-			t, e := d.Token()
+		case "dateTime.iso8601":
+			return nil, errors.New("Not supported1")
+		case "base64":
+			token, e := d.Token()
 			if e != nil {
 				return nil, e
 			}
-			switch t.(type) {
-			case xml.StartElement:
-				elem, _ := t.(xml.StartElement)
-				if elem.Name.Local == "value" {
-					var val interface{}
-					val, e = parseValue(d)
-					if e != nil {
-						return nil, e
-					}
-					a = append(a, val)
-					d.Skip()
-				}
-			case xml.EndElement:
-				elem, _ := t.(xml.EndElement)
-				if elem.Name.Local == "array" {
-					return a, nil
-				}
+			data, ok := token.(xml.CharData)
+			if !ok {
+				return nil, errors.New("base64: Not a CharData")
 			}
-		}
-		return nil, errors.New("Not reached")
-	case "struct":
-		m := make(map[string]interface{})
-		var name string
-		var value interface{}
-		for {
-			t, e := d.Token()
+			var bs []byte
+			bs, e = base64.StdEncoding.DecodeString(string(data))
 			if e != nil {
 				return nil, e
 			}
-			switch t.(type) {
-			case xml.StartElement:
-				elem, _ := t.(xml.StartElement)
-				switch elem.Name.Local {
-				case "member":
-				case "name":
-					t, e = d.Token()
-					if e != nil {
-						return nil, e
-					}
-					data, ok := t.(xml.CharData)
-					if ok {
-						name = string(data)
-					} else {
-						return nil, errors.New("")
-					}
-				case "value":
-					value, e = parseValue(d)
-					if e != nil {
-						return nil, e
-					}
+			d.Skip() // </base64>
+			d.Skip() // </value>
+			return bs, nil
+		case "array":
+			_, e := expectNextTag(d, "data")
+			if e != nil {
+				return nil, e
+			}
+			var a []interface{}
+			for {
+				t, e := d.Token()
+				if e != nil {
+					return nil, e
 				}
-			case xml.EndElement:
-				elem, _ := t.(xml.EndElement)
-				switch elem.Name.Local {
-				case "member":
-					m[name] = value
-				case "struct":
-					return m, nil
+				switch t.(type) {
+				case xml.StartElement:
+					elem, _ := t.(xml.StartElement)
+					if elem.Name.Local == "value" {
+						var val interface{}
+						val, e = parseValue(d)
+						if e != nil {
+							return nil, e
+						}
+						a = append(a, val)
+					}
+				case xml.EndElement:
+					elem, _ := t.(xml.EndElement)
+					if elem.Name.Local == "array" {
+						d.Skip() // </value>
+						return a, nil
+					}
 				}
 			}
+			return nil, errors.New("Not reached")
+		case "struct":
+			m := make(map[string]interface{})
+			var name string
+			var value interface{}
+			for {
+				t, e := d.Token()
+				if e != nil {
+					return nil, e
+				}
+				switch t.(type) {
+				case xml.StartElement:
+					elem, _ := t.(xml.StartElement)
+					switch elem.Name.Local {
+					case "member":
+					case "name":
+						t, e = d.Token()
+						if e != nil {
+							return nil, e
+						}
+						data, ok := t.(xml.CharData)
+						if ok {
+							name = string(data)
+						} else {
+							return nil, errors.New("")
+						}
+					case "value":
+						value, e = parseValue(d)
+						if e != nil {
+							return nil, e
+						}
+					}
+				case xml.EndElement:
+					elem, _ := t.(xml.EndElement)
+					switch elem.Name.Local {
+					case "member":
+						m[name] = value
+					case "struct":
+						d.Skip() // </value>
+						return m, nil
+					}
+				}
+			}
+			return nil, errors.New("Not reached")
+		default:
+			return nil, errors.New("Not supported: t.Name.Local = " + t.Name.Local)
 		}
-		return nil, errors.New("Not reached")
-	default:
-		return nil, errors.New("Not supported")
+	case xml.CharData:
+		copy := t.Copy()
+		// spaces and newlines for pretty formatting of xml
+		// show up as chardata, so here we ignore them.
+		stripped := strings.TrimSpace(string(copy))
+		if stripped != "" {
+			d.Skip() // </value>
+			return string(copy), nil
+		} else {
+			return parseValue(d)
+		}
+	case xml.EndElement:
+		return "", nil
 	}
+
 	return nil, errors.New("Invalid data type")
 }
 
@@ -419,7 +450,6 @@ func parseResponse(d *xml.Decoder) (ok bool, result interface{}, e error) {
 		d.Skip()
 		d.Skip()
 		d.Skip()
-		d.Skip()
 		return
 	case "fault":
 		_, e = expectNextTag(d, "value")
@@ -431,7 +461,6 @@ func parseResponse(d *xml.Decoder) (ok bool, result interface{}, e error) {
 			return
 		}
 		ok = false
-		d.Skip()
 		d.Skip()
 		d.Skip()
 		return
@@ -459,6 +488,8 @@ func Call(url string, method string, args ...interface{}) (res interface{}, e er
 		return
 	}
 
+	// bodyReader := io.TeeReader(r.Body, os.Stdout)
+	// decoder := xml.NewDecoder(bodyReader)
 	decoder := xml.NewDecoder(r.Body)
 	ok, result, e := parseResponse(decoder)
 	if e != nil {
@@ -556,6 +587,7 @@ func (self *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		_, err = buffer.WriteTo(w)
 		return
 	}
+	w.Header().Set("Content-Length", strconv.Itoa(buffer.Len()))
 	_, err = buffer.WriteTo(w)
 	w.(http.Flusher).Flush()
 }
