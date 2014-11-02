@@ -3,9 +3,11 @@ package xmlrpc
 import (
 	"bytes"
 	"encoding/xml"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -204,8 +206,9 @@ func TestEmitFault(t *testing.T) {
 }
 
 func TestParseBoolean(t *testing.T) {
-	buffer := bytes.NewBufferString("<boolean>0</boolean><boolean>1</boolean>")
+	buffer := bytes.NewBufferString("<value><boolean>0</boolean></value><value><boolean>1</boolean></value>")
 	decoder := xml.NewDecoder(buffer)
+	_, _ = decoder.Token() // <value>
 	value, e := parseValue(decoder)
 	if e != nil {
 		t.Error(e)
@@ -218,6 +221,7 @@ func TestParseBoolean(t *testing.T) {
 		t.Error(x)
 	}
 
+	_, _ = decoder.Token() // <value>
 	value, e = parseValue(decoder)
 	if e != nil {
 		t.Error(e)
@@ -232,8 +236,9 @@ func TestParseBoolean(t *testing.T) {
 }
 
 func TestParseInt(t *testing.T) {
-	buffer := bytes.NewBufferString("<int>-432</int><i4>43</i4>")
+	buffer := bytes.NewBufferString("<value><int>-432</int></value><value><i4>43</i4></value>")
 	decoder := xml.NewDecoder(buffer)
+	_, _ = decoder.Token() // <value>
 	value, e := parseValue(decoder)
 	if e != nil {
 		t.Error(e)
@@ -246,6 +251,7 @@ func TestParseInt(t *testing.T) {
 		t.Error(x)
 	}
 
+	_, _ = decoder.Token() // <value>
 	value, e = parseValue(decoder)
 	if e != nil {
 		t.Error(e)
@@ -260,8 +266,9 @@ func TestParseInt(t *testing.T) {
 }
 
 func TestParseDouble(t *testing.T) {
-	buffer := bytes.NewBufferString("<double>-273.5</double><double>3.14</double>")
+	buffer := bytes.NewBufferString("<value><double>-273.5</double></value><value><double>3.14</double></value>")
 	decoder := xml.NewDecoder(buffer)
+	_, _ = decoder.Token() // <value>
 	value, e := parseValue(decoder)
 	if e != nil {
 		t.Error(e)
@@ -274,6 +281,7 @@ func TestParseDouble(t *testing.T) {
 		t.Error(x)
 	}
 
+	_, _ = decoder.Token() // <value>
 	value, e = parseValue(decoder)
 	if e != nil {
 		t.Error(e)
@@ -288,8 +296,9 @@ func TestParseDouble(t *testing.T) {
 }
 
 func TestParseString(t *testing.T) {
-	buffer := bytes.NewBufferString("<string>Hello, world!</string>")
+	buffer := bytes.NewBufferString("<value><string>Hello, world!</string></value>")
 	decoder := xml.NewDecoder(buffer)
+	_, _ = decoder.Token() // <value>
 	value, e := parseValue(decoder)
 	if e != nil {
 		t.Error(e)
@@ -304,8 +313,9 @@ func TestParseString(t *testing.T) {
 }
 
 func TestParseBase64(t *testing.T) {
-	buffer := bytes.NewBufferString("<base64>QUJDREVGRw==</base64>")
+	buffer := bytes.NewBufferString("<value><base64>QUJDREVGRw==</base64></value>")
 	decoder := xml.NewDecoder(buffer)
+	_, _ = decoder.Token() // <value>
 	value, e := parseValue(decoder)
 	if e != nil {
 		t.Error(e)
@@ -320,16 +330,17 @@ func TestParseBase64(t *testing.T) {
 }
 
 func TestParseArray(t *testing.T) {
-	source := `<array>
+	source := `<value><array>
                    <data>
                        <value><i4>12</i4></value>
                        <value><string>Egypt</string></value>
                        <value><boolean>0</boolean></value>
                        <value><i4>-31</i4></value>
                    </data>
-               </array>`
+               </array></value>`
 	buffer := bytes.NewBufferString(source)
 	decoder := xml.NewDecoder(buffer)
+	_, _ = decoder.Token() // <value>
 	value, e := parseValue(decoder)
 	if e != nil {
 		t.Error(e)
@@ -379,7 +390,7 @@ func TestParseArray(t *testing.T) {
 }
 
 func TestParseStruct(t *testing.T) {
-	source := `<struct>
+	source := `<value><struct>
                    <member>
                        <name>lowerBound</name>
                        <value><i4>18</i4></value>
@@ -388,9 +399,10 @@ func TestParseStruct(t *testing.T) {
                        <name>upperBound</name>
                        <value><i4>139</i4></value>
                    </member>
-               </struct>`
+               </struct></value>`
 	buffer := bytes.NewBufferString(source)
 	decoder := xml.NewDecoder(buffer)
+	_, _ = decoder.Token() // <value>
 	value, e := parseValue(decoder)
 	if e != nil {
 		t.Error(e)
@@ -498,6 +510,47 @@ func TestParseResponse(t *testing.T) {
 	}
 }
 
+func TestParseResponse2(t *testing.T) {
+	source := `<?xml version="1.0"?>
+<methodResponse><params><param>
+<value><array><data>
+  <value><i4>1</i4></value>
+  <value></value>
+  <value><array><data>
+    <value>TCPROS</value>
+    <value>hedgehog</value>
+    <value><i4>52060</i4></value>
+  </data></array></value>
+</data></array></value>
+</param></params></methodResponse>`
+	buffer := bytes.NewBufferString(source)
+	decoder := xml.NewDecoder(buffer)
+	ok, result, e := parseResponse(decoder)
+	if e != nil {
+		t.Error(e)
+		return
+	}
+	if !ok {
+		t.Error(e)
+		return
+	}
+	var outer []interface{}
+	outer, ok = result.([]interface{})
+	if !ok {
+		t.Error("Result should be an array.")
+	}
+	if len(outer) != 3 {
+		t.Errorf("Array len was %d, should be 3.", len(outer))
+	}
+	var i int32
+	i, ok = outer[0].(int32)
+	if !ok {
+		t.Error("First elem should be int.")
+	} else if i != 1 {
+		t.Errorf("First elem should be 1, was %d.", i)
+	}
+}
+
 func TestParseFault(t *testing.T) {
 	source := xml.Header
 	source += `<methodResponse>
@@ -530,7 +583,8 @@ func TestParseFault(t *testing.T) {
 	var m map[string]interface{}
 	m, ok = result.(map[string]interface{})
 	if !ok {
-		t.Error(e)
+		t.Error(fmt.Sprintf("expected map from string to interface, got: %v with value '%v'",
+			reflect.TypeOf(result), result))
 		return
 	}
 
