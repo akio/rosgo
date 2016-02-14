@@ -13,20 +13,79 @@ const (
 )
 
 type Remapping map[string]string
+
+func getNamespace(name string) string {
+	if len(name) == 0 {
+		return GlobalNS
+	} else if name[len(name)-1] == '/' {
+		name = name[:len(name)-1]
+	}
+	result := name[:strings.LastIndex(name, Sep)+1]
+	if len(result) == 0 {
+		return Sep
+	} else {
+		return result
+	}
+}
+
+func resolveName(name string, namespace string, mappings Remapping) string {
+	var resolvedName string
+
+	if len(name) == 0 {
+		return getNamespace(namespace)
+	}
+
+	canonName := canonicalizeName(name)
+	if isGlobalName(canonName) {
+		resolvedName = canonName
+	} else if isPrivateName(canonName) {
+		resolvedName = canonicalizeName(namespace + Sep + canonName[1:])
+	} else {
+		resolvedName = getNamespace(namespace) + canonName
+	}
+
+	if mappings != nil {
+		if remappedName, ok := mappings[resolvedName]; ok {
+			return remappedName
+		} else {
+			return resolvedName
+		}
+	} else {
+		return resolvedName
+	}
+}
+
 type NameResolver struct {
-	namespace string
-	remapping Remapping
+	namespace       string
+	mapping         Remapping
+	resolvedMapping Remapping
 }
 
 func newNameResolver(namespace string, remapping Remapping) *NameResolver {
 	n := new(NameResolver)
 	n.namespace = namespace
-	n.remapping = remapping
+	n.mapping = remapping
+	n.resolvedMapping = make(Remapping)
+
+	for k, v := range n.mapping {
+		newKey := resolveName(k, namespace, nil)
+		newValue := resolveName(v, namespace, nil)
+		n.resolvedMapping[newKey] = newValue
+	}
 	return n
 }
 
 func (n *NameResolver) resolve(name string) string {
-	return name
+	return resolveName(name, n.namespace, n.resolvedMapping)
+}
+
+func (n *NameResolver) remap(name string) string {
+	r := resolveName(name, n.namespace, n.resolvedMapping)
+	if remapped, ok := n.mapping[r]; ok {
+		return resolveName(remapped, n.namespace, n.resolvedMapping)
+	} else {
+		return r
+	}
 }
 
 func isValidName(name string) bool {
@@ -68,16 +127,10 @@ func canonicalizeName(name string) string {
 	}
 }
 
-type nodeArguments struct {
-	remapping   map[string]string
-	params      map[string]string
-	specialKeys map[string]string
-}
-
-func processArguments(args []string) (map[string]string, map[string]string, map[string]string, []string) {
-	mapping := make(map[string]string)
-	params := make(map[string]string)
-	specials := make(map[string]string)
+func processArguments(args []string) (Remapping, Remapping, Remapping, []string) {
+	mapping := make(Remapping)
+	params := make(Remapping)
+	specials := make(Remapping)
 	rest := make([]string, 0)
 	for _, arg := range args {
 		components := strings.Split(arg, Remap)

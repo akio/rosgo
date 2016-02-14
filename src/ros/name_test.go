@@ -86,70 +86,70 @@ func TestSpecialNamespace(t *testing.T) {
 }
 
 func TestResolution1(t *testing.T) {
-	remapping := map[string]string{}
+	remapping := Remapping{}
 	resolver := newNameResolver("/node1", remapping)
 	var result string
 
 	result = resolver.resolve("bar")
 	if result != "/bar" {
-		t.Fail()
+		t.Error(result)
 	}
 
 	result = resolver.resolve("/bar")
 	if result != "/bar" {
-		t.Fail()
+		t.Error(result)
 	}
 
 	result = resolver.resolve("~bar")
 	if result != "/node1/bar" {
-		t.Fail()
+		t.Error(result)
 	}
 }
 
 func TestResolution2(t *testing.T) {
-	remapping := map[string]string{}
+	remapping := Remapping{}
 	resolver := newNameResolver("/go/node2", remapping)
 	var result string
 
 	result = resolver.resolve("bar")
 	if result != "/go/bar" {
-		t.Fail()
+		t.Error(result)
 	}
 
 	result = resolver.resolve("/bar")
 	if result != "/bar" {
-		t.Fail()
+		t.Error(result)
 	}
 
 	result = resolver.resolve("~bar")
 	if result != "/go/node2/bar" {
-		t.Fail()
+		t.Error(result)
 	}
 }
 
 func TestResolution3(t *testing.T) {
-	remapping := map[string]string{}
+	remapping := Remapping{}
 	resolver := newNameResolver("/go/node3", remapping)
 	var result string
 
 	result = resolver.resolve("foo/bar")
 	if result != "/go/foo/bar" {
-		t.Fail()
+		t.Error(result)
 	}
 
 	result = resolver.resolve("/foo/bar")
 	if result != "/foo/bar" {
-		t.Fail()
+		t.Error(result)
 	}
 
 	result = resolver.resolve("~foo/bar")
 	if result != "/go/node3/foo/bar" {
-		t.Fail()
+		t.Error(result)
 	}
 }
 
 func TestRemapping1(t *testing.T) {
-	remapping := map[string]string{
+	remapping := Remapping{
 		"foo": "bar",
 	}
 
@@ -158,17 +158,17 @@ func TestRemapping1(t *testing.T) {
 
 	result = resolver.resolve("foo")
 	if result != "/bar" {
-		t.Fail()
+		t.Error(result)
 	}
 
 	result = resolver.resolve("/foo")
 	if result != "/bar" {
-		t.Fail()
+		t.Error(result)
 	}
 }
 
 func TestRemapping2(t *testing.T) {
-	remapping := map[string]string{
+	remapping := Remapping{
 		"foo": "bar",
 	}
 
@@ -177,17 +177,18 @@ func TestRemapping2(t *testing.T) {
 
 	result = resolver.resolve("foo")
 	if result != "/baz/bar" {
-		t.Fail()
+		t.Error(result)
+		t.Error(resolver.mapping)
 	}
 
 	result = resolver.resolve("/baz/foo")
 	if result != "/baz/bar" {
-		t.Fail()
+		t.Error(result)
 	}
 }
 
 func TestRemapping3(t *testing.T) {
-	remapping := map[string]string{
+	remapping := Remapping{
 		"/foo": "bar",
 	}
 
@@ -196,17 +197,17 @@ func TestRemapping3(t *testing.T) {
 
 	result = resolver.resolve("foo")
 	if result != "/bar" {
-		t.Fail()
+		t.Error(result)
 	}
 
 	result = resolver.resolve("/foo")
 	if result != "/bar" {
-		t.Fail()
+		t.Error(result)
 	}
 }
 
 func TestRemapping4(t *testing.T) {
-	remapping := map[string]string{
+	remapping := Remapping{
 		"/foo": "bar",
 	}
 
@@ -215,12 +216,13 @@ func TestRemapping4(t *testing.T) {
 
 	result = resolver.resolve("/foo")
 	if result != "/baz/bar" {
-		t.Fail()
+		t.Error(resolver.mapping)
+		t.Error(result)
 	}
 }
 
 func TestRemapping5(t *testing.T) {
-	remapping := map[string]string{
+	remapping := Remapping{
 		"/foo": "/a/b/c/bar",
 	}
 
@@ -229,12 +231,41 @@ func TestRemapping5(t *testing.T) {
 
 	result = resolver.resolve("/foo")
 	if result != "/a/b/c/bar" {
-		t.Fail()
+		t.Error(result)
 	}
 }
 
-func TestRemapping(t *testing.T) {
-	t.Fail()
+func TestGetNamespace(t *testing.T) {
+	var ns string
+	ns = getNamespace("")
+	if ns != "/" {
+		t.Error(ns)
+	}
+
+	ns = getNamespace("/")
+	if ns != "/" {
+		t.Error(ns)
+	}
+
+	ns = getNamespace("/foo")
+	if ns != "/" {
+		t.Error(ns)
+	}
+
+	ns = getNamespace("/foo/")
+	if ns != "/" {
+		t.Error(ns)
+	}
+
+	ns = getNamespace("/foo/bar")
+	if ns != "/foo/" {
+		t.Error(ns)
+	}
+
+	ns = getNamespace("/foo/bar/baz")
+	if ns != "/foo/bar/" {
+		t.Error(ns)
+	}
 }
 
 func TestProcessArguments(t *testing.T) {
