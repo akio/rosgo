@@ -21,3 +21,5 @@ catkin_add_go_library(
 catkin_add_go_test(xmlrpc DEPENDS ${PROJECT_NAME}_xmlrpc)
 catkin_add_go_test(ros DEPENDS ${PROJECT_NAME})
 
+install(PROGRAMS scripts/rosgo-test-wrapper.sh
+        DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})

@@ -22,7 +22,7 @@ function(_rosgo_setup_global_variable)
 endfunction()
 
 
-# This will be evaluated per each project that depend `rosgo_build_tools`.
+# This will be evaluated per each project that depend `rosgo`.
 _rosgo_setup_global_variable()
 
 
@@ -147,7 +147,7 @@ function(catkin_add_go_test)
     add_custom_target(
         run_tests_${PROJECT_NAME}_go_test_${target}
         #COMMAND env GOPATH=${gopath} go test ${package}
-        COMMAND ${CATKIN_ENV} env GOPATH=${gopath} rosrun rosgo_build_tools rosgo-test-wrapper.sh ${package}
+        COMMAND ${CATKIN_ENV} env GOPATH=${gopath} rosrun rosgo rosgo-test-wrapper.sh ${package}
         DEPENDS ${_depends})
 
     # Register this test to workspace-wide run_tests target
