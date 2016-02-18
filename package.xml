@@ -10,7 +10,6 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <build_depend>rosgo_build_tools</build_depend>
   <build_depend>rosgo_messages</build_depend>
 
   <export></export>

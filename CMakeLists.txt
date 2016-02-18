@@ -1,9 +1,14 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(rosgo_core)
 
-find_package(catkin REQUIRED COMPONENTS rosgo_build_tools rosgo_messages)
+find_package(catkin REQUIRED COMPONENTS rosgo_messages)
 
-catkin_package()
+catkin_package(CFG_EXTRAS rosgo-extras.cmake)
+
+catkin_add_env_hooks(99.rosgo SHELLS sh
+                     DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/env-hooks)
+
+include(${PROJECT_SOURCE_DIR}/cmake/rosgo-extras.cmake)
 
 catkin_add_go_library(xmlrpc TARGET ${PROJECT_NAME}_xmlrpc)
 
