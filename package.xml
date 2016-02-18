@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <package>
-  <name>rosgo_core</name>
-  <version>0.1.0</version>
+  <name>rosgo</name>
+  <version>0.0.0</version>
   <description>ROS client library for Go programming language</description>
 
-  <maintainer email="akio7141@gmail.com">Aki Ochiai</maintainer>
+  <maintainer email="akio7141@gmail.com">Akiyoshi Ochiai</maintainer>
 
   <license>Apache License 2.0</license>
 
