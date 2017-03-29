@@ -380,8 +380,11 @@ func (node *defaultNode) HasParam(key string) (bool, error) {
 
 func (node *defaultNode) SearchParam(key string) (string, error) {
 	result, e := callRosApi(node.masterUri, "searchParam", node.qualifiedName, key)
+	if e != nil {
+		return "", e
+	}
 	foundKey := result.(string)
-	return foundKey, e
+	return foundKey, nil
 }
 
 func (node *defaultNode) DeleteParam(key string) error {
