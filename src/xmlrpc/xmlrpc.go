@@ -1,3 +1,4 @@
+// Simple XMLRPC client/server for go
 package xmlrpc
 
 import (
@@ -6,9 +7,9 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-//	"io"
+	//	"io"
 	"net/http"
-//	"os"
+	//	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -469,6 +470,9 @@ func parseResponse(d *xml.Decoder) (ok bool, result interface{}, e error) {
 	return
 }
 
+// Call a XMLRPC API in a remote host.
+// Args:
+//   url string: URL of the remote host
 func Call(url string, method string, args ...interface{}) (res interface{}, e error) {
 	var buffer bytes.Buffer
 	e = emitRequest(&buffer, method, args...)
@@ -521,23 +525,28 @@ func Call(url string, method string, args ...interface{}) (res interface{}, e er
 }
 
 //type Method func (args ...interface{}) (interface{}, error)
+//
 type Method interface{}
 
+//
 type Handler struct {
 	mapping map[string]Method
 	wait    sync.WaitGroup
 }
 
+//
 func NewHandler(mapping map[string]Method) *Handler {
 	handler := new(Handler)
 	handler.mapping = mapping
 	return handler
 }
 
+//
 func (self *Handler) WaitForShutdown() {
 	self.wait.Wait()
 }
 
+///
 func (self *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	self.wait.Add(1)
 	defer self.wait.Done()

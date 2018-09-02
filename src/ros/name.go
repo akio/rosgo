@@ -63,7 +63,7 @@ type NameResolver struct {
 
 func newNameResolver(namespace string, remapping Remapping) *NameResolver {
 	n := new(NameResolver)
-	n.namespace = namespace
+	n.namespace = canonicalizeName(namespace)
 	n.mapping = remapping
 	n.resolvedMapping = make(Remapping)
 
