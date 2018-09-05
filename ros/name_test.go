@@ -49,7 +49,7 @@ func TestNameValidation(t *testing.T) {
 	}
 }
 
-func TestCanonicalize(t *testing.T) {
+func TestCanonicalizeName(t *testing.T) {
 	if canonicalizeName("/") != "/" {
 		t.Fail()
 	}
@@ -59,6 +59,10 @@ func TestCanonicalize(t *testing.T) {
 	}
 
 	if canonicalizeName("foo//bar///baz/") != "foo/bar/baz" {
+		t.Fail()
+	}
+
+	if canonicalizeName("~foo//bar///baz/") != "~foo/bar/baz" {
 		t.Fail()
 	}
 }
@@ -86,7 +90,7 @@ func TestSpecialNamespace(t *testing.T) {
 }
 
 func TestResolution1(t *testing.T) {
-	remapping := Remapping{}
+	remapping := NameMap{}
 	resolver := newNameResolver("/node1", remapping)
 	var result string
 
@@ -107,7 +111,7 @@ func TestResolution1(t *testing.T) {
 }
 
 func TestResolution2(t *testing.T) {
-	remapping := Remapping{}
+	remapping := NameMap{}
 	resolver := newNameResolver("/go/node2", remapping)
 	var result string
 
@@ -128,7 +132,7 @@ func TestResolution2(t *testing.T) {
 }
 
 func TestResolution3(t *testing.T) {
-	remapping := Remapping{}
+	remapping := NameMap{}
 	resolver := newNameResolver("/go/node3", remapping)
 	var result string
 
@@ -148,8 +152,8 @@ func TestResolution3(t *testing.T) {
 	}
 }
 
-func TestRemapping1(t *testing.T) {
-	remapping := Remapping{
+func TestNameMap1(t *testing.T) {
+	remapping := NameMap{
 		"foo": "bar",
 	}
 
@@ -167,8 +171,8 @@ func TestRemapping1(t *testing.T) {
 	}
 }
 
-func TestRemapping2(t *testing.T) {
-	remapping := Remapping{
+func TestNameMap2(t *testing.T) {
+	remapping := NameMap{
 		"foo": "bar",
 	}
 
@@ -187,8 +191,8 @@ func TestRemapping2(t *testing.T) {
 	}
 }
 
-func TestRemapping3(t *testing.T) {
-	remapping := Remapping{
+func TestNameMap3(t *testing.T) {
+	remapping := NameMap{
 		"/foo": "bar",
 	}
 
@@ -206,8 +210,8 @@ func TestRemapping3(t *testing.T) {
 	}
 }
 
-func TestRemapping4(t *testing.T) {
-	remapping := Remapping{
+func TestNameMap4(t *testing.T) {
+	remapping := NameMap{
 		"/foo": "bar",
 	}
 
@@ -221,8 +225,8 @@ func TestRemapping4(t *testing.T) {
 	}
 }
 
-func TestRemapping5(t *testing.T) {
-	remapping := Remapping{
+func TestNameMap5(t *testing.T) {
+	remapping := NameMap{
 		"/foo": "/a/b/c/bar",
 	}
 

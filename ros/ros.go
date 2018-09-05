@@ -36,10 +36,12 @@ type Node interface {
 	DeleteParam(name string) error
 
 	Logger() Logger
+
+	NonRosArgs() []string
 }
 
-func NewNode(name string) Node {
-	return newDefaultNode(name)
+func NewNode(name string, args []string) (Node, error) {
+	return newDefaultNode(name, args)
 }
 
 type Publisher interface {

@@ -2,16 +2,19 @@ package ros
 
 import (
 	"fmt"
+	"github.com/akio/rosgo/xmlrpc"
+	"gopkg.in/yaml.v2"
 	"math/rand"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
-	"xmlrpc"
 )
 
 const (
@@ -23,6 +26,8 @@ const (
 // *defaultNode implements Node interface
 // a defaultNode instance must be accessed in user goroutine.
 type defaultNode struct {
+	name           string
+	namespace      string
 	qualifiedName  string
 	masterUri      string
 	xmlrpcUri      string
@@ -37,6 +42,9 @@ type defaultNode struct {
 	ok             bool
 	okMutex        sync.RWMutex
 	waitGroup      sync.WaitGroup
+	logDir         string
+	ipAddress      string
+	hostname       string
 }
 
 func listenRandomPort(address string, trialLimit int) (net.Listener, error) {
@@ -56,8 +64,59 @@ func listenRandomPort(address string, trialLimit int) (net.Listener, error) {
 	return nil, fmt.Errorf("listenRandomPort exceeds trial limit.")
 }
 
-func newDefaultNode(name string) *defaultNode {
+func newDefaultNode(name string, args []string) (*defaultNode, err) {
 	node := new(defaultNode)
+
+	nodeName, namespace, err := qualifyNodeName(name)
+	if err != nil {
+		return nil, err
+	}
+
+	remapping, params, specials, rest := processArguments(args)
+
+	node.home = filepath.Join(os.Getenv("HOME"), ".ros")
+	if home := os.Getenv("ROS_HOME"); len(home) > 0 {
+		node.home = home
+	}
+
+	node.name = nodeName
+	if value, ok := specials["__name"]; ok {
+		node.name = value
+	}
+
+	node.namespace = namespace
+	if ns := os.Getenv("ROS_NAMESPACE"); len(ns) > 0 {
+		node.namespace = ns
+	}
+	if value, ok := specials["__ns"]; ok {
+		node.namespace = value
+	}
+	node.logDir = filepath.Join(node.home, "log")
+	if logDir := os.Getenv("ROS_LOG_DIR"); len(logDir) > 0 {
+		node.logDir = logDir
+	}
+	if value, ok := specials["__log"]; ok {
+		node.logDir = value
+	}
+
+	node.ipAddress = os.Getenv("ROS_IP")
+	if value, ok := specials["__ip"]; ok {
+		node.ipAddress = value
+	}
+
+	node.hostname = os.Getenv("ROS_HOSTNAME")
+	if value, ok := specials["__hostname"]; ok {
+		node.hostName = value
+	}
+
+	node.masterUri = os.Getenv("ROS_MASTER_URI")
+	if value, ok := specials["__master"]; ok {
+		node.masterUri = value
+	}
+
+	node.nameResolver = newResolver(node.namespace, node.name, remapping)
+	node.nonRosArgs = rest
+
 	node.qualifiedName = name
 	node.subscribers = make(map[string]*defaultSubscriber)
 	node.publishers = make(map[string]*defaultPublisher)
@@ -80,12 +139,12 @@ func newDefaultNode(name string) *defaultNode {
 
 	node.jobChan = make(chan func(), 100)
 
-	node.masterUri = os.Getenv("ROS_MASTER_URI")
 	logger.Debugf("Master URI = %s", node.masterUri)
 
 	listener, err := listenRandomPort("127.0.0.1", 10)
 	if err != nil {
 		logger.Fatal(err)
+		return nil, err
 	}
 	node.xmlrpcUri = fmt.Sprintf("http://%s", listener.Addr().String())
 	node.xmlrpcListener = listener
@@ -110,7 +169,7 @@ func newDefaultNode(name string) *defaultNode {
 	node.xmlrpcHandler = xmlrpc.NewHandler(m)
 	go http.Serve(node.xmlrpcListener, node.xmlrpcHandler)
 	logger.Debugf("Started %s", node.qualifiedName)
-	return node
+	return node, nil
 }
 
 func (node *defaultNode) OK() bool {
@@ -391,4 +450,8 @@ func (node *defaultNode) DeleteParam(key string) error {
 
 func (node *defaultNode) Logger() Logger {
 	return node.logger
+}
+
+func (node *defaultNode) NonRosArgs() []string {
+	return node.nonRosArgs
 }
