@@ -112,10 +112,6 @@ func newNameResolver(namespace string, nodeName string, remapping NameMap) *Name
 		n.resolvedMapping[newKey] = newValue
 	}
 
-	for k, v := range n.resolvedMapping {
-		fmt.Printf("%s: %s\n", k, v)
-	}
-
 	return n
 }
 
