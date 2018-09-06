@@ -10,7 +10,6 @@ const (
 	Sep       = "/"
 	GlobalNS  = "/"
 	PrivateNS = "~"
-	Remap     = ":="
 )
 
 type NameMap map[string]string
@@ -33,7 +32,7 @@ func qualifyNodeName(nodeName string) (string, string, error) {
 	if nodeName == "" {
 		return "", "", fmt.Errorf("Empty node name")
 	}
-	if nodeName[0] == "~" {
+	if nodeName[:1] == PrivateNS {
 		return "", "", fmt.Errorf("Node name should not contain '~'")
 	}
 	canonName := canonicalizeName(nodeName)
@@ -47,35 +46,8 @@ func qualifyNodeName(nodeName string) (string, string, error) {
 	if len(components) == 1 {
 		return GlobalNS, components[0], nil
 	} else {
-		namespace := GlobalNS + strings.Join(components[:-1], Sep)
-		return namespace, components[-1], nil
-	}
-}
-
-func resolveName(name string, namespace string, mappings NameMap) string {
-	var resolvedName string
-
-	if len(name) == 0 {
-		return getNamespace(namespace)
-	}
-
-	canonName := canonicalizeName(name)
-	if isGlobalName(canonName) {
-		resolvedName = canonName
-	} else if isPrivateName(canonName) {
-		resolvedName = canonicalizeName(namespace + Sep + canonName[1:])
-	} else {
-		resolvedName = getNamespace(namespace) + canonName
-	}
-
-	if mappings != nil {
-		if remappedName, ok := mappings[resolvedName]; ok {
-			return remappedName
-		} else {
-			return resolvedName
-		}
-	} else {
-		return resolvedName
+		namespace := GlobalNS + strings.Join(components[:len(components)-1], Sep)
+		return namespace, components[len(components)-1], nil
 	}
 }
 
@@ -86,17 +58,7 @@ func isValidName(name string) bool {
 	if name == "/" || name == "~" {
 		return true
 	}
-	if matched, _ := regexp.MatchString("^[~/]?([a-zA-Z]\\w*/)*[a-zA-Z]\\w*$", name); !matched {
-		return false
-	}
-	return true
-}
-
-func isValidNamespace(name string) bool {
-	if len(name) == 0 {
-		return false
-	}
-	if matched, _ := regexp.MatchString("^/([a-zA-Z]\\w*/)*$", name); !matched {
+	if matched, _ := regexp.MatchString("^[~/]?([a-zA-Z]\\w*/)*[a-zA-Z]\\w*/?$", name); !matched {
 		return false
 	}
 	return true
@@ -129,30 +91,6 @@ func canonicalizeName(name string) string {
 	}
 }
 
-func processArguments(args []string) (NameMap, NameMap, NameMap, []string) {
-	mapping := make(NameMap)
-	params := make(NameMap)
-	specials := make(NameMap)
-	rest := make([]string, 0)
-	for _, arg := range args {
-		components := strings.Split(arg, Remap)
-		if len(components) == 2 {
-			key := components[0]
-			value := components[1]
-			if strings.HasPrefix(key, "__") {
-				specials[key] = value
-			} else if strings.HasPrefix(key, "_") {
-				params[key] = value
-			} else {
-				mapping[key] = value
-			}
-		} else {
-			rest = append(rest, arg)
-		}
-	}
-	return mapping, params, specials, rest
-}
-
 type NameResolver struct {
 	nodeName        string
 	namespace       string
@@ -160,16 +98,17 @@ type NameResolver struct {
 	resolvedMapping NameMap
 }
 
-func newNameResolver(nodeName string, remapping NameMap) *NameResolver {
+func newNameResolver(namespace string, nodeName string, remapping NameMap) *NameResolver {
 	n := new(NameResolver)
 
+	n.nodeName = nodeName
 	n.namespace = canonicalizeName(namespace)
 	n.mapping = remapping
 	n.resolvedMapping = make(NameMap)
 
 	for k, v := range n.mapping {
-		newKey := resolveName(k, namespace, nil)
-		newValue := resolveName(v, namespace, nil)
+		newKey := n.resolve(k)
+		newValue := n.resolve(v)
 		n.resolvedMapping[newKey] = newValue
 	}
 
@@ -180,15 +119,31 @@ func newNameResolver(nodeName string, remapping NameMap) *NameResolver {
 	return n
 }
 
+// Resolve a ROS name to global name
 func (n *NameResolver) resolve(name string) string {
-	return resolveName(name, n.namespace, n.resolvedMapping)
+	if len(name) == 0 {
+		return n.namespace
+	}
+
+	var resolvedName string
+	canonName := canonicalizeName(name)
+	if isGlobalName(canonName) {
+		resolvedName = canonName
+	} else if isPrivateName(canonName) {
+		resolvedName = canonicalizeName(n.namespace + Sep + n.nodeName + Sep + canonName[1:])
+	} else {
+		resolvedName = canonicalizeName(n.namespace + Sep + canonName)
+	}
+
+	return resolvedName
 }
 
+// Resolve a ROS name with remapping
 func (n *NameResolver) remap(name string) string {
-	r := resolveName(name, n.namespace, n.resolvedMapping)
-	if remapped, ok := n.mapping[r]; ok {
-		return resolveName(remapped, n.namespace, n.resolvedMapping)
+	key := n.resolve(name)
+	if value, ok := n.resolvedMapping[key]; ok {
+		return value
 	} else {
-		return r
+		return key
 	}
 }

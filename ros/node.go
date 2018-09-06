@@ -3,7 +3,6 @@ package ros
 import (
 	"fmt"
 	"github.com/akio/rosgo/xmlrpc"
-	"gopkg.in/yaml.v2"
 	"math/rand"
 	"net"
 	"net/http"
@@ -21,7 +20,32 @@ const (
 	ApiStatusError   = -1
 	ApiStatusFailure = 0
 	ApiStatusSuccess = 1
+	Remap            = ":="
 )
+
+func processArguments(args []string) (NameMap, NameMap, NameMap, []string) {
+	mapping := make(NameMap)
+	params := make(NameMap)
+	specials := make(NameMap)
+	rest := make([]string, 0)
+	for _, arg := range args {
+		components := strings.Split(arg, Remap)
+		if len(components) == 2 {
+			key := components[0]
+			value := components[1]
+			if strings.HasPrefix(key, "__") {
+				specials[key] = value
+			} else if strings.HasPrefix(key, "_") {
+				params[key[1:]] = value
+			} else {
+				mapping[key] = value
+			}
+		} else {
+			rest = append(rest, arg)
+		}
+	}
+	return mapping, params, specials, rest
+}
 
 // *defaultNode implements Node interface
 // a defaultNode instance must be accessed in user goroutine.
@@ -45,6 +69,9 @@ type defaultNode struct {
 	logDir         string
 	ipAddress      string
 	hostname       string
+	homeDir        string
+	nameResolver   *NameResolver
+	nonRosArgs     []string
 }
 
 func listenRandomPort(address string, trialLimit int) (net.Listener, error) {
@@ -64,7 +91,7 @@ func listenRandomPort(address string, trialLimit int) (net.Listener, error) {
 	return nil, fmt.Errorf("listenRandomPort exceeds trial limit.")
 }
 
-func newDefaultNode(name string, args []string) (*defaultNode, err) {
+func newDefaultNode(name string, args []string) (*defaultNode, error) {
 	node := new(defaultNode)
 
 	nodeName, namespace, err := qualifyNodeName(name)
@@ -74,9 +101,9 @@ func newDefaultNode(name string, args []string) (*defaultNode, err) {
 
 	remapping, params, specials, rest := processArguments(args)
 
-	node.home = filepath.Join(os.Getenv("HOME"), ".ros")
-	if home := os.Getenv("ROS_HOME"); len(home) > 0 {
-		node.home = home
+	node.homeDir = filepath.Join(os.Getenv("HOME"), ".ros")
+	if homeDir := os.Getenv("ROS_HOME"); len(homeDir) > 0 {
+		node.homeDir = homeDir
 	}
 
 	node.name = nodeName
@@ -91,7 +118,7 @@ func newDefaultNode(name string, args []string) (*defaultNode, err) {
 	if value, ok := specials["__ns"]; ok {
 		node.namespace = value
 	}
-	node.logDir = filepath.Join(node.home, "log")
+	node.logDir = filepath.Join(node.homeDir, "log")
 	if logDir := os.Getenv("ROS_LOG_DIR"); len(logDir) > 0 {
 		node.logDir = logDir
 	}
@@ -106,7 +133,7 @@ func newDefaultNode(name string, args []string) (*defaultNode, err) {
 
 	node.hostname = os.Getenv("ROS_HOSTNAME")
 	if value, ok := specials["__hostname"]; ok {
-		node.hostName = value
+		node.hostname = value
 	}
 
 	node.masterUri = os.Getenv("ROS_MASTER_URI")
@@ -114,10 +141,10 @@ func newDefaultNode(name string, args []string) (*defaultNode, err) {
 		node.masterUri = value
 	}
 
-	node.nameResolver = newResolver(node.namespace, node.name, remapping)
+	node.nameResolver = newNameResolver(node.namespace, node.name, remapping)
 	node.nonRosArgs = rest
 
-	node.qualifiedName = name
+	node.qualifiedName = node.namespace + "/" + node.name
 	node.subscribers = make(map[string]*defaultSubscriber)
 	node.publishers = make(map[string]*defaultPublisher)
 	node.servers = make(map[string]*defaultServiceServer)
@@ -140,6 +167,13 @@ func newDefaultNode(name string, args []string) (*defaultNode, err) {
 	node.jobChan = make(chan func(), 100)
 
 	logger.Debugf("Master URI = %s", node.masterUri)
+
+	for k, v := range params {
+		_, err := callRosApi(node.masterUri, "setParam", node.qualifiedName, k, v)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	listener, err := listenRandomPort("127.0.0.1", 10)
 	if err != nil {
