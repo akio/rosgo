@@ -31,8 +31,8 @@ func main() {
 		}
 	}
 
-	if len(os.Args) != 3 {
-		fmt.Println("USAGE: gengo msg|srv <NAME>")
+	if len(os.Args) < 3 {
+		fmt.Println("USAGE: gengo msg|srv <NAME> [<FILE>]")
 		os.Exit(-1)
 	}
 
@@ -49,7 +49,13 @@ func main() {
 	fmt.Printf("Generating %v...", fullname)
 
 	if mode == "msg" {
-		spec, err := context.LoadMsg(fullname)
+		var spec *MsgSpec
+		var err error
+		if len(os.Args) == 3 {
+			spec, err = context.LoadMsg(fullname)
+		} else {
+			spec, err = context.LoadMsgFromFile(os.Args[3], fullname)
+		}
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(-1)
@@ -66,7 +72,13 @@ func main() {
 			os.Exit(-1)
 		}
 	} else if mode == "srv" {
-		spec, err := context.LoadSrv(fullname)
+		var spec *SrvSpec
+		var err error
+		if len(os.Args) == 3 {
+			spec, err = context.LoadSrv(fullname)
+		} else {
+			spec, err = context.LoadSrvFromFile(os.Args[3], fullname)
+		}
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(-1)

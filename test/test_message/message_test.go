@@ -1,9 +1,14 @@
 package test_message
 
+//go:generate gengo msg rosgo_tests/AllFieldTypes AllFieldTypes.msg
+//go:generate gengo msg std_msgs/Header
+//go:generate gengo msg std_msgs/Int16
+//go:generate gengo msg std_msgs/Int32
+//go:generate gengo msg std_msgs/ColorRGBA
 import (
 	"bytes"
 	"fmt"
-	"ros"
+	"github.com/akio/rosgo/ros"
 	"rosgo_tests"
 	"std_msgs"
 	"testing"

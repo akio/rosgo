@@ -55,7 +55,7 @@ func (t *_Msg{{ .ShortName }}) NewMessage() ros.Message {
 {{- range .Fields }}
 {{-     if .IsArray }}
 {{-         if eq .ArrayLen -1 }}
-	m.{{ .GoName }}} = nil
+	m.{{ .GoName }} = []{{ .GoType }}{}
 {{-         else }}
 	for i := 0; i < {{ .ArrayLen }}; i++ {
 		m.{{ .GoName }}[i]  = {{ .ZeroValue }}
@@ -78,7 +78,15 @@ var (
 
 type {{ .ShortName }} struct {
 {{- range .Fields }}
-	{{ .GoName }} {{.GoType }}` + "`rosmsg:\"{{ .Name }}:{{ .Type }}\"`" + `
+{{-     if .IsArray }}
+{{-         if eq .ArrayLen -1 }}
+	{{ .GoName }} []{{ .GoType }}` + " `rosmsg:\"{{ .Name }}:{{ .Type }}[]\"`" + `
+{{-         else }}
+	{{ .GoName }} [{{ .ArrayLen }}]{{ .GoType }}` + " `rosmsg:\"{{ .Name }}:{{ .Type }}[{{ .ArrayLen }}]\"`" + `
+{{-         end }}
+{{-     else }}
+	{{ .GoName }} {{ .GoType }}` + " `rosmsg:\"{{ .Name }}:{{ .Type }}\"`" + `
+{{-     end }}
 {{- end }}
 }
 
@@ -144,7 +152,7 @@ func (m *{{ .ShortName }}) Deserialize(buf *bytes.Reader) error {
             return err
         }
 {{-        if lt .ArrayLen 0 }}
-        m.{{ .GoName }} = make([]{{ .GoType }}), int(size))
+        m.{{ .GoName }} = make([]{{ .GoType }}, int(size))
 {{-        end }}
         for i := 0; i < int(size); i++ {
 {{-          if .IsBuiltin }}
@@ -172,7 +180,7 @@ func (m *{{ .ShortName }}) Deserialize(buf *bytes.Reader) error {
                 }
             }
 {{-                  else }}
-            if err = binary.Read(buf, binary.LittleEndian, &m.{{ .Name }}[i]); err != nil {
+            if err = binary.Read(buf, binary.LittleEndian, &m.{{ .GoName }}[i]); err != nil {
                 return err
             }
 {{-                  end }}
@@ -279,7 +287,7 @@ type MsgGen struct {
 
 func (gen *MsgGen) analyzeImports() {
 	for _, field := range gen.Fields {
-		if isPrimitiveType(field.Type) {
+		if len(field.Package) == 0 {
 			gen.BinaryRequired = true
 		} else {
 			found := false

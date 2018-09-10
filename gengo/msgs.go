@@ -175,7 +175,7 @@ type Constant struct {
 	GoName    string
 }
 
-func ToGoType(typeName string) string {
+func ToGoType(pkg string, typeName string) string {
 	var goType string
 	switch typeName {
 	case "int8":
@@ -195,9 +195,9 @@ func ToGoType(typeName string) string {
 	case "uint64":
 		goType = "uint64"
 	case "float32":
-		goType = "float"
+		goType = "float32"
 	case "float64":
-		goType = "double"
+		goType = "float64"
 	case "string":
 		goType = "string"
 	case "bool":
@@ -206,8 +206,12 @@ func ToGoType(typeName string) string {
 		goType = "uint8"
 	case "byte":
 		goType = "uint8"
+	case "time":
+		goType = "ros.Time"
+	case "duration":
+		goType = "ros.Duration"
 	default:
-		goType = strings.Replace(typeName, "/", ".", -1)
+		goType = pkg + "." + typeName
 	}
 	return goType
 }
@@ -226,7 +230,7 @@ func ToGoName(name string) string {
 	return strings.Join(buffer, "")
 }
 
-func GetZeroValue(typeName string) string {
+func GetZeroValue(pkg string, typeName string) string {
 	var zeroValue string
 	switch typeName {
 	case "int8":
@@ -247,7 +251,7 @@ func GetZeroValue(typeName string) string {
 		zeroValue = "0"
 	case "float32":
 		zeroValue = "0.0"
-	case "flaot64":
+	case "float64":
 		zeroValue = "0.0"
 	case "string":
 		zeroValue = "\"\""
@@ -257,8 +261,12 @@ func GetZeroValue(typeName string) string {
 		zeroValue = "0"
 	case "byte":
 		zeroValue = "0"
+	case "time":
+		zeroValue = "ros.Time{}"
+	case "duration":
+		zeroValue = "ros.Duration{}"
 	default:
-		zeroValue = "{}"
+		zeroValue = pkg + "." + typeName + "{}"
 	}
 	return zeroValue
 }
@@ -285,9 +293,9 @@ type Field struct {
 }
 
 func NewField(pkg string, fieldType string, name string, isArray bool, arrayLen int) *Field {
-	goType := ToGoType(fieldType)
+	goType := ToGoType(pkg, fieldType)
 	goName := ToGoName(name)
-	zeroValue := GetZeroValue(fieldType)
+	zeroValue := GetZeroValue(pkg, fieldType)
 	isBuiltin := isBuiltinType(fieldType)
 	return &Field{pkg, fieldType, name, isBuiltin, isArray, arrayLen, goName, goType, zeroValue}
 }
