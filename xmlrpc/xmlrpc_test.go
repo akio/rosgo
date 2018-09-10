@@ -620,7 +620,7 @@ func TestParseFault(t *testing.T) {
 
 func TestClient(t *testing.T) {
 	masterUri := os.Getenv("ROS_MASTER_URI")
-	t.Log(masterUri)
+	t.Log("Master URI: ", masterUri)
 
 	value, e := Call(masterUri, "getPublishedTopics", "not_a_node", "")
 	if e != nil {

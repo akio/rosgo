@@ -2,7 +2,7 @@ package ros
 
 import (
 	"fmt"
-	"xmlrpc"
+	"github.com/akio/rosgo/xmlrpc"
 )
 
 func callRosApi(calleeUri string, method string, args ...interface{}) (interface{}, error) {

@@ -49,7 +49,7 @@ func TestNameValidation(t *testing.T) {
 	}
 }
 
-func TestCanonicalize(t *testing.T) {
+func TestCanonicalizeName(t *testing.T) {
 	if canonicalizeName("/") != "/" {
 		t.Fail()
 	}
@@ -59,6 +59,10 @@ func TestCanonicalize(t *testing.T) {
 	}
 
 	if canonicalizeName("foo//bar///baz/") != "foo/bar/baz" {
+		t.Fail()
+	}
+
+	if canonicalizeName("~foo//bar///baz/") != "~foo/bar/baz" {
 		t.Fail()
 	}
 }
@@ -86,8 +90,8 @@ func TestSpecialNamespace(t *testing.T) {
 }
 
 func TestResolution1(t *testing.T) {
-	remapping := Remapping{}
-	resolver := newNameResolver("/node1", remapping)
+	remapping := NameMap{}
+	resolver := newNameResolver("/", "node1", remapping)
 	var result string
 
 	result = resolver.resolve("bar")
@@ -107,8 +111,8 @@ func TestResolution1(t *testing.T) {
 }
 
 func TestResolution2(t *testing.T) {
-	remapping := Remapping{}
-	resolver := newNameResolver("/go/node2", remapping)
+	remapping := NameMap{}
+	resolver := newNameResolver("/go", "node2", remapping)
 	var result string
 
 	result = resolver.resolve("bar")
@@ -128,8 +132,8 @@ func TestResolution2(t *testing.T) {
 }
 
 func TestResolution3(t *testing.T) {
-	remapping := Remapping{}
-	resolver := newNameResolver("/go/node3", remapping)
+	remapping := NameMap{}
+	resolver := newNameResolver("/go", "node3", remapping)
 	var result string
 
 	result = resolver.resolve("foo/bar")
@@ -148,88 +152,88 @@ func TestResolution3(t *testing.T) {
 	}
 }
 
-func TestRemapping1(t *testing.T) {
-	remapping := Remapping{
+func TestNameMap1(t *testing.T) {
+	remapping := NameMap{
 		"foo": "bar",
 	}
 
-	resolver := newNameResolver("/", remapping)
+	resolver := newNameResolver("/", "mynode", remapping)
 	var result string
 
-	result = resolver.resolve("foo")
+	result = resolver.remap("foo")
 	if result != "/bar" {
 		t.Error(result)
 	}
 
-	result = resolver.resolve("/foo")
+	result = resolver.remap("/foo")
 	if result != "/bar" {
 		t.Error(result)
 	}
 }
 
-func TestRemapping2(t *testing.T) {
-	remapping := Remapping{
+func TestNameMap2(t *testing.T) {
+	remapping := NameMap{
 		"foo": "bar",
 	}
 
-	resolver := newNameResolver("/baz", remapping)
+	resolver := newNameResolver("/baz", "mynode", remapping)
 	var result string
 
-	result = resolver.resolve("foo")
+	result = resolver.remap("foo")
 	if result != "/baz/bar" {
 		t.Error(result)
 		t.Error(resolver.mapping)
 	}
 
-	result = resolver.resolve("/baz/foo")
+	result = resolver.remap("/baz/foo")
 	if result != "/baz/bar" {
 		t.Error(result)
 	}
 }
 
-func TestRemapping3(t *testing.T) {
-	remapping := Remapping{
+func TestNameMap3(t *testing.T) {
+	remapping := NameMap{
 		"/foo": "bar",
 	}
 
-	resolver := newNameResolver("/", remapping)
+	resolver := newNameResolver("/", "mynode", remapping)
 	var result string
 
-	result = resolver.resolve("foo")
+	result = resolver.remap("foo")
 	if result != "/bar" {
 		t.Error(result)
 	}
 
-	result = resolver.resolve("/foo")
+	result = resolver.remap("/foo")
 	if result != "/bar" {
 		t.Error(result)
 	}
 }
 
-func TestRemapping4(t *testing.T) {
-	remapping := Remapping{
+func TestNameMap4(t *testing.T) {
+	remapping := NameMap{
 		"/foo": "bar",
 	}
 
-	resolver := newNameResolver("/baz", remapping)
+	resolver := newNameResolver("/baz", "mynode", remapping)
 	var result string
 
-	result = resolver.resolve("/foo")
+	result = resolver.remap("/foo")
 	if result != "/baz/bar" {
 		t.Error(resolver.mapping)
 		t.Error(result)
 	}
 }
 
-func TestRemapping5(t *testing.T) {
-	remapping := Remapping{
+func TestNameMap5(t *testing.T) {
+	remapping := NameMap{
 		"/foo": "/a/b/c/bar",
 	}
 
-	resolver := newNameResolver("/baz", remapping)
+	resolver := newNameResolver("/baz", "mynode", remapping)
 	var result string
 
-	result = resolver.resolve("/foo")
+	result = resolver.remap("/foo")
 	if result != "/a/b/c/bar" {
 		t.Error(result)
 	}
@@ -281,7 +285,7 @@ func TestProcessArguments(t *testing.T) {
 	if mapping["foo"] != "bar" {
 		t.Fail()
 	}
-	if params["_param"] != "value" {
+	if params["param"] != "value" {
 		t.Fail()
 	}
 	if specials["__master"] != "http://localhost:11311" {
