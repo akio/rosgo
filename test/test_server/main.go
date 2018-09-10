@@ -1,6 +1,6 @@
 package main
 
-//go:generate genmsg srv rospy_tutorials/AddTwoInts
+//go:generate gengo srv rospy_tutorials/AddTwoInts
 import (
 	"fmt"
 	"github.com/akio/rosgo/ros"

@@ -1,6 +1,6 @@
 package main
 
-//go:generate genmsg msg std_msgs/String
+//go:generate gengo msg std_msgs/String
 import (
 	"fmt"
 	"github.com/akio/rosgo/ros"

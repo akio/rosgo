@@ -2,11 +2,8 @@ package main
 
 import (
 	"fmt"
-	//"github.com/akio/rosgo/genmsg"
-	"os"
-	//"text/template"
-	//"flag"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -35,7 +32,7 @@ func main() {
 	}
 
 	if len(os.Args) != 3 {
-		fmt.Println("USAGE: genmsg msg|srv <NAME>")
+		fmt.Println("USAGE: gengo msg|srv <NAME>")
 		os.Exit(-1)
 	}
 
