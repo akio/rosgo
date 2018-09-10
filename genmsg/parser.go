@@ -1,8 +1,7 @@
-package genmsg
+package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"strconv"
 	"strings"
 	"unicode"
@@ -49,6 +48,9 @@ func convertConstantValue(fieldType string, valueLiteral string) (interface{}, e
 		return strconv.ParseFloat(valueLiteral, 64)
 	case "string":
 		return strings.TrimSpace(valueLiteral), nil
+	case "byte":
+		result, e := strconv.ParseInt(valueLiteral, 0, 8)
+		return int8(result), e
 	case "int8":
 		result, e := strconv.ParseInt(valueLiteral, 0, 8)
 		return int8(result), e
@@ -60,6 +62,9 @@ func convertConstantValue(fieldType string, valueLiteral string) (interface{}, e
 		return int32(result), e
 	case "int64":
 		return strconv.ParseInt(valueLiteral, 0, 64)
+	case "char":
+		result, e := strconv.ParseUint(valueLiteral, 0, 8)
+		return uint8(result), e
 	case "uint8":
 		result, e := strconv.ParseUint(valueLiteral, 0, 8)
 		return uint8(result), e
@@ -166,85 +171,16 @@ func loadFieldLine(line string, packageName string) (*Field, error) {
 	if len(packageName) > 0 && !strings.Contains(fieldType, Sep) {
 		if fieldType == HeaderType {
 			fieldType = HeaderFullName
-		} else if !isBuiltin(baseMsgType(fieldType)) {
+		} else if !isBuiltinType(baseMsgType(fieldType)) {
 			fieldType = fmt.Sprintf("%s/%s", packageName, fieldType)
 		}
 	} else if fieldType == HeaderType {
 		fieldType = HeaderFullName
 	}
-	baseType, isArray, arrayLen, err := parseType(fieldType)
+	pkg, baseType, isArray, arrayLen, err := parseType(fieldType)
 	if err != nil {
 		return nil, err
 	}
-	return NewField(baseType, name, isArray, arrayLen), nil
-}
 
-type MsgContext struct {
-	MsgRegistry map[string]*MsgSpec
-}
-
-func NewMsgContext() (*MsgContext, error) {
-	return &MsgContext{make(map[string]*MsgSpec)}, nil
-}
-
-func (m *MsgContext) Register(fullName string, spec *MsgSpec) {
-	m.MsgRegistry[fullName] = spec
-}
-
-func (m *MsgContext) Lookup(fullName string) *MsgSpec {
-	return m.MsgRegistry[fullName]
-}
-
-func LoadMsgFromString(ctx *MsgContext, text string, fullName string) (*MsgSpec, error) {
-	packageName, shortName, e := packageResourceName(fullName)
-	if e != nil {
-		return nil, e
-	}
-
-	var fields []Field
-	var constants []Constant
-	for lineno, origLine := range strings.Split(text, "\n") {
-		cleanLine := stripComment(origLine)
-		if len(cleanLine) == 0 {
-			// Skip empty line
-			continue
-		} else if strings.Contains(cleanLine, ConstChar) {
-			constant, e := loadConstantLine(origLine)
-			if e != nil {
-				return nil, NewSyntaxError(fullName, lineno, e.Error())
-			}
-			constants = append(constants, *constant)
-		} else {
-			field, e := loadFieldLine(origLine, packageName)
-			if e != nil {
-				return nil, NewSyntaxError(fullName, lineno, e.Error())
-			}
-			fields = append(fields, *field)
-		}
-	}
-	spec, _ := NewMsgSpec(fields, constants, text, fullName, OptionPackageName(packageName), OptionShortName(shortName))
-	ctx.Register(fullName, spec)
-	return spec, nil
-}
-
-func LoadMsgFromFile(ctx *MsgContext, filePath string, fullName string) (*MsgSpec, error) {
-	bytes, e := ioutil.ReadFile(filePath)
-	if e != nil {
-		return nil, e
-	}
-	text := string(bytes)
-	return LoadMsgFromString(ctx, text, fullName)
-}
-
-func LoadSrvFromString(ctx *MsgContext, text string, fullName string) (*SrvSpec, error) {
-	return nil, nil
-}
-
-func LoadSrvFromFile(ctx *MsgContext, filePath string, fullName string) (*SrvSpec, error) {
-	bytes, e := ioutil.ReadFile(filePath)
-	if e != nil {
-		return nil, e
-	}
-	text := string(bytes)
-	return LoadSrvFromString(ctx, text, fullName)
+	return NewField(pkg, baseType, name, isArray, arrayLen), nil
 }

@@ -95,7 +95,7 @@ func listenRandomPort(address string, trialLimit int) (net.Listener, error) {
 func newDefaultNode(name string, args []string) (*defaultNode, error) {
 	node := new(defaultNode)
 
-	nodeName, namespace, err := qualifyNodeName(name)
+	namespace, nodeName, err := qualifyNodeName(name)
 	if err != nil {
 		return nil, err
 	}
@@ -475,21 +475,27 @@ func (node *defaultNode) SetParam(key string, value interface{}) error {
 
 func (node *defaultNode) HasParam(key string) (bool, error) {
 	name := node.nameResolver.remap(key)
-	result, e := callRosApi(node.masterUri, "hasParam", node.qualifiedName, name)
+	result, err := callRosApi(node.masterUri, "hasParam", node.qualifiedName, name)
+	if err != nil {
+		return false, err
+	}
 	hasParam := result.(bool)
-	return hasParam, e
+	return hasParam, nil
 }
 
 func (node *defaultNode) SearchParam(key string) (string, error) {
-	result, e := callRosApi(node.masterUri, "searchParam", node.qualifiedName, key)
+	result, err := callRosApi(node.masterUri, "searchParam", node.qualifiedName, key)
+	if err != nil {
+		return "", err
+	}
 	foundKey := result.(string)
-	return foundKey, e
+	return foundKey, nil
 }
 
 func (node *defaultNode) DeleteParam(key string) error {
 	name := node.nameResolver.remap(key)
-	_, e := callRosApi(node.masterUri, "deleteParam", node.qualifiedName, name)
-	return e
+	_, err := callRosApi(node.masterUri, "deleteParam", node.qualifiedName, name)
+	return err
 }
 
 func (node *defaultNode) Logger() Logger {

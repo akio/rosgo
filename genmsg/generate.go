@@ -1,47 +1,35 @@
-package genmsg
+package main
 
 import (
 	"bytes"
-	"crypto/md5"
-	"encoding/hex"
 	"text/template"
 )
 
 var msgTemplate = `
-//#############################################################################
-// Template Context:
-// -----------------------------------------------
-// file_name_in : String
-//     Source file
-// spec : msggen.MsgSpec
-//     Parsed specification of the .msg file
-// md5sum : String
-//     MD5Sum of the .msg specification
-//#############################################################################
+// Automatically generated from the message definition "{{ .FullName }}.msg"
 package {{ .Package }}
-// Automatically generated from the message definition "{{ .FullName }}"
 import (
     "bytes"
-{{ if .BinaryRequired }}
+{{- if .BinaryRequired }}
     "encoding/binary"
-{{ end }}
-    "ros"
-{{ range .Imports }}
+{{- end }}
+    "github.com/akio/rosgo/ros"
+{{- range .Imports }}
 	"{{ . }}"
-{{ end }}
+{{- end }}
 )
 
-{{ if gt (len .Constants) 0 }}
+{{- if gt (len .Constants) 0 }}
 const (
-{{ range .Constants }}
-	{{ if eq .Type "string" }}
+{{- range .Constants }}
+	{{- if eq .Type "string" }}
     {{ .GoName }} {{ .Type }} = "{{ .Value }}"
-	{{ else }}
+	{{- else }}
 	{{ .GoName }} {{ .Type }} = {{ .Value }}
-	{{ end }}
-{{ end }}
+	{{- end }}
+{{- end }}
 )
-{{ end }}
+{{- end }}
 
 
 type _Msg{{ .ShortName }} struct {
@@ -65,7 +53,6 @@ func (t *_Msg{{ .ShortName }}) MD5Sum() string {
 func (t *_Msg{{ .ShortName }}) NewMessage() ros.Message {
     m := new({{ .ShortName }})
 {{- range .Fields }}
-	name = {{ .GoName }}
 {{-     if .IsArray }}
 {{-         if eq .ArrayLen -1 }}
 	m.{{ .GoName }}} = nil
@@ -91,7 +78,7 @@ var (
 
 type {{ .ShortName }} struct {
 {{- range .Fields }}
-	{{.GoType }} {{ .GoName }}
+	{{ .GoName }} {{.GoType }}` + "`rosmsg:\"{{ .Name }}:{{ .Type }}\"`" + `
 {{- end }}
 }
 
@@ -240,20 +227,10 @@ func (m *{{ .ShortName }}) Deserialize(buf *bytes.Reader) error {
 `
 
 var srvTemplate = `
-//##############################################################################
-//# Template Context:
-//# -----------------------------------------------
-//# file_name_in : String
-//#     Source file
-//# spec : msggen.MsgSpec
-//#     Parsed specification of the .msg file
-//# md5sum : String
-//#     MD5Sum of the .msg specification
-//##############################################################################
-package {{ .Pacakge }}
-// Automatically generated from {{ .Filename }}
+// Automatically generated from the message definition "{{ .FullName }}.srv"
+package {{ .Package }}
 import (
-    "ros"
+    "github.com/akio/rosgo/ros"
 )
 
 // Service type metadata
@@ -290,54 +267,81 @@ type {{ .ShortName }} struct {
     Response {{ .ShortName }}Response
 }
 
-func (s *{{ .ShortName }}) NewRequest() ros.Message { return &s.Request }
-func (s *{{ .ShortName }}) NewResponse() ros.Message { return &s.Response }
+func (s *{{ .ShortName }}) ReqMessage() ros.Message { return &s.Request }
+func (s *{{ .ShortName }}) ResMessage() ros.Message { return &s.Response }
 `
 
-type GenMsgContext struct {
+type MsgGen struct {
 	MsgSpec
-	MD5Sum         string
 	BinaryRequired bool
 	Imports        []string
 }
 
-func GenerateMessage(spec *MsgSpec) (string, error) {
-	var context GenMsgContext
-	context.Fields = spec.Fields
-	context.Constants = spec.Constants
-	context.Text = spec.Text
-	context.FullName = spec.FullName
-	context.ShortName = spec.ShortName
-	context.Package = spec.Package
-
-	hash := md5.New()
-	context.MD5Sum = hex.EncodeToString(hash.Sum([]byte(context.Text)))
-
-	for _, field := range context.Fields {
+func (gen *MsgGen) analyzeImports() {
+	for _, field := range gen.Fields {
 		if isPrimitiveType(field.Type) {
-			context.BinaryRequired = true
-			break
+			gen.BinaryRequired = true
+		} else {
+			found := false
+			for _, imp := range gen.Imports {
+				if imp == field.Package {
+					found = true
+					break
+				}
+			}
+			if !found {
+				gen.Imports = append(gen.Imports, field.Package)
+			}
 		}
 	}
+}
+
+func GenerateMessage(context *MsgContext, spec *MsgSpec) (string, error) {
+	var gen MsgGen
+	gen.Fields = spec.Fields
+	gen.Constants = spec.Constants
+	gen.Text = spec.Text
+	gen.FullName = spec.FullName
+	gen.ShortName = spec.ShortName
+	gen.Package = spec.Package
+	gen.MD5Sum = spec.MD5Sum
+
+	gen.analyzeImports()
 
 	tmpl, err := template.New("msg").Parse(msgTemplate)
-
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	var buffer bytes.Buffer
 
-	err = tmpl.Execute(&buffer, context)
-
+	err = tmpl.Execute(&buffer, gen)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 	return buffer.String(), err
 }
 
-// func GenerateService(spec *SrvSpec) string, error {
-// 	tmpl, err := template.New("msg").Parse(srcTemplate)
-//
-// 	return nil, nil
-// }
+func GenerateService(context *MsgContext, spec *SrvSpec) (string, string, string, error) {
+	reqCode, err := GenerateMessage(context, spec.Request)
+	if err != nil {
+		return "", "", "", err
+	}
+	resCode, err := GenerateMessage(context, spec.Response)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	tmpl, err := template.New("srv").Parse(srvTemplate)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	var buffer bytes.Buffer
+
+	err = tmpl.Execute(&buffer, spec)
+	if err != nil {
+		return "", "", "", err
+	}
+	return buffer.String(), reqCode, resCode, err
+}

@@ -1,5 +1,5 @@
 // Copyright 2018, Akio Ochiai All rights reserved
-package genmsg
+package main
 
 import (
 	"fmt"

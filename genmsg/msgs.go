@@ -1,4 +1,4 @@
-package genmsg
+package main
 
 import (
 	"bytes"
@@ -86,26 +86,37 @@ func baseMsgType(t string) string {
 	}
 }
 
-func parseType(msgType string) (baseType string, isArray bool, arrayLen int, err error) {
-	index := strings.Index(baseType, "[")
-	if index < 0 {
-		return msgType, false, 0, nil
+func splitType(t string) (string, string) {
+	components := strings.Split(t, "/")
+	if len(components) == 1 {
+		return "", t
 	} else {
-		if baseType[len(baseType)-1] == ']' {
-			base := baseType[:index]
-			rest := baseType[index:]
+		return components[0], components[1]
+	}
+}
+
+func parseType(msgType string) (pkg string, baseType string, isArray bool, arrayLen int, err error) {
+	index := strings.Index(msgType, "[")
+	if index < 0 {
+		pkg, name := splitType(msgType)
+		return pkg, name, false, 0, nil
+	} else {
+		if msgType[len(msgType)-1] == ']' {
+			base := msgType[:index]
+			rest := msgType[index:]
+			pkg, name := splitType(base)
 			if rest == "[]" {
-				return base, true, -1, nil
+				return pkg, name, true, -1, nil
 			} else {
 				value64, err := strconv.ParseInt(rest[1:len(rest)-1], 10, 32)
 				if err != nil {
-					return base, false, 0, err
+					return pkg, name, false, 0, err
 				}
 				value := int(value64)
-				return base, true, value, nil
+				return pkg, name, true, value, nil
 			}
 		} else {
-			return baseType, false, 0, fmt.Errorf("missing ']'")
+			return "", msgType, false, 0, fmt.Errorf("missing ']'")
 		}
 	}
 }
@@ -196,7 +207,7 @@ func ToGoType(typeName string) string {
 	case "byte":
 		goType = "uint8"
 	default:
-		goType = typeName
+		goType = strings.Replace(typeName, "/", ".", -1)
 	}
 	return goType
 }
@@ -262,22 +273,23 @@ func (c *Constant) String() string {
 }
 
 type Field struct {
+	Package   string
 	Type      string
 	Name      string
 	IsBuiltin bool
 	IsArray   bool
-	Arraylen  int
+	ArrayLen  int
 	GoName    string
 	GoType    string
 	ZeroValue string
 }
 
-func NewField(fieldType string, name string, isArray bool, arrayLen int) *Field {
+func NewField(pkg string, fieldType string, name string, isArray bool, arrayLen int) *Field {
 	goType := ToGoType(fieldType)
 	goName := ToGoName(name)
 	zeroValue := GetZeroValue(fieldType)
 	isBuiltin := isBuiltinType(fieldType)
-	return &Field{fieldType, name, isBuiltin, isArray, arrayLen, goName, goType, zeroValue}
+	return &Field{pkg, fieldType, name, isBuiltin, isArray, arrayLen, goName, goType, zeroValue}
 }
 
 func (f *Field) String() string {
@@ -288,18 +300,20 @@ type MsgSpec struct {
 	Fields    []Field
 	Constants []Constant
 	Text      string
+	MD5Sum    string
 	FullName  string
 	ShortName string
 	Package   string
 }
 
 type SrvSpec struct {
+	Package   string
 	ShortName string
 	FullName  string
 	Text      string
 	MD5Sum    string
-	Request   MsgSpec
-	Response  MsgSpec
+	Request   *MsgSpec
+	Response  *MsgSpec
 }
 
 type ActionSpec struct {
@@ -307,9 +321,9 @@ type ActionSpec struct {
 	FullName  string
 	Text      string
 	MD5Sum    string
-	Goal      MsgSpec
-	Feedback  MsgSpec
-	Result    MsgSpec
+	Goal      *MsgSpec
+	Feedback  *MsgSpec
+	Result    *MsgSpec
 }
 
 type OptionMsgSpec func(*MsgSpec) error
@@ -363,27 +377,39 @@ func (s *MsgSpec) String() string {
 	return strings.Join(lines, "\n")
 }
 
-func (s *MsgSpec) ComputeMD5(msgContext *MsgContext) string {
-	pkg := s.Package
+func (s *MsgSpec) ComputeMD5(msgContext *MsgContext) (string, error) {
+	thisPkgName := s.Package
 	var buffer bytes.Buffer
 	for _, c := range s.Constants {
-		buffer.WriteString(fmt.Sprintf("%v %v=\n", c.Type, c.Name, c.ValueText))
+		buffer.WriteString(fmt.Sprintf("%v %v=%v\n", c.Type, c.Name, c.ValueText))
 	}
 	for _, f := range s.Fields {
 		msgType := baseMsgType(f.Type)
 		if isBuiltinType(f.Type) {
 			buffer.WriteString(fmt.Sprintf("%v %v\n", f.Type, f.Name))
 		} else {
-			subpkg, baseType, err := packageResourceName(msgType)
-			if len(subpkg) == 0 {
-				subpkg = pkg
+			pkgName, baseType, err := packageResourceName(msgType)
+			if err != nil {
+				return "", err
 			}
-			subMD5 := subpkg.ComputeMD5(msgContext, f.Name)
-			buffer.WriteString(fmt.Sprintf("%v %v\n", subMD5, f.Name))
+			// If no package name, it should be a messge in the current package
+			if len(pkgName) == 0 {
+				pkgName = thisPkgName
+			}
+			fullMsgName := pkgName + "/" + baseType
+			if msgSpec, err := msgContext.LoadMsg(fullMsgName); err != nil {
+				subMD5, err := msgSpec.ComputeMD5(msgContext)
+				if err != nil {
+					return "", err
+				}
+				buffer.WriteString(fmt.Sprintf("%v %v\n", subMD5, f.Name))
+			} else {
+				return "", fmt.Errorf("Message '%s' was not found", fullMsgName)
+			}
 		}
 	}
 	data := buffer.Bytes()
 	hash := md5.New()
 	sum := hash.Sum(data)
-	return hex.EncodeToString(sum)
+	return hex.EncodeToString(sum), nil
 }

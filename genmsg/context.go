@@ -141,10 +141,11 @@ func (ctx *MsgContext) LoadMsgFromString(text string, fullname string) (*MsgSpec
 	}
 	spec, _ := NewMsgSpec(fields, constants, text, fullname, OptionPackageName(packageName), OptionShortName(shortName))
 	var err error
-	spec.MD5Sum, err = ctx.ComputeMsgMD5(spec)
+	md5sum, err := ctx.ComputeMsgMD5(spec)
 	if err != nil {
 		return nil, err
 	}
+	spec.MD5Sum = md5sum
 	ctx.Register(fullname, spec)
 	return spec, nil
 }
