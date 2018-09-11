@@ -317,15 +317,15 @@ func (node *defaultNode) requestTopic(callerId string, topic string, protocols [
 	return buildRosApiResult(code, message, value), nil
 }
 
-func (node *defaultNode) NewPublisher(topic string, msgType MessageType) Publisher {
+func (node *defaultNode) NewPublisher(topic string, msgType MessageType) (Publisher, error) {
 	name := node.nameResolver.remap(topic)
 	return node.NewPublisherWithCallbacks(name, msgType, nil, nil)
 }
 
-func (node *defaultNode) NewPublisherWithCallbacks(topic string, msgType MessageType, connectCallback, disconnectCallback func(SingleSubscriberPublisher)) Publisher {
+func (node *defaultNode) NewPublisherWithCallbacks(topic string, msgType MessageType, connectCallback, disconnectCallback func(SingleSubscriberPublisher)) (Publisher, error) {
 	name := node.nameResolver.remap(topic)
-	pub, ok := node.publishers[name]
 	logger := node.logger
+	pub, ok := node.publishers[name]
 	if !ok {
 		_, err := callRosApi(node.masterUri, "registerPublisher",
 			node.qualifiedName,
@@ -333,16 +333,17 @@ func (node *defaultNode) NewPublisherWithCallbacks(topic string, msgType Message
 			node.xmlrpcUri)
 		if err != nil {
 			logger.Fatalf("Failed to call registerPublisher(): %s", err)
+			return nil, err
 		}
 
 		pub = newDefaultPublisher(logger, node.qualifiedName, node.xmlrpcUri, node.masterUri, name, msgType, connectCallback, disconnectCallback)
 		node.publishers[name] = pub
 		go pub.start(&node.waitGroup)
 	}
-	return pub
+	return pub, nil
 }
 
-func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callback interface{}) Subscriber {
+func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callback interface{}) (Subscriber, error) {
 	name := node.nameResolver.remap(topic)
 	sub, ok := node.subscribers[name]
 	logger := node.logger
@@ -355,16 +356,19 @@ func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callba
 			node.xmlrpcUri)
 		if err != nil {
 			logger.Fatalf("Failed to call registerSubscriber() for %s.", err)
+			return nil, fmt.Errorf("Publisher list contains no string object")
 		}
 		list, ok := result.([]interface{})
 		if !ok {
 			logger.Fatalf("result is not []string but %s.", reflect.TypeOf(result).String())
+			return nil, fmt.Errorf("Publisher list contains no string object")
 		}
 		var publishers []string
 		for _, item := range list {
 			s, ok := item.(string)
 			if !ok {
 				logger.Fatal("Publisher list contains no string object")
+				return nil, fmt.Errorf("Publisher list contains no string object")
 			}
 			publishers = append(publishers, s)
 		}
@@ -382,27 +386,27 @@ func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callba
 	} else {
 		sub.callbacks = append(sub.callbacks, callback)
 	}
-	return sub
+	return sub, nil
 }
 
-func (node *defaultNode) NewServiceClient(service string, srvType ServiceType) ServiceClient {
+func (node *defaultNode) NewServiceClient(service string, srvType ServiceType) (ServiceClient, error) {
 	name := node.nameResolver.remap(service)
 	client := newDefaultServiceClient(node.logger, node.qualifiedName, node.masterUri, name, srvType)
-	return client
+	return client, nil
 }
 
-func (node *defaultNode) NewServiceServer(service string, srvType ServiceType, handler interface{}) ServiceServer {
+func (node *defaultNode) NewServiceServer(service string, srvType ServiceType, handler interface{}) (ServiceServer, error) {
 	name := node.nameResolver.remap(service)
 	server, ok := node.servers[name]
 	if ok {
 		server.Shutdown()
 	}
-	server = newDefaultServiceServer(node, name, srvType, handler)
-	if server == nil {
-		return nil
+	server, err := newDefaultServiceServer(node, name, srvType, handler)
+	if err != nil {
+		return nil, err
 	}
 	node.servers[name] = server
-	return server
+	return server, nil
 }
 
 func (node *defaultNode) SpinOnce() {

@@ -17,7 +17,11 @@ func main() {
 	}
 	defer node.Shutdown()
 	node.Logger().SetSeverity(ros.LogLevelDebug)
-	pub := node.NewPublisherWithCallbacks("/chatter", std_msgs.MsgString, onConnect, onDisconnect)
+	pub, err := node.NewPublisherWithCallbacks("/chatter", std_msgs.MsgString, onConnect, onDisconnect)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(-1)
+	}
 
 	for node.OK() {
 		node.SpinOnce()

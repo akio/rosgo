@@ -36,16 +36,16 @@ type defaultServiceServer struct {
 	sessionErrorChan chan error
 }
 
-func newDefaultServiceServer(node *defaultNode, service string, srvType ServiceType, handler interface{}) *defaultServiceServer {
+func newDefaultServiceServer(node *defaultNode, service string, srvType ServiceType, handler interface{}) (*defaultServiceServer, error) {
 	logger := node.logger
 	server := new(defaultServiceServer)
 	if listener, err := listenRandomPort("127.0.0.1", 10); err != nil {
-		panic(err)
+		return nil, fmt.Errorf("Failed to bind address to listen")
 	} else {
 		if tcpListener, ok := listener.(*net.TCPListener); ok {
 			server.listener = tcpListener
 		} else {
-			panic(fmt.Errorf("Server listener is not TCPListener"))
+			return nil, fmt.Errorf("Server listener is not TCPListener")
 		}
 	}
 	server.node = node
@@ -65,10 +65,10 @@ func newDefaultServiceServer(node *defaultNode, service string, srvType ServiceT
 	if err != nil {
 		logger.Errorf("Failed to register service %s", service)
 		server.listener.Close()
-		return nil
+		return nil, fmt.Errorf("Failed to register service %s", service)
 	}
 	go server.start()
-	return server
+	return server, nil
 }
 
 func (s *defaultServiceServer) Shutdown() {

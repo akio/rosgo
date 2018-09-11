@@ -23,7 +23,11 @@ func main() {
 	defer node.Shutdown()
 	logger := node.Logger()
 	logger.SetSeverity(ros.LogLevelDebug)
-	cli := node.NewServiceClient("/add_two_ints", rospy_tutorials.SrvAddTwoInts)
+	cli, err := node.NewServiceClient("/add_two_ints", rospy_tutorials.SrvAddTwoInts)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(-1)
+	}
 	defer cli.Shutdown()
 	var a, b int64
 	a, err = strconv.ParseInt(os.Args[1], 10, 32)

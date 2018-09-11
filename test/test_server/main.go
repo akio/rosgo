@@ -23,9 +23,9 @@ func main() {
 	defer node.Shutdown()
 	logger := node.Logger()
 	logger.SetSeverity(ros.LogLevelDebug)
-	server := node.NewServiceServer("/add_two_ints", rospy_tutorials.SrvAddTwoInts, callback)
-	if server == nil {
-		fmt.Println("Failed to initialize '/add_two_ints' service server")
+	server, err := node.NewServiceServer("/add_two_ints", rospy_tutorials.SrvAddTwoInts, callback)
+	if err != nil {
+		fmt.Println(err)
 		os.Exit(-1)
 	}
 	defer server.Shutdown()
