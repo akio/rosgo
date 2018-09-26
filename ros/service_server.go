@@ -39,7 +39,7 @@ type defaultServiceServer struct {
 func newDefaultServiceServer(node *defaultNode, service string, srvType ServiceType, handler interface{}) *defaultServiceServer {
 	logger := node.logger
 	server := new(defaultServiceServer)
-	if listener, err := listenRandomPort("127.0.0.1", 10); err != nil {
+	if listener, err := listenRandomPort(node.listenIp, 10); err != nil {
 		panic(err)
 	} else {
 		if tcpListener, ok := listener.(*net.TCPListener); ok {
@@ -55,9 +55,14 @@ func newDefaultServiceServer(node *defaultNode, service string, srvType ServiceT
 	server.sessions = list.New()
 	server.shutdownChan = make(chan struct{}, 10)
 	server.sessionErrorChan = make(chan error, 10)
-	address := fmt.Sprintf("rosrpc://%s", server.listener.Addr().String())
+	_, port, err := net.SplitHostPort(server.listener.Addr().String())
+	if err != nil {
+		// Not reached
+		panic(err)
+	}
+	address := fmt.Sprintf("rosrpc://%s:%s", node.hostname, port)
 	logger.Debugf("ServiceServer listen %s", address)
-	_, err := callRosApi(node.masterUri, "registerService",
+	_, err = callRosApi(node.masterUri, "registerService",
 		node.qualifiedName,
 		service,
 		address,
