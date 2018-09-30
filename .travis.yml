@@ -1,10 +1,22 @@
+language: go
+
+go:
+    - "1.6"
+    - "1.7"
+    - "1.8"
+    - "1.9"
+    - "1.10"
+    - "1.11"
+
+
 sudo: required
 
 services:
     - docker
 
-before_install:
+install:
     - docker build -f .travis/Dockerfile -t akio/rosgo .
 
 script:
+    - type go
     - docker run akio/rosgo
