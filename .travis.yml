@@ -17,5 +17,5 @@ install:
     - docker build -f .travis/Dockerfile -t akio/rosgo .
 
 script:
-    - docker -v $GOROOT:/usr/local/go run akio/rosgo 
+    - docker run -v $GOROOT:/usr/local/go akio/rosgo
 
