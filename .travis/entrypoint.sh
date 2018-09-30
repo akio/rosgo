@@ -1,3 +1,4 @@
+#!/bin/bash
 source /opt/ros/kinetic/setup.bash
 
 export PATH=$PWD/bin:$PATH
