@@ -4,7 +4,7 @@ services:
     - docker
 
 before_install:
-    - docker build .travis/Dockerfile -t akio/rosgo
+    - docker build -f .travis/Dockerfile -t akio/rosgo .
 
 script:
     - ls
