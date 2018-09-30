@@ -1,6 +1,6 @@
 FROM ros:kinetic-ros-base
 
-RUN wget https://dl.google.com/go/go1.11.linux-amd64.tar.gz
+RUN curl -O https://dl.google.com/go/go1.11.linux-amd64.tar.gz
 RUN tar -C /usr/local https://dl.google.com/go/go1.11.linux-amd64.tar.gz
 
 
