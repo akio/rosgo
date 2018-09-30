@@ -8,13 +8,18 @@ go:
     - "1.10"
     - "1.11"
 
+env:
+    - ROS_DOCKER=ros:kinetic-ros-base
+    - ROS_DOCKER=ros:lunar-ros-base
+    - ROS_DOCKER=ros:melodic-ros-base
+
 sudo: required
 
 services:
     - docker
 
 install:
-    - docker build -f .travis/Dockerfile -t akio/rosgo .
+    - docker build -f .travis/Dockerfile -t akio/rosgo . --build-arg ROS_DOCKER_TAG=$ROS_DOCKER
 
 script:
     - docker run -v $GOROOT:/usr/local/go akio/rosgo
