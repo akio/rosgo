@@ -1,7 +1,7 @@
 #!/bin/bash
 source /opt/ros/kinetic/setup.bash
 
-export PATH=$PWD/bin:$PATH
+export PATH=$PWD/bin:/usr/local/bin:$PATH
 
 go install github.com/akio/rosgo/gengo
 go generate github.com/akio/rosgo/test/test_message
