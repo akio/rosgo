@@ -68,8 +68,8 @@ type defaultNode struct {
 	okMutex        sync.RWMutex
 	waitGroup      sync.WaitGroup
 	logDir         string
-	ipAddress      string
 	hostname       string
+	listenIp       string
 	homeDir        string
 	nameResolver   *NameResolver
 	nonRosArgs     []string
@@ -127,14 +127,19 @@ func newDefaultNode(name string, args []string) (*defaultNode, error) {
 		node.logDir = value
 	}
 
-	node.ipAddress = os.Getenv("ROS_IP")
-	if value, ok := specials["__ip"]; ok {
-		node.ipAddress = value
-	}
-
-	node.hostname = os.Getenv("ROS_HOSTNAME")
+	var onlyLocalhost bool
+	node.hostname, onlyLocalhost = determineHost()
 	if value, ok := specials["__hostname"]; ok {
 		node.hostname = value
+		onlyLocalhost = (value == "localhost")
+	} else if value, ok := specials["__ip"]; ok {
+		node.hostname = value
+		onlyLocalhost = (value == "::1" || strings.HasPrefix(value, "127."))
+	}
+	if onlyLocalhost {
+		node.listenIp = "127.0.0.1"
+	} else {
+		node.listenIp = "0.0.0.0"
 	}
 
 	node.masterUri = os.Getenv("ROS_MASTER_URI")
@@ -177,12 +182,18 @@ func newDefaultNode(name string, args []string) (*defaultNode, error) {
 		}
 	}
 
-	listener, err := listenRandomPort("127.0.0.1", 10)
+	listener, err := listenRandomPort(node.listenIp, 10)
 	if err != nil {
 		logger.Fatal(err)
 		return nil, err
 	}
-	node.xmlrpcUri = fmt.Sprintf("http://%s", listener.Addr().String())
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	if err != nil {
+		// Not reached
+		panic(err)
+	}
+	node.xmlrpcUri = fmt.Sprintf("http://%s:%s", node.hostname, port)
+	logger.Debugf("listen on http://%s", listener.Addr().String())
 	node.xmlrpcListener = listener
 	m := map[string]xmlrpc.Method{
 		"getBusStats":      func(callerId string) (interface{}, error) { return node.getBusStats(callerId) },
@@ -335,7 +346,7 @@ func (node *defaultNode) NewPublisherWithCallbacks(topic string, msgType Message
 			logger.Fatalf("Failed to call registerPublisher(): %s", err)
 		}
 
-		pub = newDefaultPublisher(logger, node.qualifiedName, node.xmlrpcUri, node.masterUri, name, msgType, connectCallback, disconnectCallback)
+		pub = newDefaultPublisher(node, name, msgType, connectCallback, disconnectCallback)
 		node.publishers[name] = pub
 		go pub.start(&node.waitGroup)
 	}

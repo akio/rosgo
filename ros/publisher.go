@@ -22,10 +22,7 @@ func (e *remoteSubscriberSessionError) Error() string {
 }
 
 type defaultPublisher struct {
-	logger             Logger
-	nodeId             string
-	nodeApiUri         string
-	masterUri          string
+	node               *defaultNode
 	topic              string
 	msgType            MessageType
 	msgChan            chan []byte
@@ -38,14 +35,11 @@ type defaultPublisher struct {
 	disconnectCallback func(SingleSubscriberPublisher)
 }
 
-func newDefaultPublisher(logger Logger, nodeId string, nodeApiUri string,
-	masterUri string, topic string, msgType MessageType,
+func newDefaultPublisher(node *defaultNode,
+	topic string, msgType MessageType,
 	connectCallback, disconnectCallback func(SingleSubscriberPublisher)) *defaultPublisher {
 	pub := new(defaultPublisher)
-	pub.logger = logger
-	pub.nodeId = nodeId
-	pub.nodeApiUri = nodeApiUri
-	pub.masterUri = masterUri
+	pub.node = node
 	pub.topic = topic
 	pub.msgType = msgType
 	pub.shutdownChan = make(chan struct{}, 10)
@@ -55,7 +49,7 @@ func newDefaultPublisher(logger Logger, nodeId string, nodeApiUri string,
 	pub.sessions = list.New()
 	pub.connectCallback = connectCallback
 	pub.disconnectCallback = disconnectCallback
-	if listener, err := listenRandomPort("127.0.0.1", 10); err != nil {
+	if listener, err := listenRandomPort(node.listenIp, 10); err != nil {
 		panic(err)
 	} else {
 		pub.listener = listener
@@ -64,7 +58,7 @@ func newDefaultPublisher(logger Logger, nodeId string, nodeApiUri string,
 }
 
 func (pub *defaultPublisher) start(wg *sync.WaitGroup) {
-	logger := pub.logger
+	logger := pub.node.logger
 	logger.Debugf("Publisher goroutine for %s started.", pub.topic)
 	wg.Add(1)
 	defer func() {
@@ -101,7 +95,7 @@ func (pub *defaultPublisher) start(wg *sync.WaitGroup) {
 			logger.Debug("defaultPublisher.start Receive shutdownChan")
 			pub.listener.Close()
 			logger.Debug("defaultPublisher.start closed listener")
-			_, err := callRosApi(pub.masterUri, "unregisterPublisher", pub.nodeId, pub.topic, pub.nodeApiUri)
+			_, err := callRosApi(pub.node.masterUri, "unregisterPublisher", pub.node.qualifiedName, pub.topic, pub.node.xmlrpcUri)
 			if err != nil {
 				logger.Warn(err)
 			}
@@ -116,7 +110,7 @@ func (pub *defaultPublisher) start(wg *sync.WaitGroup) {
 }
 
 func (pub *defaultPublisher) listenRemoteSubscriber() {
-	logger := pub.logger
+	logger := pub.node.logger
 	logger.Debugf("Start listen %s.", pub.listener.Addr().String())
 	defer func() {
 		logger.Debug("defaultPublisher.listenRemoteSubscriber exit")
@@ -150,12 +144,12 @@ func (pub *defaultPublisher) Shutdown() {
 }
 
 func (pub *defaultPublisher) hostAndPort() (string, string) {
-	addr, port, err := net.SplitHostPort(pub.listener.Addr().String())
+	_, port, err := net.SplitHostPort(pub.listener.Addr().String())
 	if err != nil {
 		// Not reached
 		panic(err)
 	}
-	return addr, port
+	return pub.node.hostname, port
 }
 
 type remoteSubscriberSession struct {
@@ -176,7 +170,7 @@ type remoteSubscriberSession struct {
 func newRemoteSubscriberSession(pub *defaultPublisher, conn net.Conn) *remoteSubscriberSession {
 	session := new(remoteSubscriberSession)
 	session.conn = conn
-	session.nodeId = pub.nodeId
+	session.nodeId = pub.node.qualifiedName
 	session.topic = pub.topic
 	session.typeText = pub.msgType.Text()
 	session.md5sum = pub.msgType.MD5Sum()
@@ -184,7 +178,7 @@ func newRemoteSubscriberSession(pub *defaultPublisher, conn net.Conn) *remoteSub
 	session.quitChan = make(chan struct{})
 	session.msgChan = make(chan []byte, 10)
 	session.errorChan = pub.sessionErrorChan
-	session.logger = pub.logger
+	session.logger = pub.node.logger
 	session.connectCallback = pub.connectCallback
 	session.disconnectCallback = pub.disconnectCallback
 	return session
