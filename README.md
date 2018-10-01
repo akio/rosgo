@@ -1,12 +1,14 @@
 rosgo
 ============================================================================
 
+[![Build Status](https://travis-ci.com/akio/rosgo.svg?branch=master)](https://travis-ci.com/akio/rosgo)
+
 Package Summary
 ---------------------------------
 
-**rosgo** is pure Go implementation of [ROS](http://www.ros.org/) client library. 
+**rosgo** is pure Go implementation of [ROS](http://www.ros.org/) client library.
 
-- Author: Akiyoshi Ochiai<akio7141 AT gmail DOT com>
+- Author: Akio Ochiai
 - License: Apache License 2.0
 - Source: git [https://github.com/akio/rosgo](https://github.com/akio/rosgo)
 
@@ -20,28 +22,8 @@ At present, following basic functions are provided.
 - Parameter API (get/set/search....)
 - ROS Slave API (with some exceptions)
 - Publisher/Subscriber API (with TCPROS)
-
-Building
----------------------------------
-
-Setup environmet variable:
-
-     export GOPATH=${path/to/rosgo/dir}
-
-
-Build rosgo library:
-
-     go install ros
-     
-
-Examples programs:
-
-     go install test_listener test_talker test_param
-     
-Example executables are placed in `bin` directory.
-
-
-*In future release, the build system will be integrated with [catkin](http://www.ros.org/wiki/catkin).*
+- Remapping
+- Message Generation
 
 
 See also
