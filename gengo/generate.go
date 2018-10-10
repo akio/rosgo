@@ -98,7 +98,9 @@ func (m *{{ .ShortName }}) Serialize(buf *bytes.Buffer) error {
     var err error = nil
 {{- range .Fields }}
 {{-     if .IsArray }}
+{{-        if lt .ArrayLen 0 }}
     binary.Write(buf, binary.LittleEndian, uint32(len(m.{{ .GoName }})))
+{{-        end }}
     for _, e := range m.{{ .GoName }} {
 {{-         if .IsBuiltin }}
 {{-             if eq .Type "string" }}
@@ -147,14 +149,17 @@ func (m *{{ .ShortName }}) Deserialize(buf *bytes.Reader) error {
 {{- range .Fields }}
 {{-    if .IsArray }}
     {
+
+{{-        if lt .ArrayLen 0 }}
         var size uint32
         if err = binary.Read(buf, binary.LittleEndian, &size); err != nil {
             return err
         }
-{{-        if lt .ArrayLen 0 }}
         m.{{ .GoName }} = make([]{{ .GoType }}, int(size))
-{{-        end }}
         for i := 0; i < int(size); i++ {
+{{-        else }}
+        for i :=0; i < {{ .ArrayLen }}; i++ {
+{{-        end }}
 {{-          if .IsBuiltin }}
 {{-              if eq .Type "string" }}
             {
