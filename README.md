@@ -1,7 +1,7 @@
 rosgo
 ============================================================================
 
-[![Build Status](https://travis-ci.com/akio/rosgo.svg?branch=master)](https://travis-ci.com/akio/rosgo)
+[![GoDoc](https://godoc.org/github.com/akio/rosgo?status.svg)](https://godoc.org/github.com/akio/rosgo) [![Build Status](https://travis-ci.com/akio/rosgo.svg?branch=master)](https://travis-ci.com/akio/rosgo)
 
 Package Summary
 ---------------------------------
