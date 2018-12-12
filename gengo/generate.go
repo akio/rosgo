@@ -13,7 +13,7 @@ import (
 {{- if .BinaryRequired }}
     "encoding/binary"
 {{- end }}
-    "github.com/akio/rosgo/ros"
+    "github.com/fetchrobotics/rosgo/ros"
 {{- range .Imports }}
 	"{{ . }}"
 {{- end }}
@@ -238,7 +238,7 @@ var srvTemplate = `
 // Automatically generated from the message definition "{{ .FullName }}.srv"
 package {{ .Package }}
 import (
-    "github.com/akio/rosgo/ros"
+    "github.com/fetchrobotics/rosgo/ros"
 )
 
 // Service type metadata
