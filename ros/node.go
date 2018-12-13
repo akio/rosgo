@@ -3,7 +3,7 @@ package ros
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/akio/rosgo/xmlrpc"
+	"github.com/fetchrobotics/rosgo/xmlrpc"
 	"math/rand"
 	"net"
 	"net/http"
@@ -429,7 +429,7 @@ func (node *defaultNode) SpinOnce() {
 func (node *defaultNode) Spin() {
 	logger := node.logger
 	for node.OK() {
-		timeoutChan := time.After(10 * time.Millisecond)
+		timeoutChan := time.After(1000 * time.Millisecond)
 		select {
 		case job := <-node.jobChan:
 			logger.Debug("Execute job")
