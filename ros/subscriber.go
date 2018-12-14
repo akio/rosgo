@@ -200,7 +200,7 @@ func startRemotePublisherConn(logger Logger,
 		case <-quitChan:
 			return
 		default:
-			conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
+			conn.SetDeadline(time.Now().Add(1000 * time.Millisecond))
 			if readingSize {
 				//logger.Debug("Reading message size...")
 				err := binary.Read(conn, binary.LittleEndian, &msgSize)
