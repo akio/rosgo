@@ -13,10 +13,11 @@ import (
 {{- if .BinaryRequired }}
     "encoding/binary"
 {{- end }}
-    "github.com/fetchrobotics/rosgo/ros"
 {{- range .Imports }}
 	"{{ . }}"
 {{- end }}
+
+    "github.com/fetchrobotics/rosgo/ros"
 )
 
 {{- if gt (len .Constants) 0 }}
@@ -286,20 +287,25 @@ type MsgGen struct {
 }
 
 func (gen *MsgGen) analyzeImports() {
-	for _, field := range gen.Fields {
+	imp_path := ""
+	if len(*import_path) != 0 {
+		imp_path = *import_path + "/"
+	}
+
+OUTER:
+	for i, field := range gen.Fields {
 		if len(field.Package) == 0 {
 			gen.BinaryRequired = true
+		} else if gen.Package == field.Package {
+			gen.Fields[i].GoType = field.Type
+			gen.Fields[i].ZeroValue = field.Type + "{}"
 		} else {
-			found := false
 			for _, imp := range gen.Imports {
-				if imp == field.Package {
-					found = true
-					break
+				if imp == imp_path+field.Package {
+					continue OUTER
 				}
 			}
-			if !found {
-				gen.Imports = append(gen.Imports, field.Package)
-			}
+			gen.Imports = append(gen.Imports, imp_path+field.Package)
 		}
 	}
 }
