@@ -167,7 +167,7 @@ func (m *{{ .ShortName }}) Deserialize(buf *bytes.Reader) error {
                 if err = binary.Read(buf, binary.LittleEndian, data); err != nil {
                     return err
                 }
-                m.{{ .GoName }})[i] = string(data)
+                m.{{ .GoName }}[i] = string(data)
             }
 {{-              else }}
 {{- 					if or (eq .Type "time") (eq .Type "duration") }}
@@ -306,6 +306,11 @@ OUTER:
 				}
 			}
 			gen.Imports = append(gen.Imports, imp_path+field.Package)
+		}
+
+		// Binary is required to read the size of array
+		if field.IsArray {
+			gen.BinaryRequired = true
 		}
 	}
 }

@@ -28,7 +28,7 @@ func writeCode(fullname string, code string) error {
 
 	res, err := format.Source([]byte(code))
 	if err != nil {
-		return err
+		return fmt.Errorf("Error formatting generated code: %+v", err)
 	}
 
 	return ioutil.WriteFile(filename, res, os.FileMode(0664))
