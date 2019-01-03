@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"go/format"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -10,7 +11,8 @@ import (
 )
 
 var (
-	out = flag.String("out", "vendor", "Directory to generate files to")
+	out         = flag.String("out", "vendor", "Directory to generate files in")
+	import_path = flag.String("import_path", "", "Specify import path/prefix for nested types")
 )
 
 func writeCode(fullname string, code string) error {
@@ -24,7 +26,12 @@ func writeCode(fullname string, code string) error {
 	}
 	filename := filepath.Join(pkgDir, nameComponents[1]+".go")
 
-	return ioutil.WriteFile(filename, []byte(code), os.FileMode(0664))
+	res, err := format.Source([]byte(code))
+	if err != nil {
+		return fmt.Errorf("Error formatting generated code: %+v", err)
+	}
+
+	return ioutil.WriteFile(filename, res, os.FileMode(0664))
 }
 
 func main() {
@@ -38,7 +45,7 @@ func main() {
 	}
 
 	if flag.NArg() < 2 {
-		fmt.Println("USAGE: gengo [-out=] msg|srv <NAME> [<FILE>]")
+		fmt.Println("USAGE: gengo [-out=] [-import_path=] msg|srv <NAME> [<FILE>]")
 		os.Exit(-1)
 	}
 
