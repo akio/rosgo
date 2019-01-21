@@ -43,6 +43,6 @@ func (r *Rate) Sleep() error {
 	remaining.Sleep()
 	now := Now()
 	r.actualCycleTime = now.Diff(r.start)
-	r.start = now
+	r.start = r.start.Add(r.expectedCycleTime)
 	return nil
 }
