@@ -171,20 +171,21 @@ func TestMD5_std_msgs(t *testing.T) {
 	ctx, e := NewMsgContext(strings.Split(rosPkgPath, ":"))
 	if e != nil {
 		t.Errorf("Failed to create MsgContext.")
-	}
+	} else {
+		for fullname, md5 := range std_msgs {
+			_, shortName, _ := packageResourceName(fullname)
 
-	for fullname, md5 := range std_msgs {
-		_, shortName, _ := packageResourceName(fullname)
+			t.Run(shortName, func(t *testing.T) {
+				var spec *MsgSpec
+				spec, e := ctx.LoadMsg(fullname)
+				if e != nil {
+					t.Errorf("Failed to parse: %v", e)
+				} else {
+					assertEqual(t, spec.MD5Sum, md5)
+				}
+			})
+		}
 
-		t.Run(shortName, func(t *testing.T) {
-			var spec *MsgSpec
-			spec, e := ctx.LoadMsg(fullname)
-			if e != nil {
-				t.Errorf("Failed to parse: %v", e)
-			}
-
-			assertEqual(t, spec.MD5Sum, md5)
-		})
 	}
 }
 
@@ -233,9 +234,9 @@ func TestMD5_sensor_msgs(t *testing.T) {
 			spec, e := ctx.LoadMsg(fullname)
 			if e != nil {
 				t.Errorf("Failed to parse: %v", e)
+			} else {
+				assertEqual(t, spec.MD5Sum, md5)
 			}
-
-			assertEqual(t, spec.MD5Sum, md5)
 		})
 	}
 }
