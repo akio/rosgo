@@ -272,50 +272,48 @@ func (session *remoteSubscriberSession) start() {
 
 	// 3. Start sending message
 	logger.Debug("Start sending messages...")
-	queue := list.New()
 	queueMaxSize := 100
+	queue := make(chan []byte, queueMaxSize)
 	for {
 		//logger.Debug("session.remoteSubscriberSession")
 		select {
 		case msg := <-session.msgChan:
 			logger.Debug("Receive msgChan")
-			if queue.Len() == queueMaxSize {
-				queue.Remove(queue.Front())
+			if len(queue) == queueMaxSize {
+				<-queue
 			}
-			queue.PushBack(msg)
+			queue <- msg
+
 		case <-session.quitChan:
 			logger.Debug("Receive quitChan")
 			return
-		case <-time.After(10 * time.Millisecond):
-			if queue.Len() > 0 {
-				logger.Debug("writing")
-				msg := queue.Front().Value.([]byte)
-				queue.Remove(queue.Front())
-				logger.Debug(hex.EncodeToString(msg))
-				session.conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
-				size := uint32(len(msg))
-				if err := binary.Write(session.conn, binary.LittleEndian, size); err != nil {
-					if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
-						logger.Debug("timeout")
-						continue
-					} else {
-						logger.Error(err)
-						panic(err)
-					}
+
+		case msg := <-queue:
+			logger.Debug("writing")
+			logger.Debug(hex.EncodeToString(msg))
+			session.conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
+			size := uint32(len(msg))
+			if err := binary.Write(session.conn, binary.LittleEndian, size); err != nil {
+				if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
+					logger.Debug("timeout")
+					continue
+				} else {
+					logger.Error(err)
+					panic(err)
 				}
-				logger.Debug(len(msg))
-				session.conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
-				if _, err := session.conn.Write(msg); err != nil {
-					if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
-						logger.Debug("timeout")
-						continue
-					} else {
-						logger.Error(err)
-						panic(err)
-					}
-				}
-				logger.Debug(hex.EncodeToString(msg))
 			}
+			logger.Debug(len(msg))
+			session.conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
+			if _, err := session.conn.Write(msg); err != nil {
+				if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
+					logger.Debug("timeout")
+					continue
+				} else {
+					logger.Error(err)
+					panic(err)
+				}
+			}
+			logger.Debug(hex.EncodeToString(msg))
 		}
 	}
 }
