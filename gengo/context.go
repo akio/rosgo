@@ -241,7 +241,13 @@ func (ctx *MsgContext) ComputeMD5Text(spec *MsgSpec) (string, error) {
 	}
 	for _, f := range spec.Fields {
 		if f.Package == "" {
-			buf.WriteString(fmt.Sprintf("%s %s\n", f.Type, f.Name))
+			if f.IsArray && f.ArrayLen > -1 {
+				buf.WriteString(fmt.Sprintf("%s[%d] %s\n", f.Type, f.ArrayLen, f.Name))
+			} else if f.IsArray {
+				buf.WriteString(fmt.Sprintf("%s[] %s\n", f.Type, f.Name))
+			} else {
+				buf.WriteString(fmt.Sprintf("%s %s\n", f.Type, f.Name))
+			}
 		} else {
 			subspec, err := ctx.LoadMsg(f.Package + "/" + f.Type)
 			if err != nil {
