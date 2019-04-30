@@ -28,6 +28,7 @@ type defaultPublisher struct {
 	msgChan            chan []byte
 	shutdownChan       chan struct{}
 	sessions           *list.List
+	sessionChan        chan *remoteSubscriberSession
 	sessionErrorChan   chan error
 	listenerErrorChan  chan error
 	listener           net.Listener
@@ -45,6 +46,7 @@ func newDefaultPublisher(node *defaultNode,
 	pub.shutdownChan = make(chan struct{}, 10)
 	pub.msgChan = make(chan []byte, 10)
 	pub.listenerErrorChan = make(chan error, 10)
+	pub.sessionChan = make(chan *remoteSubscriberSession, 10)
 	pub.sessionErrorChan = make(chan error, 10)
 	pub.sessions = list.New()
 	pub.connectCallback = connectCallback
@@ -81,6 +83,9 @@ func (pub *defaultPublisher) start(wg *sync.WaitGroup) {
 			logger.Debug("Listener closed unexpectedly: %s", err)
 			pub.listener.Close()
 			return
+		case s := <-pub.sessionChan:
+			pub.sessions.PushBack(s)
+			go s.start()
 		case err := <-pub.sessionErrorChan:
 			logger.Error(err)
 			if sessionError, ok := err.(*remoteSubscriberSessionError); ok {
@@ -118,18 +123,18 @@ func (pub *defaultPublisher) listenRemoteSubscriber() {
 
 	for {
 		logger.Debug("defaultPublisher.listenRemoteSubscriber loop")
-		if conn, err := pub.listener.Accept(); err != nil {
+		conn, err := pub.listener.Accept()
+		if err != nil {
 			logger.Debugf("pub.listner.Accept() failed")
 			pub.listenerErrorChan <- err
 			close(pub.listenerErrorChan)
 			logger.Debugf("defaultPublisher.listenRemoteSubscriber loop exit")
 			return
-		} else {
-			logger.Debugf("Connected %s", conn.RemoteAddr().String())
-			session := newRemoteSubscriberSession(pub, conn)
-			pub.sessions.PushBack(session)
-			go session.start()
 		}
+
+		logger.Debugf("Connected %s", conn.RemoteAddr().String())
+		session := newRemoteSubscriberSession(pub, conn)
+		pub.sessionChan <- session
 	}
 }
 

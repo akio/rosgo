@@ -3,7 +3,6 @@ package ros
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/fetchrobotics/rosgo/xmlrpc"
 	"math/rand"
 	"net"
 	"net/http"
@@ -15,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/fetchrobotics/rosgo/xmlrpc"
 )
 
 const (
@@ -59,7 +60,7 @@ type defaultNode struct {
 	xmlrpcListener net.Listener
 	xmlrpcHandler  *xmlrpc.Handler
 	subscribers    map[string]*defaultSubscriber
-	publishers     map[string]*defaultPublisher
+	publishers     sync.Map
 	servers        map[string]*defaultServiceServer
 	jobChan        chan func()
 	interruptChan  chan os.Signal
@@ -152,7 +153,6 @@ func newDefaultNode(name string, args []string) (*defaultNode, error) {
 
 	node.qualifiedName = node.namespace + "/" + node.name
 	node.subscribers = make(map[string]*defaultSubscriber)
-	node.publishers = make(map[string]*defaultPublisher)
 	node.servers = make(map[string]*defaultServiceServer)
 	node.interruptChan = make(chan os.Signal)
 	node.ok = true
@@ -260,10 +260,15 @@ func (node *defaultNode) getSubscriptions(callerId string) (interface{}, error) 
 
 func (node *defaultNode) getPublications(callerId string) (interface{}, error) {
 	result := []interface{}{}
-	for t, p := range node.publishers {
-		pair := []interface{}{t, p.msgType.Name()}
+	node.publishers.Range(func(t interface{}, p interface{}) bool {
+		pair := []interface{}{
+			t.(string),
+			p.(*defaultPublisher).msgType.Name(),
+		}
 		result = append(result, pair)
-	}
+		return true
+	})
+
 	return buildRosApiResult(0, "Success", result), nil
 }
 
@@ -296,7 +301,7 @@ func (node *defaultNode) requestTopic(callerId string, topic string, protocols [
 	var code int32
 	var message string
 	var value interface{}
-	if pub, ok := node.publishers[topic]; !ok {
+	if pub, ok := node.publishers.Load(topic); !ok {
 		node.logger.Debug("requestTopic() called with not publishing topic.")
 		code = 0
 		message = "No such topic"
@@ -309,7 +314,7 @@ func (node *defaultNode) requestTopic(callerId string, topic string, protocols [
 			if protocolName == "TCPROS" {
 				node.logger.Debug("TCPROS requested")
 				selectedProtocol = append(selectedProtocol, "TCPROS")
-				host, portStr := pub.hostAndPort()
+				host, portStr := pub.(*defaultPublisher).hostAndPort()
 				p, err := strconv.ParseInt(portStr, 10, 32)
 				if err != nil {
 					return nil, err
@@ -335,7 +340,7 @@ func (node *defaultNode) NewPublisher(topic string, msgType MessageType) Publish
 
 func (node *defaultNode) NewPublisherWithCallbacks(topic string, msgType MessageType, connectCallback, disconnectCallback func(SingleSubscriberPublisher)) Publisher {
 	name := node.nameResolver.remap(topic)
-	pub, ok := node.publishers[name]
+	pub, ok := node.publishers.Load(topic)
 	logger := node.logger
 	if !ok {
 		_, err := callRosApi(node.masterUri, "registerPublisher",
@@ -347,10 +352,10 @@ func (node *defaultNode) NewPublisherWithCallbacks(topic string, msgType Message
 		}
 
 		pub = newDefaultPublisher(node, name, msgType, connectCallback, disconnectCallback)
-		node.publishers[name] = pub
-		go pub.start(&node.waitGroup)
+		node.publishers.Store(name, pub)
+		go pub.(*defaultPublisher).start(&node.waitGroup)
 	}
-	return pub
+	return pub.(*defaultPublisher)
 }
 
 func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callback interface{}) Subscriber {
@@ -451,9 +456,10 @@ func (node *defaultNode) Shutdown() {
 	}
 	node.logger.Debug("Shutdown subscribers...done")
 	node.logger.Debug("Shutdown publishers")
-	for _, p := range node.publishers {
-		p.Shutdown()
-	}
+	node.publishers.Range(func(key interface{}, value interface{}) bool {
+		value.(*defaultPublisher).Shutdown()
+		return true
+	})
 	node.logger.Debug("Shutdown publishers...done")
 	node.logger.Debug("Shutdown servers")
 	for _, s := range node.servers {
