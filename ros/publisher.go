@@ -250,9 +250,17 @@ func (session *remoteSubscriberSession) start() {
 		headerMap[h.key] = h.value
 		logger.Debugf("  `%s` = `%s`", h.key, h.value)
 	}
-	if headerMap["type"] != session.typeName || headerMap["md5sum"] != session.md5sum {
-		panic(errors.New("Incomatible message type!"))
+
+	if headerMap["type"] != session.typeName && headerMap["type"] != "*" {
+		panic(fmt.Errorf("incompatible message type: does not match for topic %s: %s vs %s",
+			session.topic, session.typeName, headerMap["type"]))
 	}
+
+	if headerMap["md5sum"] != session.md5sum && headerMap["md5sum"] != "*" {
+		panic(fmt.Errorf("incompatible message md5: does not match for topic %s: %s vs %s",
+			session.topic, session.md5sum, headerMap["md5sum"]))
+	}
+
 	ssp.subName = headerMap["callerid"]
 	if session.connectCallback != nil {
 		go session.connectCallback(ssp)
