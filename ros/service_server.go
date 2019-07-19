@@ -16,13 +16,9 @@ type serviceResult struct {
 	err error
 }
 
-type remoteClientSessionError struct {
+type remoteClientSessionCloseEvent struct {
 	session *remoteClientSession
 	err     error
-}
-
-func (e *remoteClientSessionError) Error() string {
-	return fmt.Sprintf("remoteClientSession %v error: %v", e.session, e.err)
 }
 
 type defaultServiceServer struct {
@@ -33,7 +29,7 @@ type defaultServiceServer struct {
 	listener         *net.TCPListener
 	sessions         *list.List
 	shutdownChan     chan struct{}
-	sessionErrorChan chan error
+	sessionCloseChan chan *remoteClientSessionCloseEvent
 }
 
 func newDefaultServiceServer(node *defaultNode, service string, srvType ServiceType, handler interface{}) *defaultServiceServer {
@@ -54,7 +50,7 @@ func newDefaultServiceServer(node *defaultNode, service string, srvType ServiceT
 	server.handler = handler
 	server.sessions = list.New()
 	server.shutdownChan = make(chan struct{}, 10)
-	server.sessionErrorChan = make(chan error, 10)
+	server.sessionCloseChan = make(chan *remoteClientSessionCloseEvent, 10)
 	_, port, err := net.SplitHostPort(server.listener.Addr().String())
 	if err != nil {
 		// Not reached
@@ -108,15 +104,15 @@ func (s *defaultServiceServer) start() {
 
 		timeoutChan := time.After(1 * time.Millisecond)
 		select {
-		case err := <-s.sessionErrorChan:
-			logger.Error("session error: %v", err)
-			if sessionError, ok := err.(*remoteClientSessionError); ok {
-				for e := s.sessions.Front(); e != nil; e = e.Next() {
-					if e.Value == sessionError.session {
-						logger.Debugf("service session %v removed", e.Value)
-						s.sessions.Remove(e)
-						break
-					}
+		case ev := <-s.sessionCloseChan:
+			if ev.err != nil {
+				logger.Error("session error: %v", ev.err)
+			}
+			for e := s.sessions.Front(); e != nil; e = e.Next() {
+				if e.Value == ev.session {
+					logger.Debugf("service session %v removed", e.Value)
+					s.sessions.Remove(e)
+					break
 				}
 			}
 		case <-s.shutdownChan:
@@ -174,14 +170,14 @@ func (s *remoteClientSession) start() {
 	defer func() {
 		if err := recover(); err != nil {
 			if e, ok := err.(error); ok {
-				s.server.sessionErrorChan <- &remoteClientSessionError{s, e}
+				e = fmt.Errorf("remoteClientSession %v error: %v", s, e)
+				s.server.sessionCloseChan <- &remoteClientSessionCloseEvent{s, e}
 			} else {
-				e = fmt.Errorf("Unkonwn error value")
-				s.server.sessionErrorChan <- &remoteClientSessionError{s, e}
+				e = fmt.Errorf("remoteClientSession %v error: Unkonwn error value", s)
+				s.server.sessionCloseChan <- &remoteClientSessionCloseEvent{s, e}
 			}
 		} else {
-			e := fmt.Errorf("Normal exit")
-			s.server.sessionErrorChan <- &remoteClientSessionError{s, e}
+			s.server.sessionCloseChan <- &remoteClientSessionCloseEvent{s, nil}
 		}
 	}()
 
