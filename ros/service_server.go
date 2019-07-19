@@ -187,23 +187,14 @@ func (s *remoteClientSession) start() {
 
 	// 1. Read request header
 	conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
-	if resHeaders, err := readConnectionHeader(conn); err != nil {
+	reqHeader, err := readConnectionHeader(conn)
+	if err != nil {
 		panic(err)
-	} else {
-		logger.Debug("TCPROS Connection Header:")
-		resHeaderMap := make(map[string]string)
-		for _, h := range resHeaders {
-			resHeaderMap[h.key] = h.value
-			logger.Debugf("  `%s` = `%s`", h.key, h.value)
-		}
-		if probe, ok := resHeaderMap["probe"]; ok && probe == "1" {
-			logger.Debug("TCPROS header 'probe' detected. Session closed")
-			return
-		}
-		if resHeaderMap["service"] != service ||
-			resHeaderMap["md5sum"] != md5sum {
-			logger.Fatalf("Incompatible message type!")
-		}
+	}
+	reqHeaderMap := make(map[string]string)
+	for _, h := range reqHeader {
+		reqHeaderMap[h.key] = h.value
+		logger.Debugf("  `%s` = `%s`", h.key, h.value)
 	}
 
 	// 2. Write response header
@@ -219,6 +210,15 @@ func (s *remoteClientSession) start() {
 	conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
 	if err := writeConnectionHeader(headers, conn); err != nil {
 		panic(err)
+	}
+
+	if probe, ok := reqHeaderMap["probe"]; ok && probe == "1" {
+		logger.Debug("TCPROS header 'probe' detected. Session closed")
+		return
+	}
+	if reqHeaderMap["service"] != service ||
+		reqHeaderMap["md5sum"] != md5sum {
+		logger.Fatalf("Incompatible message type!")
 	}
 
 	// 3. Read request
