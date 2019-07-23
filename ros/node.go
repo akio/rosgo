@@ -466,15 +466,15 @@ func (node *defaultNode) Shutdown() {
 		s.Shutdown()
 	}
 	node.logger.Debug("Shutdown servers...done")
+	node.logger.Debug("Wait all goroutines")
+	node.waitGroup.Wait()
+	node.logger.Debug("Wait all goroutines...Done")
 	node.logger.Debug("Close XMLRPC lisetner")
 	node.xmlrpcListener.Close()
 	node.logger.Debug("Close XMLRPC done")
 	node.logger.Debug("Wait XMLRPC server shutdown")
 	node.xmlrpcHandler.WaitForShutdown()
 	node.logger.Debug("Wait XMLRPC server shutdown...Done")
-	node.logger.Debug("Wait all goroutines")
-	node.waitGroup.Wait()
-	node.logger.Debug("Wait all goroutines...Done")
 	node.logger.Debug("Shutting node down completed")
 	return
 }
