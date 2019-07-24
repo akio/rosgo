@@ -27,6 +27,7 @@ type defaultServiceServer struct {
 	srvType          ServiceType
 	handler          interface{}
 	listener         *net.TCPListener
+	rosrpcAddr       string
 	sessions         *list.List
 	shutdownChan     chan struct{}
 	sessionCloseChan chan *remoteClientSessionCloseEvent
@@ -56,12 +57,12 @@ func newDefaultServiceServer(node *defaultNode, service string, srvType ServiceT
 		// Not reached
 		panic(err)
 	}
-	address := fmt.Sprintf("rosrpc://%s:%s", node.hostname, port)
-	logger.Debugf("ServiceServer listen %s", address)
+	server.rosrpcAddr = fmt.Sprintf("rosrpc://%s:%s", node.hostname, port)
+	logger.Debugf("ServiceServer listen %s", server.rosrpcAddr)
 	_, err = callRosApi(node.masterUri, "registerService",
 		node.qualifiedName,
 		service,
-		address,
+		server.rosrpcAddr,
 		node.xmlrpcUri)
 	if err != nil {
 		logger.Errorf("Failed to register service %s", service)
@@ -120,11 +121,11 @@ func (s *defaultServiceServer) start() {
 			s.listener.Close()
 			logger.Debug("defaultServiceServer.start closed listener")
 			_, err := callRosApi(s.node.masterUri, "unregisterService",
-				s.node.qualifiedName, s.service, s.node.xmlrpcUri)
+				s.node.qualifiedName, s.service, s.rosrpcAddr)
 			if err != nil {
 				logger.Warn("Failed unregisterService(%s): %v", s.service, err)
 			}
-			logger.Debug("Called unregisterService(%s)", s.service)
+			logger.Debugf("Called unregisterService(%s)", s.service)
 			for e := s.sessions.Front(); e != nil; e = e.Next() {
 				session := e.Value.(*remoteClientSession)
 				session.quitChan <- struct{}{}
