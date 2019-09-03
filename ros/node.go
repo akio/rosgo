@@ -3,7 +3,7 @@ package ros
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/akio/rosgo/xmlrpc"
+	"github.com/edwinhayes/rosgo/xmlrpc"
 	"math/rand"
 	"net"
 	"net/http"

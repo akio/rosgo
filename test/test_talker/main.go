@@ -3,7 +3,7 @@ package main
 //go:generate gengo msg std_msgs/String
 import (
 	"fmt"
-	"github.com/akio/rosgo/ros"
+	"github.com/edwinhayes/rosgo/ros"
 	"os"
 	"std_msgs"
 	"time"

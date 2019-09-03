@@ -8,7 +8,7 @@ package test_message
 import (
 	"bytes"
 	"fmt"
-	"github.com/akio/rosgo/ros"
+	"github.com/edwinhayes/rosgo/ros"
 	"rosgo_tests"
 	"std_msgs"
 	"testing"

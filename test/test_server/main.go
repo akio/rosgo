@@ -3,7 +3,7 @@ package main
 //go:generate gengo srv rospy_tutorials/AddTwoInts
 import (
 	"fmt"
-	"github.com/akio/rosgo/ros"
+	"github.com/edwinhayes/rosgo/ros"
 	"os"
 	"rospy_tutorials"
 )

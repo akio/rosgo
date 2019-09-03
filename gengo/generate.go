@@ -13,7 +13,7 @@ import (
 {{- if .BinaryRequired }}
     "encoding/binary"
 {{- end }}
-    "github.com/akio/rosgo/ros"
+    "github.com/edwinhayes/rosgo/ros"
 {{- range .Imports }}
 	"{{ . }}"
 {{- end }}

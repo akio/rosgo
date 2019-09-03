@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/akio/rosgo/ros"
+	"github.com/edwinhayes/rosgo/ros"
 	"log"
 	"os"
 )
