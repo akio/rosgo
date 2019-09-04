@@ -35,6 +35,9 @@ type Node interface {
 	SearchParam(name string) (string, error)
 	DeleteParam(name string) error
 
+	GetPublishedTopics(subgraph string) []interface{}
+	GetTopicTypes() []interface{}
+
 	Logger() Logger
 
 	NonRosArgs() []string

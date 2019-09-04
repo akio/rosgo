@@ -353,6 +353,37 @@ func (node *defaultNode) NewPublisherWithCallbacks(topic string, msgType Message
 	return pub
 }
 
+func (node *defaultNode) GetPublishedTopics(subgraph string) []interface{} {
+	node.logger.Debug("Call Master API getPublishedTopics")
+	result, err := callRosApi(node.masterUri, "getPublishedTopics",
+		node.qualifiedName,
+		subgraph)
+	if err != nil {
+		node.logger.Fatalf("Failed to call getPublishedTopics() for %s.", err)
+	}
+	list, ok := result.([]interface{})
+	if !ok {
+		node.logger.Fatalf("result is not []string but %s.", reflect.TypeOf(result).String())
+	}
+	node.logger.Debug("Result: ", list)
+	return list
+}
+
+func (node *defaultNode) GetTopicTypes() []interface{} {
+	node.logger.Debug("Call Master API getTopicTypes")
+	result, err := callRosApi(node.masterUri, "getTopicTypes",
+		node.qualifiedName)
+	if err != nil {
+		node.logger.Fatalf("Failed to call getTopicTypes() for %s.", err)
+	}
+	list, ok := result.([]interface{})
+	if !ok {
+		node.logger.Fatalf("result is not []string but %s.", reflect.TypeOf(result).String())
+	}
+	node.logger.Debug("Result: ", list)
+	return list
+}
+
 func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callback interface{}) Subscriber {
 	name := node.nameResolver.remap(topic)
 	sub, ok := node.subscribers[name]

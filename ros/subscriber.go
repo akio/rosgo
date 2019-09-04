@@ -90,7 +90,8 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeId string, nodeApiUr
 						sub.msgType.Name(), nodeId,
 						sub.msgChan,
 						quitChan,
-						sub.disconnectedChan)
+						sub.disconnectedChan,
+						sub.msgType)
 				} else {
 					logger.Warnf("rosgo Not support protocol '%s'", name)
 				}
@@ -143,7 +144,7 @@ func startRemotePublisherConn(logger Logger,
 	msgType string, nodeId string,
 	msgChan chan messageEvent,
 	quitChan chan struct{},
-	disconnectedChan chan string) {
+	disconnectedChan chan string, msgTypeProper MessageType) {
 	logger.Debug("startRemotePublisherConn()")
 
 	defer func() {
@@ -180,8 +181,22 @@ func startRemotePublisherConn(logger Logger,
 	resHeaderMap := make(map[string]string)
 	for _, h := range resHeaders {
 		resHeaderMap[h.key] = h.value
+
+		// TODO - Invert this nesting.
+
+		// Do some magic.
+		if h.key == "message_definition" {
+			gen_msg_type, ok := msgTypeProper.(*GenericMessageType)
+			if ok {
+				logger.Debug("Found something useful!")
+				gen_msg_type.SetFields(h.value)
+				logger.Debug(gen_msg_type.fields)
+			}
+		}
+
 		logger.Debugf("  `%s` = `%s`", h.key, h.value)
 	}
+
 	if resHeaderMap["type"] != msgType || resHeaderMap["md5sum"] != md5sum {
 		logger.Fatalf("Incomatible message type!")
 	}
