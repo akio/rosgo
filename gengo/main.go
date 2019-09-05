@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/edwinhayes/rosgo/libgengo"
 	"io/ioutil"
 	"os"
 	"path/filepath"

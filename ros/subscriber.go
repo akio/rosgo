@@ -153,7 +153,8 @@ func startRemotePublisherConn(logger Logger,
 
 	conn, err := net.Dial("tcp", pubUri)
 	if err != nil {
-		logger.Fatalf("Failed to connect %s!", pubUri)
+		logger.Errorf("Failed to connect %s!", pubUri)
+		return
 	}
 
 	// 1. Write connection header
@@ -168,14 +169,16 @@ func startRemotePublisherConn(logger Logger,
 	}
 	err = writeConnectionHeader(headers, conn)
 	if err != nil {
-		logger.Fatal("Failed to write connection header.")
+		logger.Errorf("Failed to write connection header.")
+		return
 	}
 
 	// 2. Read reponse header
 	var resHeaders []header
 	resHeaders, err = readConnectionHeader(conn)
 	if err != nil {
-		logger.Fatal("Failed to read reasponse header.")
+		logger.Errorf("Failed to read response header.")
+		return
 	}
 	logger.Debug("TCPROS Response Header:")
 	resHeaderMap := make(map[string]string)
@@ -198,7 +201,8 @@ func startRemotePublisherConn(logger Logger,
 	}
 
 	if resHeaderMap["type"] != msgType || resHeaderMap["md5sum"] != md5sum {
-		logger.Fatalf("Incomatible message type!")
+		logger.Errorf("Incompatible message type!")
+		return
 	}
 	logger.Debug("Start receiving messages...")
 	event := MessageEvent{ // Event struct to be sent with each message.

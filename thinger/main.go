@@ -23,14 +23,16 @@ import (
 
 // DEFINE PRIVATE GLOBALS.
 
+var g_node ros.Node
+
 var subscribers map[string]ros.Subscriber
 
 // DEFINE PUBLIC STATIC FUNCTIONS.
 
 // DEFINE PRIVATE STATIC FUNCTIONS.
 
-func callback(msg *ros.GenericMessageType) {
-	fmt.Printf("Received: %s\n", msg.Fields)
+func callback(msg *ros.GenericMessage) {
+	g_node.Logger().Info("Received: ", msg.Type().Name(), " : ", msg)
 }
 
 func poll_for_topics(node ros.Node, quit <-chan bool) {
@@ -56,11 +58,20 @@ func poll_for_topics(node ros.Node, quit <-chan bool) {
 				// Check if we have a subscriber for this topic already.
 				if _, ok := subscribers[topic_name]; !ok {
 					// Apparently not, so we try to subscribe.
+					if topic_name != "/chatter" {
+						continue
+					}
 					node.Logger().Info("Attempting to subscribe to topic: ", topic_name)
+
+					// Create a generic message, which tries to look up the important checksum via gengo.
 					m := new(ros.GenericMessageType)
-					m.SetMessageType(topic_type)
-					s := node.NewSubscriber("/chatter", m, callback)
-					// If we subscribe successfully, keep note so we don't have to subscribe again.
+					if err := m.SetMessageType(topic_type); err != nil {
+						node.Logger().Info("Couldn't set message type: ", topic_type, " : Error: ", err)
+						continue
+					}
+
+					// Then subscribe to the topic, and if we're successful, keep a note so we don't try to subscribe again.
+					s := node.NewSubscriber(topic_name, m, callback)
 					if s != nil {
 						subscribers[topic_name] = s
 					}
@@ -79,6 +90,7 @@ func main() {
 		os.Exit(-1)
 	}
 	defer node.Shutdown()
+	g_node = node
 
 	// Configure node logging.
 	node.Logger().SetSeverity(ros.LogLevelDebug)
