@@ -184,19 +184,6 @@ func startRemotePublisherConn(logger Logger,
 	resHeaderMap := make(map[string]string)
 	for _, h := range resHeaders {
 		resHeaderMap[h.key] = h.value
-
-		// TODO - Invert this nesting.
-
-		// Do some magic.
-		if h.key == "message_definition" {
-			gen_msg_type, ok := msgTypeProper.(*GenericMessageType)
-			if ok {
-				logger.Debug("Found something useful!")
-				gen_msg_type.SetFields(h.value)
-				logger.Debug(gen_msg_type.fields)
-			}
-		}
-
 		logger.Debugf("  `%s` = `%s`", h.key, h.value)
 	}
 

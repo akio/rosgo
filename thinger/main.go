@@ -31,7 +31,7 @@ var subscribers map[string]ros.Subscriber
 
 // DEFINE PRIVATE STATIC FUNCTIONS.
 
-func callback(msg *ros.GenericMessage) {
+func callback(msg *ros.DynamicMessage) {
 	g_node.Logger().Info("Received: ", msg.Type().Name(), " : ", msg)
 }
 
@@ -58,14 +58,12 @@ func poll_for_topics(node ros.Node, quit <-chan bool) {
 				// Check if we have a subscriber for this topic already.
 				if _, ok := subscribers[topic_name]; !ok {
 					// Apparently not, so we try to subscribe.
-					if topic_name != "/chatter" {
-						continue
-					}
 					node.Logger().Info("Attempting to subscribe to topic: ", topic_name)
 
 					// Create a generic message, which tries to look up the important checksum via gengo.
-					m := new(ros.GenericMessageType)
-					if err := m.SetMessageType(topic_type); err != nil {
+					var m *ros.DynamicMessageType
+					var err error
+					if m, err = ros.NewDynamicMessageType(topic_type); err != nil {
 						node.Logger().Info("Couldn't set message type: ", topic_type, " : Error: ", err)
 						continue
 					}
