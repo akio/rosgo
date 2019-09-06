@@ -11,6 +11,14 @@ import (
 	"testing"
 )
 
+func TestEmitNil(t *testing.T) {
+	var buffer bytes.Buffer
+	e := emitValue(&buffer, nil)
+	if e != nil {
+		t.Error(e)
+	}
+}
+
 func TestEmitBoolean(t *testing.T) {
 	var buffer bytes.Buffer
 	e := emitValue(&buffer, true)

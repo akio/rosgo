@@ -59,7 +59,7 @@ type defaultNode struct {
 	xmlrpcListener net.Listener
 	xmlrpcHandler  *xmlrpc.Handler
 	subscribers    map[string]*defaultSubscriber
-	publishers     map[string]*defaultPublisher
+	publishers     sync.Map
 	servers        map[string]*defaultServiceServer
 	jobChan        chan func()
 	interruptChan  chan os.Signal
@@ -152,7 +152,6 @@ func newDefaultNode(name string, args []string) (*defaultNode, error) {
 
 	node.qualifiedName = node.namespace + "/" + node.name
 	node.subscribers = make(map[string]*defaultSubscriber)
-	node.publishers = make(map[string]*defaultPublisher)
 	node.servers = make(map[string]*defaultServiceServer)
 	node.interruptChan = make(chan os.Signal)
 	node.ok = true
@@ -260,10 +259,15 @@ func (node *defaultNode) getSubscriptions(callerId string) (interface{}, error) 
 
 func (node *defaultNode) getPublications(callerId string) (interface{}, error) {
 	result := []interface{}{}
-	for t, p := range node.publishers {
-		pair := []interface{}{t, p.msgType.Name()}
+	node.publishers.Range(func(t interface{}, p interface{}) bool {
+		pair := []interface{}{
+			t.(string),
+			p.(*defaultPublisher).msgType.Name(),
+		}
 		result = append(result, pair)
-	}
+		return true
+	})
+
 	return buildRosApiResult(0, "Success", result), nil
 }
 
@@ -296,7 +300,7 @@ func (node *defaultNode) requestTopic(callerId string, topic string, protocols [
 	var code int32
 	var message string
 	var value interface{}
-	if pub, ok := node.publishers[topic]; !ok {
+	if pub, ok := node.publishers.Load(topic); !ok {
 		node.logger.Debug("requestTopic() called with not publishing topic.")
 		code = 0
 		message = "No such topic"
@@ -309,7 +313,7 @@ func (node *defaultNode) requestTopic(callerId string, topic string, protocols [
 			if protocolName == "TCPROS" {
 				node.logger.Debug("TCPROS requested")
 				selectedProtocol = append(selectedProtocol, "TCPROS")
-				host, portStr := pub.hostAndPort()
+				host, portStr := pub.(*defaultPublisher).hostAndPort()
 				p, err := strconv.ParseInt(portStr, 10, 32)
 				if err != nil {
 					return nil, err
@@ -335,7 +339,7 @@ func (node *defaultNode) NewPublisher(topic string, msgType MessageType) Publish
 
 func (node *defaultNode) NewPublisherWithCallbacks(topic string, msgType MessageType, connectCallback, disconnectCallback func(SingleSubscriberPublisher)) Publisher {
 	name := node.nameResolver.remap(topic)
-	pub, ok := node.publishers[name]
+	pub, ok := node.publishers.Load(topic)
 	logger := node.logger
 	if !ok {
 		_, err := callRosApi(node.masterUri, "registerPublisher",
@@ -347,10 +351,10 @@ func (node *defaultNode) NewPublisherWithCallbacks(topic string, msgType Message
 		}
 
 		pub = newDefaultPublisher(node, name, msgType, connectCallback, disconnectCallback)
-		node.publishers[name] = pub
-		go pub.start(&node.waitGroup)
+		node.publishers.Store(name, pub)
+		go pub.(*defaultPublisher).start(&node.waitGroup)
 	}
-	return pub
+	return pub.(*defaultPublisher)
 }
 
 func (node *defaultNode) GetPublishedTopics(subgraph string) []interface{} {
@@ -417,7 +421,7 @@ func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callba
 		node.subscribers[name] = sub
 
 		logger.Debugf("Start subscriber goroutine for topic '%s'", sub.topic)
-		go sub.start(&node.waitGroup, node.masterUri, node.qualifiedName, node.xmlrpcUri, node.jobChan, logger)
+		go sub.start(&node.waitGroup, node.qualifiedName, node.xmlrpcUri, node.masterUri, node.jobChan, logger)
 		logger.Debugf("Done")
 		sub.pubListChan <- publishers
 		logger.Debugf("Update publisher list for topic '%s'", sub.topic)
@@ -460,7 +464,7 @@ func (node *defaultNode) SpinOnce() {
 func (node *defaultNode) Spin() {
 	logger := node.logger
 	for node.OK() {
-		timeoutChan := time.After(10 * time.Millisecond)
+		timeoutChan := time.After(1000 * time.Millisecond)
 		select {
 		case job := <-node.jobChan:
 			logger.Debug("Execute job")
@@ -482,24 +486,25 @@ func (node *defaultNode) Shutdown() {
 	}
 	node.logger.Debug("Shutdown subscribers...done")
 	node.logger.Debug("Shutdown publishers")
-	for _, p := range node.publishers {
-		p.Shutdown()
-	}
+	node.publishers.Range(func(key interface{}, value interface{}) bool {
+		value.(*defaultPublisher).Shutdown()
+		return true
+	})
 	node.logger.Debug("Shutdown publishers...done")
 	node.logger.Debug("Shutdown servers")
 	for _, s := range node.servers {
 		s.Shutdown()
 	}
 	node.logger.Debug("Shutdown servers...done")
+	node.logger.Debug("Wait all goroutines")
+	node.waitGroup.Wait()
+	node.logger.Debug("Wait all goroutines...Done")
 	node.logger.Debug("Close XMLRPC lisetner")
 	node.xmlrpcListener.Close()
 	node.logger.Debug("Close XMLRPC done")
 	node.logger.Debug("Wait XMLRPC server shutdown")
 	node.xmlrpcHandler.WaitForShutdown()
 	node.logger.Debug("Wait XMLRPC server shutdown...Done")
-	node.logger.Debug("Wait all goroutines")
-	node.waitGroup.Wait()
-	node.logger.Debug("Wait all goroutines...Done")
 	node.logger.Debug("Shutting node down completed")
 	return
 }

@@ -2,8 +2,10 @@
 package main
 
 import (
-	"fmt"
+	// "fmt"
 	//	"math"
+	"os"
+	"strings"
 	"testing"
 )
 
@@ -45,19 +47,21 @@ Bar x
 Bar[] xva
 Bar[42] xfa
 `
-	ctx, e := NewMsgContext()
+	rosPkgPath := os.Getenv("ROS_PACKAGE_PATH")
+	ctx, e := NewMsgContext(strings.Split(rosPkgPath, ":"))
 	if e != nil {
 		t.Errorf("Failed to create MsgContext.")
 	}
+
 	var spec *MsgSpec
-	spec, e = LoadMsgFromString(ctx, text, "foo/Foo")
+	spec, e = ctx.LoadMsgFromString(text, "foo/Foo")
 	if e != nil {
 		t.Errorf("Failed to parse: %v", e)
 	}
 
-	msg, err := GenerateMessage(spec)
+	_, err := GenerateMessage(ctx, spec)
 	if err != nil {
 		t.Errorf("Failed to generate message: %v", err)
 	}
-	fmt.Printf(msg)
+	// fmt.Printf(msg)
 }

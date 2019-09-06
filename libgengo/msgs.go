@@ -301,7 +301,13 @@ func NewField(pkg string, fieldType string, name string, isArray bool, arrayLen 
 }
 
 func (f *Field) String() string {
-	return fmt.Sprintf("%s %s", f.Type, f.Name)
+	if f.IsArray && f.ArrayLen > -1 {
+		return fmt.Sprintf("%s[%d] %s", f.Type, f.ArrayLen, f.Name)
+	} else if f.IsArray {
+		return fmt.Sprintf("%s[] %s", f.Type, f.Name)
+	} else {
+		return fmt.Sprintf("%s %s", f.Type, f.Name)
+	}
 }
 
 type MsgSpec struct {

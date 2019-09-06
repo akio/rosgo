@@ -7,6 +7,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+
 	//	"io"
 	"net/http"
 	//	"os"
@@ -29,6 +30,10 @@ func emitValue(buf *bytes.Buffer, value interface{}) error {
 		buf.WriteString("</base64>")
 	} else {
 		val := reflect.ValueOf(value)
+		if !val.IsValid() {
+			return nil
+		}
+
 		t := val.Type()
 		k := val.Kind()
 		switch k {
@@ -525,7 +530,6 @@ func Call(url string, method string, args ...interface{}) (res interface{}, e er
 }
 
 //type Method func (args ...interface{}) (interface{}, error)
-//
 type Method interface{}
 
 //
@@ -546,7 +550,7 @@ func (self *Handler) WaitForShutdown() {
 	self.wait.Wait()
 }
 
-///
+//
 func (self *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	self.wait.Add(1)
 	defer self.wait.Done()

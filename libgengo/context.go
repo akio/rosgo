@@ -28,7 +28,7 @@ func findAllMessages(rosPkgPaths []string) (map[string]string, error) {
 	for _, p := range rosPkgPaths {
 		files, err := ioutil.ReadDir(p)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		for _, f := range files {
 			if !f.IsDir() {
@@ -59,7 +59,7 @@ func findAllServices(rosPkgPaths []string) (map[string]string, error) {
 	for _, p := range rosPkgPaths {
 		files, err := ioutil.ReadDir(p)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		for _, f := range files {
 			if !f.IsDir() {
@@ -241,7 +241,7 @@ func (ctx *MsgContext) ComputeMD5Text(spec *MsgSpec) (string, error) {
 	}
 	for _, f := range spec.Fields {
 		if f.Package == "" {
-			buf.WriteString(fmt.Sprintf("%s %s\n", f.Type, f.Name))
+			buf.WriteString(fmt.Sprintf("%s\n", f.String()))
 		} else {
 			subspec, err := ctx.LoadMsg(f.Package + "/" + f.Type)
 			if err != nil {

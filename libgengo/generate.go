@@ -5,6 +5,8 @@ import (
 	"text/template"
 )
 
+var import_path *string
+
 var msgTemplate = `
 // Automatically generated from the message definition "{{ .FullName }}.msg"
 package {{ .Package }}
@@ -17,6 +19,8 @@ import (
 {{- range .Imports }}
 	"{{ . }}"
 {{- end }}
+
+    "github.com/fetchrobotics/rosgo/ros"
 )
 
 {{- if gt (len .Constants) 0 }}
@@ -98,7 +102,9 @@ func (m *{{ .ShortName }}) Serialize(buf *bytes.Buffer) error {
     var err error = nil
 {{- range .Fields }}
 {{-     if .IsArray }}
+{{-        if lt .ArrayLen 0 }}
     binary.Write(buf, binary.LittleEndian, uint32(len(m.{{ .GoName }})))
+{{-        end }}
     for _, e := range m.{{ .GoName }} {
 {{-         if .IsBuiltin }}
 {{-             if eq .Type "string" }}
@@ -147,14 +153,17 @@ func (m *{{ .ShortName }}) Deserialize(buf *bytes.Reader) error {
 {{- range .Fields }}
 {{-    if .IsArray }}
     {
+
+{{-        if lt .ArrayLen 0 }}
         var size uint32
         if err = binary.Read(buf, binary.LittleEndian, &size); err != nil {
             return err
         }
-{{-        if lt .ArrayLen 0 }}
         m.{{ .GoName }} = make([]{{ .GoType }}, int(size))
-{{-        end }}
         for i := 0; i < int(size); i++ {
+{{-        else }}
+        for i :=0; i < {{ .ArrayLen }}; i++ {
+{{-        end }}
 {{-          if .IsBuiltin }}
 {{-              if eq .Type "string" }}
             {
@@ -166,7 +175,7 @@ func (m *{{ .ShortName }}) Deserialize(buf *bytes.Reader) error {
                 if err = binary.Read(buf, binary.LittleEndian, data); err != nil {
                     return err
                 }
-                m.{{ .GoName }})[i] = string(data)
+                m.{{ .GoName }}[i] = string(data)
             }
 {{-              else }}
 {{- 					if or (eq .Type "time") (eq .Type "duration") }}
@@ -238,7 +247,7 @@ var srvTemplate = `
 // Automatically generated from the message definition "{{ .FullName }}.srv"
 package {{ .Package }}
 import (
-    "github.com/akio/rosgo/ros"
+    "github.com/fetchrobotics/rosgo/ros"
 )
 
 // Service type metadata
@@ -286,20 +295,30 @@ type MsgGen struct {
 }
 
 func (gen *MsgGen) analyzeImports() {
-	for _, field := range gen.Fields {
+	imp_path := ""
+	if len(*import_path) != 0 {
+		imp_path = *import_path + "/"
+	}
+
+OUTER:
+	for i, field := range gen.Fields {
 		if len(field.Package) == 0 {
 			gen.BinaryRequired = true
+		} else if gen.Package == field.Package {
+			gen.Fields[i].GoType = field.Type
+			gen.Fields[i].ZeroValue = field.Type + "{}"
 		} else {
-			found := false
 			for _, imp := range gen.Imports {
-				if imp == field.Package {
-					found = true
-					break
+				if imp == imp_path+field.Package {
+					continue OUTER
 				}
 			}
-			if !found {
-				gen.Imports = append(gen.Imports, field.Package)
-			}
+			gen.Imports = append(gen.Imports, imp_path+field.Package)
+		}
+
+		// Binary is required to read the size of array
+		if field.IsArray {
+			gen.BinaryRequired = true
 		}
 	}
 }

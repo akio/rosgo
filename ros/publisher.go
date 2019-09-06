@@ -28,6 +28,7 @@ type defaultPublisher struct {
 	msgChan            chan []byte
 	shutdownChan       chan struct{}
 	sessions           *list.List
+	sessionChan        chan *remoteSubscriberSession
 	sessionErrorChan   chan error
 	listenerErrorChan  chan error
 	listener           net.Listener
@@ -45,6 +46,7 @@ func newDefaultPublisher(node *defaultNode,
 	pub.shutdownChan = make(chan struct{}, 10)
 	pub.msgChan = make(chan []byte, 10)
 	pub.listenerErrorChan = make(chan error, 10)
+	pub.sessionChan = make(chan *remoteSubscriberSession, 10)
 	pub.sessionErrorChan = make(chan error, 10)
 	pub.sessions = list.New()
 	pub.connectCallback = connectCallback
@@ -81,6 +83,9 @@ func (pub *defaultPublisher) start(wg *sync.WaitGroup) {
 			logger.Debug("Listener closed unexpectedly: %s", err)
 			pub.listener.Close()
 			return
+		case s := <-pub.sessionChan:
+			pub.sessions.PushBack(s)
+			go s.start()
 		case err := <-pub.sessionErrorChan:
 			logger.Error(err)
 			if sessionError, ok := err.(*remoteSubscriberSessionError); ok {
@@ -118,18 +123,18 @@ func (pub *defaultPublisher) listenRemoteSubscriber() {
 
 	for {
 		logger.Debug("defaultPublisher.listenRemoteSubscriber loop")
-		if conn, err := pub.listener.Accept(); err != nil {
+		conn, err := pub.listener.Accept()
+		if err != nil {
 			logger.Debugf("pub.listner.Accept() failed")
 			pub.listenerErrorChan <- err
 			close(pub.listenerErrorChan)
 			logger.Debugf("defaultPublisher.listenRemoteSubscriber loop exit")
 			return
-		} else {
-			logger.Debugf("Connected %s", conn.RemoteAddr().String())
-			session := newRemoteSubscriberSession(pub, conn)
-			pub.sessions.PushBack(session)
-			go session.start()
 		}
+
+		logger.Debugf("Connected %s", conn.RemoteAddr().String())
+		session := newRemoteSubscriberSession(pub, conn)
+		pub.sessionChan <- session
 	}
 }
 
@@ -245,9 +250,17 @@ func (session *remoteSubscriberSession) start() {
 		headerMap[h.key] = h.value
 		logger.Debugf("  `%s` = `%s`", h.key, h.value)
 	}
-	if headerMap["type"] != session.typeName || headerMap["md5sum"] != session.md5sum {
-		panic(errors.New("Incomatible message type!"))
+
+	if headerMap["type"] != session.typeName && headerMap["type"] != "*" {
+		panic(fmt.Errorf("incompatible message type: does not match for topic %s: %s vs %s",
+			session.topic, session.typeName, headerMap["type"]))
 	}
+
+	if headerMap["md5sum"] != session.md5sum && headerMap["md5sum"] != "*" {
+		panic(fmt.Errorf("incompatible message md5: does not match for topic %s: %s vs %s",
+			session.topic, session.md5sum, headerMap["md5sum"]))
+	}
+
 	ssp.subName = headerMap["callerid"]
 	if session.connectCallback != nil {
 		go session.connectCallback(ssp)
@@ -272,50 +285,48 @@ func (session *remoteSubscriberSession) start() {
 
 	// 3. Start sending message
 	logger.Debug("Start sending messages...")
-	queue := list.New()
 	queueMaxSize := 100
+	queue := make(chan []byte, queueMaxSize)
 	for {
 		//logger.Debug("session.remoteSubscriberSession")
 		select {
 		case msg := <-session.msgChan:
 			logger.Debug("Receive msgChan")
-			if queue.Len() == queueMaxSize {
-				queue.Remove(queue.Front())
+			if len(queue) == queueMaxSize {
+				<-queue
 			}
-			queue.PushBack(msg)
+			queue <- msg
+
 		case <-session.quitChan:
 			logger.Debug("Receive quitChan")
 			return
-		case <-time.After(10 * time.Millisecond):
-			if queue.Len() > 0 {
-				logger.Debug("writing")
-				msg := queue.Front().Value.([]byte)
-				queue.Remove(queue.Front())
-				logger.Debug(hex.EncodeToString(msg))
-				session.conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
-				size := uint32(len(msg))
-				if err := binary.Write(session.conn, binary.LittleEndian, size); err != nil {
-					if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
-						logger.Debug("timeout")
-						continue
-					} else {
-						logger.Error(err)
-						panic(err)
-					}
+
+		case msg := <-queue:
+			logger.Debug("writing")
+			logger.Debug(hex.EncodeToString(msg))
+			session.conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
+			size := uint32(len(msg))
+			if err := binary.Write(session.conn, binary.LittleEndian, size); err != nil {
+				if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
+					logger.Debug("timeout")
+					continue
+				} else {
+					logger.Error(err)
+					panic(err)
 				}
-				logger.Debug(len(msg))
-				session.conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
-				if _, err := session.conn.Write(msg); err != nil {
-					if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
-						logger.Debug("timeout")
-						continue
-					} else {
-						logger.Error(err)
-						panic(err)
-					}
-				}
-				logger.Debug(hex.EncodeToString(msg))
 			}
+			logger.Debug(len(msg))
+			session.conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
+			if _, err := session.conn.Write(msg); err != nil {
+				if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
+					logger.Debug("timeout")
+					continue
+				} else {
+					logger.Error(err)
+					panic(err)
+				}
+			}
+			logger.Debug(hex.EncodeToString(msg))
 		}
 	}
 }
