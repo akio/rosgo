@@ -49,6 +49,9 @@ func poll_for_topics(node ros.Node, quit <-chan bool) {
 		case <-ticker.C:
 			topic_list := node.GetPublishedTopics("")
 
+			// Print out the topics we already know about.
+			node.Logger().Info(ros.GetKnownMsgs())
+
 			// Try to iterate over each of the topics in the list.
 			for _, v := range topic_list {
 				topic := v.([]interface{})
@@ -82,7 +85,7 @@ func poll_for_topics(node ros.Node, quit <-chan bool) {
 
 func main() {
 	// Create our node.
-	node, err := ros.NewNode("/listener", os.Args)
+	node, err := ros.NewNode("listener", os.Args)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(-1)
@@ -91,7 +94,7 @@ func main() {
 	g_node = node
 
 	// Configure node logging.
-	node.Logger().SetSeverity(ros.LogLevelDebug)
+	node.Logger().SetSeverity(ros.LogLevelInfo)
 
 	// We'll keep a list of ROS subscribers, so we can identify topics which we still need to subscribe to.
 	subscribers = make(map[string]ros.Subscriber)

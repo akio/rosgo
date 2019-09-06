@@ -31,6 +31,8 @@ type DynamicMessage struct {
 
 // DEFINE PRIVATE GLOBALS.
 
+var known_messages map[string]string // Just for diagnostic purposes.
+
 var context *libgengo.MsgContext // We'll try to preserve a single message context to avoid reloading each time.
 
 // DEFINE PUBLIC STATIC FUNCTIONS.
@@ -49,6 +51,9 @@ func NewDynamicMessageType(ros_type string) (*DynamicMessageType, error) {
 		}
 		context = c
 	}
+	if known_messages == nil {
+		known_messages = make(map[string]string)
+	}
 
 	// Load context for the target message.
 	spec, err := context.LoadMsg(ros_type)
@@ -58,9 +63,15 @@ func NewDynamicMessageType(ros_type string) (*DynamicMessageType, error) {
 
 	// Now we know all about the message!
 	m.spec = spec
+	fmt.Println(spec)
 
 	// We've successfully made a new message type matching the requested ROS type.
+	known_messages[m.spec.FullName] = m.spec.MD5Sum
 	return m, nil
+}
+
+func GetKnownMsgs() map[string]string {
+	return known_messages
 }
 
 // DEFINE PUBLIC RECEIVER FUNCTIONS.
@@ -104,8 +115,11 @@ func (m DynamicMessage) Serialize(buf *bytes.Buffer) error {
 func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 	// THIS METHOD IS BASICALLY AN UNTEMPLATED COPY OF THE TEMPLATE IN LIBGENGO.
 
+	// To give more sane results in the event of a decoding issue, we decode into a copy of the data field.
 	var err error = nil
-	m.data = make(map[string]interface{})
+	tmp_data := make(map[string]interface{})
+	m.data = nil
+
 	// Iterate over each of the fields in the message.
 	for _, field := range m.dynamic_type.spec.Fields {
 		if field.IsArray {
@@ -118,16 +132,18 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 			if field.ArrayLen < 0 {
 				switch field.GoType {
 				case "int8":
-					m.data[field.GoName] = make([]int8, 0)
+					tmp_data[field.GoName] = make([]int8, 0)
+				case "int32":
+					tmp_data[field.GoName] = make([]int32, 0)
 				case "string":
-					m.data[field.GoName] = make([]string, 0)
+					tmp_data[field.GoName] = make([]string, 0)
 				case "time":
-					m.data[field.GoName] = make([]Time, 0)
+					tmp_data[field.GoName] = make([]Time, 0)
 				case "duration":
-					m.data[field.GoName] = make([]Duration, 0)
+					tmp_data[field.GoName] = make([]Duration, 0)
 				default:
 					// In this case, it will probably be because the go_type is describing another ROS message, so we need to replace that with a nested DynamicMessage.
-					m.data[field.GoName] = make([]Message, 0)
+					tmp_data[field.GoName] = make([]Message, 0)
 				}
 			}
 			for i := 0; i < int(size); i++ {
@@ -142,7 +158,7 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 						if err = binary.Read(buf, binary.LittleEndian, data); err != nil {
 							return err
 						}
-						m.data[field.GoName] = append(m.data[field.GoName].([]string), string(data))
+						tmp_data[field.GoName] = append(tmp_data[field.GoName].([]string), string(data))
 					} else if field.Type == "time" {
 						var data Time
 						// Time/duration types have two fields, so consume into these in two reads.
@@ -152,7 +168,7 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 						if err = binary.Read(buf, binary.LittleEndian, &data.NSec); err != nil {
 							return err
 						}
-						m.data[field.GoName] = append(m.data[field.GoName].([]Time), data)
+						tmp_data[field.GoName] = append(tmp_data[field.GoName].([]Time), data)
 					} else if field.Type == "duration" {
 						var data Duration
 						// Time/duration types have two fields, so consume into these in two reads.
@@ -162,20 +178,26 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 						if err = binary.Read(buf, binary.LittleEndian, &data.NSec); err != nil {
 							return err
 						}
-						m.data[field.GoName] = append(m.data[field.GoName].([]Duration), data)
+						tmp_data[field.GoName] = append(tmp_data[field.GoName].([]Duration), data)
 					} else {
 						// It's a regular primitive element.
-						data := instantiate_scalar_type(field.GoType)
-						if err = binary.Read(buf, binary.LittleEndian, &data); err != nil {
-							return err
-						}
+
 						// Because not runtime expressions in type assertions in Go, we need to manually do this.
 						switch field.GoType {
 						case "int8":
-							m.data[field.GoName] = append(m.data[field.GoName].([]int8), data.(int8))
+							var data int8
+							binary.Read(buf, binary.LittleEndian, &data)
+							tmp_data[field.GoName] = append(tmp_data[field.GoName].([]int8), data)
+						case "int32":
+							var data int32
+							binary.Read(buf, binary.LittleEndian, &data)
+							tmp_data[field.GoName] = append(tmp_data[field.GoName].([]int32), data)
 						default:
 							// Something went wrong.
 							return errors.New("We haven't implemented this primitive yet!")
+						}
+						if err != nil {
+							return err
 						}
 					}
 				} else {
@@ -188,12 +210,11 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 					if err = msg.Deserialize(buf); err != nil {
 						return err
 					}
-					m.data[field.GoName] = append(m.data[field.GoName].([]Message), msg)
+					tmp_data[field.GoName] = append(tmp_data[field.GoName].([]Message), msg)
 				}
 			}
 		}
 		// Else it's not an array.  This is just the same as above, with the '[i]' bits removed.
-		m.data[field.GoName] = instantiate_scalar_type(field.GoType)
 		if field.IsBuiltin {
 			if field.Type == "string" {
 				// The string will start with a declaration of the number of characters.
@@ -205,7 +226,7 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 				if err = binary.Read(buf, binary.LittleEndian, data); err != nil {
 					return err
 				}
-				m.data[field.GoName] = string(data)
+				tmp_data[field.GoName] = string(data)
 			} else if field.Type == "time" {
 				var data Time
 				// Time/duration types have two fields, so consume into these in two reads.
@@ -215,7 +236,7 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 				if err = binary.Read(buf, binary.LittleEndian, &data.NSec); err != nil {
 					return err
 				}
-				m.data[field.GoName] = data
+				tmp_data[field.GoName] = data
 			} else if field.Type == "duration" {
 				var data Duration
 				// Time/duration types have two fields, so consume into these in two reads.
@@ -225,14 +246,25 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 				if err = binary.Read(buf, binary.LittleEndian, &data.NSec); err != nil {
 					return err
 				}
-				m.data[field.GoName] = data
+				tmp_data[field.GoName] = data
 			} else {
 				// It's a regular primitive element.
-				data := instantiate_scalar_type(field.GoType)
-				if err = binary.Read(buf, binary.LittleEndian, &data); err != nil {
+				switch field.GoType {
+				case "int8":
+					var data int8
+					err = binary.Read(buf, binary.LittleEndian, &data)
+					tmp_data[field.GoName] = data
+				case "int32":
+					var data int32
+					err = binary.Read(buf, binary.LittleEndian, &data)
+					tmp_data[field.GoName] = data
+				default:
+					// Something went wrong.
+					return errors.New("We haven't implemented this primitive yet!")
+				}
+				if err != nil {
 					return err
 				}
-				m.data[field.GoName] = data
 			}
 		} else {
 			// Else it's not a builtin.
@@ -240,14 +272,15 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 			if err != nil {
 				return err
 			}
-			m.data[field.GoName] = msg_type.NewMessage()
-			if err = m.data[field.GoName].(Message).Deserialize(buf); err != nil {
+			tmp_data[field.GoName] = msg_type.NewMessage()
+			if err = tmp_data[field.GoName].(Message).Deserialize(buf); err != nil {
 				return err
 			}
 		}
 	}
 
 	// All done.
+	m.data = tmp_data
 	return err
 }
 
@@ -257,27 +290,6 @@ func (m DynamicMessage) String() string {
 }
 
 // DEFINE PRIVATE STATIC FUNCTIONS.
-
-func instantiate_scalar_type(go_type string) interface{} {
-	switch go_type {
-	case "int8":
-		var v int8
-		return v
-	case "string":
-		var v string
-		return v
-	case "time":
-		var v Time
-		return v
-	case "duration":
-		var v Duration
-		return v
-	default:
-		// In this case, it will probably be because the go_type is describing another ROS message, so we need to replace that with a nested DynamicMessage.
-		var v Message
-		return v
-	}
-}
 
 // DEFINE PRIVATE RECEIVER FUNCTIONS.
 

@@ -50,13 +50,12 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeId string, nodeApiUr
 	wg.Add(1)
 	defer wg.Done()
 	defer func() {
-		logger.Debug("defaultSubscriber.start exit")
+		logger.Debug(sub.topic, " : defaultSubscriber.start exit")
 	}()
 	for {
-		logger.Debug("Loop")
 		select {
 		case list := <-sub.pubListChan:
-			logger.Debug("Receive pubListChan")
+			logger.Debug(sub.topic, " : Receive pubListChan")
 			deadPubs := setDifference(sub.pubList, list)
 			newPubs := setDifference(list, sub.pubList)
 			sub.pubList = list
@@ -70,12 +69,12 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeId string, nodeApiUr
 				protocols := []interface{}{[]interface{}{"TCPROS"}}
 				result, err := callRosApi(pub, "requestTopic", nodeId, sub.topic, protocols)
 				if err != nil {
-					logger.Fatal(err)
+					logger.Fatal(sub.topic, " : ", err)
 					continue
 				}
 				protocolParams := result.([]interface{})
 				for _, x := range protocolParams {
-					logger.Debug(x)
+					logger.Debug(sub.topic, " : ", x)
 				}
 				name := protocolParams[0].(string)
 				if name == "TCPROS" {
@@ -93,22 +92,22 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeId string, nodeApiUr
 						sub.disconnectedChan,
 						sub.msgType)
 				} else {
-					logger.Warnf("rosgo Not support protocol '%s'", name)
+					logger.Warn(sub.topic, " : rosgo does not support protocol: ", name)
 				}
 			}
 		case callback := <-sub.addCallbackChan:
-			logger.Debug("Receive addCallbackChan")
+			logger.Debug(sub.topic, " : Receive addCallbackChan")
 			sub.callbacks = append(sub.callbacks, callback)
 		case msgEvent := <-sub.msgChan:
 			// Pop received message then bind callbacks and enqueue to the job channle.
-			logger.Debug("Receive msgChan")
+			logger.Debug(sub.topic, " : Receive msgChan")
 			callbacks := make([]interface{}, len(sub.callbacks))
 			copy(callbacks, sub.callbacks)
 			jobChan <- func() {
 				m := sub.msgType.NewMessage()
 				reader := bytes.NewReader(msgEvent.bytes)
 				if err := m.Deserialize(reader); err != nil {
-					logger.Error(err)
+					logger.Error(sub.topic, " : ", err)
 				}
 				args := []reflect.Value{reflect.ValueOf(m), reflect.ValueOf(msgEvent.event)}
 				for _, callback := range callbacks {
@@ -119,20 +118,20 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeId string, nodeApiUr
 					}
 				}
 			}
-			logger.Debug("Callback job enqueued.")
+			logger.Debug(sub.topic, " : Callback job enqueued.")
 		case pubUri := <-sub.disconnectedChan:
-			logger.Debugf("Connection to %s was disconnected.", pubUri)
+			logger.Debug(sub.topic, " : Connection disconnected to ", pubUri)
 			delete(sub.connections, pubUri)
 		case <-sub.shutdownChan:
 			// Shutdown subscription goroutine
-			logger.Debug("Receive shutdownChan")
+			logger.Debug(sub.topic, " : Receive shutdownChan")
 			for _, closeChan := range sub.connections {
 				closeChan <- struct{}{}
 				close(closeChan)
 			}
 			_, err := callRosApi(masterUri, "unregisterSubscriber", nodeId, sub.topic, nodeApiUri)
 			if err != nil {
-				logger.Warn(err)
+				logger.Warn(sub.topic, " : ", err)
 			}
 			return
 		}
@@ -145,15 +144,15 @@ func startRemotePublisherConn(logger Logger,
 	msgChan chan messageEvent,
 	quitChan chan struct{},
 	disconnectedChan chan string, msgTypeProper MessageType) {
-	logger.Debug("startRemotePublisherConn()")
+	logger.Debug(topic, " : startRemotePublisherConn()")
 
 	defer func() {
-		logger.Debug("startRemotePublisherConn() exit")
+		logger.Debug(topic, " : startRemotePublisherConn() exit")
 	}()
 
 	conn, err := net.Dial("tcp", pubUri)
 	if err != nil {
-		logger.Errorf("Failed to connect %s!", pubUri)
+		logger.Error(topic, " : Failed to connect to ", pubUri)
 		return
 	}
 
@@ -163,13 +162,13 @@ func startRemotePublisherConn(logger Logger,
 	headers = append(headers, header{"md5sum", md5sum})
 	headers = append(headers, header{"type", msgType})
 	headers = append(headers, header{"callerid", nodeId})
-	logger.Debug("TCPROS Connection Header")
+	logger.Debug(topic, " : TCPROS Connection Header")
 	for _, h := range headers {
-		logger.Debugf("  `%s` = `%s`", h.key, h.value)
+		logger.Debugf("          `%s` = `%s`", h.key, h.value)
 	}
 	err = writeConnectionHeader(headers, conn)
 	if err != nil {
-		logger.Errorf("Failed to write connection header.")
+		logger.Error(topic, " : Failed to write connection header.")
 		return
 	}
 
@@ -177,21 +176,21 @@ func startRemotePublisherConn(logger Logger,
 	var resHeaders []header
 	resHeaders, err = readConnectionHeader(conn)
 	if err != nil {
-		logger.Errorf("Failed to read response header.")
+		logger.Error(topic, " : Failed to read response header.")
 		return
 	}
-	logger.Debug("TCPROS Response Header:")
+	logger.Debug(topic, " : TCPROS Response Header:")
 	resHeaderMap := make(map[string]string)
 	for _, h := range resHeaders {
 		resHeaderMap[h.key] = h.value
-		logger.Debugf("  `%s` = `%s`", h.key, h.value)
+		logger.Debugf("          `%s` = `%s`", h.key, h.value)
 	}
 
 	if resHeaderMap["type"] != msgType || resHeaderMap["md5sum"] != md5sum {
-		logger.Errorf("Incompatible message type!")
+		logger.Error("Incompatible message type for ", topic, ": ", resHeaderMap["type"], ":", msgType, " ", resHeaderMap["md5sum"], ":", md5sum)
 		return
 	}
-	logger.Debug("Start receiving messages...")
+	logger.Debug(topic, " : Start receiving messages...")
 	event := MessageEvent{ // Event struct to be sent with each message.
 		PublisherName:    resHeaderMap["callerid"],
 		ConnectionHeader: resHeaderMap,
@@ -216,12 +215,11 @@ func startRemotePublisherConn(logger Logger,
 						//logger.Debug(neterr)
 						continue
 					} else {
-						logger.Error("Failed to read a message size")
+						logger.Error(topic, " : Failed to read a message size")
 						disconnectedChan <- pubUri
 						return
 					}
 				}
-				logger.Debugf("  %d", msgSize)
 				buffer = make([]byte, int(msgSize))
 				readingSize = false
 			} else {
@@ -233,7 +231,7 @@ func startRemotePublisherConn(logger Logger,
 						//logger.Debug(neterr)
 						continue
 					} else {
-						logger.Error("Failed to read a message body")
+						logger.Error(topic, " : Failed to read a message body")
 						disconnectedChan <- pubUri
 						return
 					}
