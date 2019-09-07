@@ -285,3 +285,7 @@ func (ctx *MsgContext) ComputeSrvMD5(spec *SrvSpec) (string, error) {
 	md5sum := hex.EncodeToString(sum)
 	return md5sum, nil
 }
+
+func (ctx *MsgContext) GetMsgs() map[string]*MsgSpec {
+	return ctx.msgRegistry
+}

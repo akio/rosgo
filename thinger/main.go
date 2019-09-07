@@ -31,8 +31,8 @@ var subscribers map[string]ros.Subscriber
 
 // DEFINE PRIVATE STATIC FUNCTIONS.
 
-func callback(msg *ros.DynamicMessage) {
-	g_node.Logger().Info("Received: ", msg.Type().Name(), " : ", msg)
+func callback(msg *ros.DynamicMessage, event ros.MessageEvent) {
+	g_node.Logger().Info("Received: ", event.ConnectionHeader["topic"], " : ", msg.Type().Name(), " : ", msg)
 }
 
 func poll_for_topics(node ros.Node, quit <-chan bool) {
@@ -47,10 +47,8 @@ func poll_for_topics(node ros.Node, quit <-chan bool) {
 			node.Logger().Info("Stopping polling for topics...")
 			return
 		case <-ticker.C:
+			// Fetch list of available topics (i.e. those with publishers) from the master.
 			topic_list := node.GetPublishedTopics("")
-
-			// Print out the topics we already know about.
-			node.Logger().Info(ros.GetKnownMsgs())
 
 			// Try to iterate over each of the topics in the list.
 			for _, v := range topic_list {
