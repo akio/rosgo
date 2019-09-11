@@ -27,12 +27,26 @@ var g_node ros.Node
 
 var subscribers map[string]ros.Subscriber
 
+var pub ros.Publisher
+
 // DEFINE PUBLIC STATIC FUNCTIONS.
 
 // DEFINE PRIVATE STATIC FUNCTIONS.
 
 func callback(msg *ros.DynamicMessage, event ros.MessageEvent) {
 	g_node.Logger().Info("Received: ", event.ConnectionHeader["topic"], " : ", msg.Type().Name(), " : ", msg)
+
+	// Try not to loopback into oblivion...
+	if event.ConnectionHeader["topic"] == "/more_chatter" {
+		return
+	}
+
+	// If the message was just a string, republish it.
+	if msg.Type().Name() == "std_msgs/String" {
+		g_node.Logger().Info("Republishing...")
+		out_msg := ros.Message(msg)
+		pub.Publish(out_msg)
+	}
 }
 
 func poll_for_topics(node ros.Node, quit <-chan bool) {
@@ -105,6 +119,14 @@ func main() {
 	// Setup a signal handler to catch the keyboard interrupt.
 	quit_mainloop := make(chan os.Signal, 2)
 	signal.Notify(quit_mainloop, os.Interrupt, syscall.SIGTERM)
+
+	// Create a publisher for rebroadcasting the messages we recieve.
+	var out_msg *ros.DynamicMessageType
+	if out_msg, err = ros.NewDynamicMessageType("std_msgs/String"); err != nil {
+		node.Logger().Error("Oh noes!")
+		return
+	}
+	pub = node.NewPublisher("more_chatter", out_msg)
 
 	// Wait forever.
 	node.Logger().Info("Spinning...")

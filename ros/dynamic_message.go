@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 )
 
@@ -49,7 +50,7 @@ func newDynamicMessageType_Nested(ros_type string, parent_type string) (*Dynamic
 	// If we haven't created a message context yet, better do that.
 	if context == nil {
 		// Create context for our ROS install.
-		rosPkgPath := os.Getenv("ROS_PACKAGE_PATH")
+		rosPkgPath := os.Getenv("ROS_PACKAGE_PATH") + ":~/environment/goenv/src/github.com/edwinhayes/rosgo/test"
 		c, err := libgengo.NewMsgContext(strings.Split(rosPkgPath, ":"))
 		if err != nil {
 			return nil, err
@@ -133,7 +134,403 @@ func (m DynamicMessage) Type() MessageType {
 }
 
 func (m DynamicMessage) Serialize(buf *bytes.Buffer) error {
-	return errors.New("Not implemented.")
+	// THIS METHOD IS BASICALLY AN UNTEMPLATED COPY OF THE TEMPLATE IN LIBGENGO.
+
+	var err error = nil
+
+	// Iterate over each of the fields in the message.
+	for _, field := range m.dynamic_type.spec.Fields {
+		if field.IsArray {
+			// It's an array.
+
+			// Look up the item.
+			array, ok := m.data[field.GoName]
+			if !ok {
+				return errors.New("Field: " + field.Name + ": No data found.")
+			}
+
+			// If the array is not a fixed length, it begins with a declaration of the array size.
+			if field.ArrayLen < 0 {
+				var size uint32 = uint32(reflect.ValueOf(array).Len())
+				if err := binary.Write(buf, binary.LittleEndian, size); err != nil {
+					return errors.Wrap(err, "Field: "+field.Name)
+				}
+			}
+
+			// Then we just write out all the elements one after another.
+			for _, array_item := range array.([]interface{}) {
+				// Need to handle each type appropriately.
+				if field.IsBuiltin {
+					if field.Type == "string" {
+						// Make sure we've actually got a string.
+						str, ok := array_item.(string)
+						if !ok {
+							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(array_item).Name() + ", expected string.")
+						}
+						// The string should start with a declaration of the number of characters.
+						var size_str uint32 = uint32(len(str))
+						if err := binary.Write(buf, binary.LittleEndian, size_str); err != nil {
+							return errors.Wrap(err, "Field: "+field.Name)
+						}
+						// Then write out the actual characters.
+						data := []byte(str)
+						if err := binary.Write(buf, binary.LittleEndian, data); err != nil {
+							return errors.Wrap(err, "Field: "+field.Name)
+						}
+
+					} else if field.Type == "time" {
+						// Make sure we've actually got a time.
+						t, ok := array_item.(Time)
+						if !ok {
+							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(array_item).Name() + ", expected ros.Time.")
+						}
+						// Then write out the structure.
+						if err := binary.Write(buf, binary.LittleEndian, t); err != nil {
+							return errors.Wrap(err, "Field: "+field.Name)
+						}
+
+					} else if field.Type == "duration" {
+						// Make sure we've actually got a duration.
+						d, ok := array_item.(Duration)
+						if !ok {
+							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(array_item).Name() + ", expected ros.Duration.")
+						}
+						// Then write out the structure.
+						if err := binary.Write(buf, binary.LittleEndian, d); err != nil {
+							return errors.Wrap(err, "Field: "+field.Name)
+						}
+
+					} else {
+						// It's a primitive.
+
+						// Because no runtime expressions in type assertions in Go, we need to manually do this.
+						switch field.GoType {
+						case "bool":
+							// Make sure we've actually got a bool.
+							v, ok := array_item.(bool)
+							if !ok {
+								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(array_item).Name() + ", expected bool.")
+							}
+							// Then write out the value.
+							if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+								return errors.Wrap(err, "Field: "+field.Name)
+							}
+						case "int8":
+							// Make sure we've actually got a bool.
+							v, ok := array_item.(int8)
+							if !ok {
+								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(array_item).Name() + ", expected int8.")
+							}
+							// Then write out the value.
+							if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+								return errors.Wrap(err, "Field: "+field.Name)
+							}
+						case "int16":
+							// Make sure we've actually got a bool.
+							v, ok := array_item.(int16)
+							if !ok {
+								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(array_item).Name() + ", expected int16.")
+							}
+							// Then write out the value.
+							if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+								return errors.Wrap(err, "Field: "+field.Name)
+							}
+						case "int32":
+							// Make sure we've actually got a bool.
+							v, ok := array_item.(int32)
+							if !ok {
+								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(array_item).Name() + ", expected int32.")
+							}
+							// Then write out the value.
+							if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+								return errors.Wrap(err, "Field: "+field.Name)
+							}
+						case "int64":
+							// Make sure we've actually got a bool.
+							v, ok := array_item.(int64)
+							if !ok {
+								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(array_item).Name() + ", expected int64.")
+							}
+							// Then write out the value.
+							if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+								return errors.Wrap(err, "Field: "+field.Name)
+							}
+						case "uint8":
+							// Make sure we've actually got a bool.
+							v, ok := array_item.(uint8)
+							if !ok {
+								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(array_item).Name() + ", expected uint8.")
+							}
+							// Then write out the value.
+							if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+								return errors.Wrap(err, "Field: "+field.Name)
+							}
+						case "uint16":
+							// Make sure we've actually got a bool.
+							v, ok := array_item.(uint16)
+							if !ok {
+								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(array_item).Name() + ", expected uint16.")
+							}
+							// Then write out the value.
+							if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+								return errors.Wrap(err, "Field: "+field.Name)
+							}
+						case "uint32":
+							// Make sure we've actually got a bool.
+							v, ok := array_item.(uint32)
+							if !ok {
+								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(array_item).Name() + ", expected uint32.")
+							}
+							// Then write out the value.
+							if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+								return errors.Wrap(err, "Field: "+field.Name)
+							}
+						case "uint64":
+							// Make sure we've actually got a bool.
+							v, ok := array_item.(uint64)
+							if !ok {
+								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(array_item).Name() + ", expected uint64.")
+							}
+							// Then write out the value.
+							if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+								return errors.Wrap(err, "Field: "+field.Name)
+							}
+						case "float32":
+							// Make sure we've actually got a bool.
+							v, ok := array_item.(float32)
+							if !ok {
+								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(array_item).Name() + ", expected float32.")
+							}
+							// Then write out the value.
+							if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+								return errors.Wrap(err, "Field: "+field.Name)
+							}
+						case "float64":
+							// Make sure we've actually got a bool.
+							v, ok := array_item.(float64)
+							if !ok {
+								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(array_item).Name() + ", expected float64.")
+							}
+							// Then write out the value.
+							if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+								return errors.Wrap(err, "Field: "+field.Name)
+							}
+						default:
+							// Something went wrong.
+							return errors.New("We haven't implemented this primitive yet!")
+						}
+					}
+
+				} else {
+					// Else it's not a builtin.
+
+					// Confirm the message we're holding is actually the correct type.
+					msg, ok := array_item.(DynamicMessage)
+					if !ok {
+						return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(array_item).Name() + ", expected Message.")
+					}
+					if msg.dynamic_type.spec.FullName != field.Type {
+						return errors.New("Field: " + field.Name + ": Found msg " + msg.dynamic_type.spec.FullName + ", expected " + field.Type + ".")
+					}
+					// Otherwise, we just recursively serialise it.
+					if err = msg.Serialize(buf); err != nil {
+						return errors.Wrap(err, "Field: "+field.Name)
+					}
+				}
+			}
+
+		} else {
+			// It's a scalar.
+
+			// Look up the item.
+			item, ok := m.data[field.GoName]
+			if !ok {
+				return errors.New("Field: " + field.Name + ": No data found.")
+			}
+
+			// Need to handle each type appropriately.
+			if field.IsBuiltin {
+				if field.Type == "string" {
+					// Make sure we've actually got a string.
+					str, ok := item.(string)
+					if !ok {
+						return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected string.")
+					}
+					// The string should start with a declaration of the number of characters.
+					var size_str uint32 = uint32(len(str))
+					if err := binary.Write(buf, binary.LittleEndian, size_str); err != nil {
+						return errors.Wrap(err, "Field: "+field.Name)
+					}
+					// Then write out the actual characters.
+					data := []byte(str)
+					if err := binary.Write(buf, binary.LittleEndian, data); err != nil {
+						return errors.Wrap(err, "Field: "+field.Name)
+					}
+
+				} else if field.Type == "time" {
+					// Make sure we've actually got a time.
+					t, ok := item.(Time)
+					if !ok {
+						return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected ros.Time.")
+					}
+					// Then write out the structure.
+					if err := binary.Write(buf, binary.LittleEndian, t); err != nil {
+						return errors.Wrap(err, "Field: "+field.Name)
+					}
+
+				} else if field.Type == "duration" {
+					// Make sure we've actually got a duration.
+					d, ok := item.(Duration)
+					if !ok {
+						return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected ros.Duration.")
+					}
+					// Then write out the structure.
+					if err := binary.Write(buf, binary.LittleEndian, d); err != nil {
+						return errors.Wrap(err, "Field: "+field.Name)
+					}
+
+				} else {
+					// It's a primitive.
+
+					// Because no runtime expressions in type assertions in Go, we need to manually do this.
+					switch field.GoType {
+					case "bool":
+						// Make sure we've actually got a bool.
+						v, ok := item.(bool)
+						if !ok {
+							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected bool.")
+						}
+						// Then write out the value.
+						if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+							return errors.Wrap(err, "Field: "+field.Name)
+						}
+					case "int8":
+						// Make sure we've actually got a bool.
+						v, ok := item.(int8)
+						if !ok {
+							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected int8.")
+						}
+						// Then write out the value.
+						if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+							return errors.Wrap(err, "Field: "+field.Name)
+						}
+					case "int16":
+						// Make sure we've actually got a bool.
+						v, ok := item.(int16)
+						if !ok {
+							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected int16.")
+						}
+						// Then write out the value.
+						if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+							return errors.Wrap(err, "Field: "+field.Name)
+						}
+					case "int32":
+						// Make sure we've actually got a bool.
+						v, ok := item.(int32)
+						if !ok {
+							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected int32.")
+						}
+						// Then write out the value.
+						if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+							return errors.Wrap(err, "Field: "+field.Name)
+						}
+					case "int64":
+						// Make sure we've actually got a bool.
+						v, ok := item.(int64)
+						if !ok {
+							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected int64.")
+						}
+						// Then write out the value.
+						if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+							return errors.Wrap(err, "Field: "+field.Name)
+						}
+					case "uint8":
+						// Make sure we've actually got a bool.
+						v, ok := item.(uint8)
+						if !ok {
+							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected uint8.")
+						}
+						// Then write out the value.
+						if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+							return errors.Wrap(err, "Field: "+field.Name)
+						}
+					case "uint16":
+						// Make sure we've actually got a bool.
+						v, ok := item.(uint16)
+						if !ok {
+							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected uint16.")
+						}
+						// Then write out the value.
+						if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+							return errors.Wrap(err, "Field: "+field.Name)
+						}
+					case "uint32":
+						// Make sure we've actually got a bool.
+						v, ok := item.(uint32)
+						if !ok {
+							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected uint32.")
+						}
+						// Then write out the value.
+						if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+							return errors.Wrap(err, "Field: "+field.Name)
+						}
+					case "uint64":
+						// Make sure we've actually got a bool.
+						v, ok := item.(uint64)
+						if !ok {
+							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected uint64.")
+						}
+						// Then write out the value.
+						if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+							return errors.Wrap(err, "Field: "+field.Name)
+						}
+					case "float32":
+						// Make sure we've actually got a bool.
+						v, ok := item.(float32)
+						if !ok {
+							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected float32.")
+						}
+						// Then write out the value.
+						if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+							return errors.Wrap(err, "Field: "+field.Name)
+						}
+					case "float64":
+						// Make sure we've actually got a bool.
+						v, ok := item.(float64)
+						if !ok {
+							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected float64.")
+						}
+						// Then write out the value.
+						if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+							return errors.Wrap(err, "Field: "+field.Name)
+						}
+					default:
+						// Something went wrong.
+						return errors.New("We haven't implemented this primitive yet!")
+					}
+				}
+
+			} else {
+				// Else it's not a builtin.
+
+				// Confirm the message we're holding is actually the correct type.
+				msg, ok := item.(DynamicMessage)
+				if !ok {
+					return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected Message.")
+				}
+				if msg.dynamic_type.spec.FullName != field.Type {
+					return errors.New("Field: " + field.Name + ": Found msg " + msg.dynamic_type.spec.FullName + ", expected " + field.Type + ".")
+				}
+				// Otherwise, we just recursively serialise it.
+				if err = msg.Serialize(buf); err != nil {
+					return errors.Wrap(err, "Field: "+field.Name)
+				}
+			}
+		}
+	}
+
+	// All done.
+	return err
 }
 
 func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
@@ -147,6 +544,8 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 	// Iterate over each of the fields in the message.
 	for _, field := range m.dynamic_type.spec.Fields {
 		if field.IsArray {
+			// It's an array.
+
 			// The array may be a fixed length, or it may be dynamic.
 			var size uint32 = uint32(field.ArrayLen)
 			if field.ArrayLen < 0 {
@@ -294,7 +693,8 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 				}
 			}
 		} else {
-			// Else it's not an array.  This is just the same as above, with the '[i]' bits removed.
+			// Else it's a scalar.  This is just the same as above, with the '[i]' bits removed.
+
 			if field.IsBuiltin {
 				if field.Type == "string" {
 					// The string will start with a declaration of the number of characters.
