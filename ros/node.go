@@ -225,6 +225,10 @@ func (node *defaultNode) OK() bool {
 	return ok
 }
 
+func (node *defaultNode) Name() string {
+	return node.name
+}
+
 func (node *defaultNode) getBusStats(callerId string) (interface{}, error) {
 	return buildRosApiResult(-1, "Not implemented", 0), nil
 }

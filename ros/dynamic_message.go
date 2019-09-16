@@ -150,15 +150,22 @@ func (m DynamicMessage) Serialize(buf *bytes.Buffer) error {
 			}
 
 			// If the array is not a fixed length, it begins with a declaration of the array size.
+			var size uint32
 			if field.ArrayLen < 0 {
-				var size uint32 = uint32(reflect.ValueOf(array).Len())
+				size = uint32(reflect.ValueOf(array).Len())
 				if err := binary.Write(buf, binary.LittleEndian, size); err != nil {
 					return errors.Wrap(err, "Field: "+field.Name)
 				}
+			} else {
+				size = uint32(field.ArrayLen)
 			}
 
 			// Then we just write out all the elements one after another.
-			for _, array_item := range array.([]interface{}) {
+			//for _, array_item := range array {
+			array_value := reflect.ValueOf(array)
+			for i := uint32(0); i < size; i++ {
+				var array_item interface{} = array_value.Index(int(i))
+
 				// Need to handle each type appropriately.
 				if field.IsBuiltin {
 					if field.Type == "string" {
