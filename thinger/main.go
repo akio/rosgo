@@ -127,6 +127,9 @@ func main() {
 	// Configure node logging.
 	node.Logger().SetSeverity(ros.LogLevelInfo)
 
+	// Change the package search path so we can use custom messages.
+	ros.SetRuntimePackagePath(ros.GetRuntimePackagePath() + ":~/environment/goenv/src/github.com/edwinhayes/rosgo/test")
+
 	// We'll keep lists of ROS subscribers and publishers, so we can identify topics which we still need to subscribe to or publish.
 	subscribers = make(map[string]ros.Subscriber)
 	publishers = make(map[string]ros.Publisher)

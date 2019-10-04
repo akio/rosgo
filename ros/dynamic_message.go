@@ -33,11 +33,30 @@ type DynamicMessage struct {
 
 // DEFINE PRIVATE GLOBALS.
 
+var rosPkgPath string // Colon separated list of paths to search for message definitions on.
+
 var known_messages map[string]string // Just for diagnostic purposes.
 
 var context *libgengo.MsgContext // We'll try to preserve a single message context to avoid reloading each time.
 
 // DEFINE PUBLIC STATIC FUNCTIONS.
+
+func SetRuntimePackagePath(path string) {
+	// We're not going to check that the result is valid, we'll just accept it blindly.
+	rosPkgPath = path
+
+	// All done.
+	return
+}
+
+func GetRuntimePackagePath() string {
+	// If a package path hasn't been set at the time of first use, by default we'll just use the ROS evironment default.
+	if rosPkgPath == "" {
+		rosPkgPath = os.Getenv("ROS_PACKAGE_PATH")
+	}
+	// All done.
+	return rosPkgPath
+}
 
 func NewDynamicMessageType(ros_type string) (*DynamicMessageType, error) {
 	return newDynamicMessageType_Nested(ros_type, "")
@@ -50,8 +69,7 @@ func newDynamicMessageType_Nested(ros_type string, parent_type string) (*Dynamic
 	// If we haven't created a message context yet, better do that.
 	if context == nil {
 		// Create context for our ROS install.
-		rosPkgPath := os.Getenv("ROS_PACKAGE_PATH") + ":~/environment/goenv/src/github.com/edwinhayes/rosgo/test"
-		c, err := libgengo.NewMsgContext(strings.Split(rosPkgPath, ":"))
+		c, err := libgengo.NewMsgContext(strings.Split(GetRuntimePackagePath(), ":"))
 		if err != nil {
 			return nil, err
 		}
