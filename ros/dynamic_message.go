@@ -11,7 +11,6 @@ import (
 	"github.com/edwinhayes/rosgo/libgengo"
 	"github.com/pkg/errors"
 	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 )
@@ -62,7 +61,7 @@ func NewDynamicMessageType(ros_type string) (*DynamicMessageType, error) {
 	return newDynamicMessageType_Nested(ros_type, "")
 }
 
-func newDynamicMessageType_Nested(ros_type string, parent_type string) (*DynamicMessageType, error) {
+func newDynamicMessageType_Nested(type_name string, package_name string) (*DynamicMessageType, error) {
 	// Create an empty message type.
 	m := new(DynamicMessageType)
 
@@ -80,20 +79,19 @@ func newDynamicMessageType_Nested(ros_type string, parent_type string) (*Dynamic
 	}
 
 	// We need to try to look up the full name, in case we've just been given a short name.
-	fullname := ros_type
+	fullname := type_name
 
 	// The Header type has some special treatment.
-	if ros_type == "Header" {
+	if type_name == "Header" {
 		fullname = "std_msgs/Header"
 	} else {
 		_, ok := context.GetMsgs()[fullname]
 		if !ok {
-			// Seems like the ros_type we were give wasn't the full name.
+			// Seems like the package_name we were give wasn't the full name.
 
-			// Message in the same package are allowed to use relative names, so try using the parent's full name.
-			if parent_type != "" {
-				pkgName := filepath.Base(parent_type)
-				fullname = pkgName + "/" + fullname
+			// Messages in the same package are allowed to use relative names, so try prefixing the package.
+			if package_name != "" {
+				fullname = package_name + "/" + fullname
 			}
 		}
 	}
@@ -106,7 +104,6 @@ func newDynamicMessageType_Nested(ros_type string, parent_type string) (*Dynamic
 
 	// Now we know all about the message!
 	m.spec = spec
-	//fmt.Println(spec)
 
 	// We've successfully made a new message type matching the requested ROS type.
 	known_messages[m.spec.FullName] = m.spec.MD5Sum
@@ -179,7 +176,6 @@ func (m DynamicMessage) Serialize(buf *bytes.Buffer) error {
 			}
 
 			// Then we just write out all the elements one after another.
-			//for _, array_item := range array {
 			array_value := reflect.ValueOf(array)
 			for i := uint32(0); i < size; i++ {
 				var array_item interface{} = array_value.Index(int(i))
@@ -706,7 +702,7 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 					}
 				} else {
 					// Else it's not a builtin.
-					msg_type, err := newDynamicMessageType_Nested(field.Type, m.dynamic_type.spec.FullName)
+					msg_type, err := newDynamicMessageType_Nested(field.Type, field.Package)
 					if err != nil {
 						return errors.Wrap(err, "Field: "+field.Name)
 					}
@@ -809,7 +805,7 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 				}
 			} else {
 				// Else it's not a builtin.
-				msg_type, err := newDynamicMessageType_Nested(field.Type, m.dynamic_type.spec.FullName)
+				msg_type, err := newDynamicMessageType_Nested(field.Type, field.Package)
 				if err != nil {
 					return errors.Wrap(err, "Field: "+field.Name)
 				}
@@ -828,7 +824,7 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 
 func (m DynamicMessage) String() string {
 	// Just print out the data!
-	return fmt.Sprint(m.data)
+	return fmt.Sprint(m.dynamic_type.Name(), "::", m.data)
 }
 
 // DEFINE PRIVATE STATIC FUNCTIONS.

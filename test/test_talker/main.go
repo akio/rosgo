@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/edwinhayes/rosgo/ros"
 	"os"
+	"rosgo_tests"
 	"std_msgs"
 	"time"
 )
@@ -18,6 +19,7 @@ func main() {
 	defer node.Shutdown()
 	node.Logger().SetSeverity(ros.LogLevelDebug)
 	pub := node.NewPublisher("/chatter", std_msgs.MsgString)
+	pub2 := node.NewPublisher("/all", rosgo_tests.MsgAllFieldTypes)
 
 	for node.OK() {
 		node.SpinOnce()
@@ -25,6 +27,8 @@ func main() {
 		msg.Data = fmt.Sprintf("hello %s", time.Now().String())
 		fmt.Println(msg.Data)
 		pub.Publish(&msg)
+		var m rosgo_tests.AllFieldTypes
+		pub2.Publish(&m)
 		time.Sleep(time.Second)
 	}
 }

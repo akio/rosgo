@@ -38,7 +38,7 @@ func callback(msg *ros.DynamicMessage, event ros.MessageEvent) {
 	pub_name := strings.Trim(event.PublisherName, "/")
 	topic_name := strings.Trim(event.ConnectionHeader["topic"], "/")
 	topic_type := msg.Type().Name()
-	g_node.Logger().Info("Received from ", pub_name, ": ", topic_name, " : ", topic_type, " : ", msg)
+	g_node.Logger().Info("Received from ", pub_name, ": ", topic_name, " : ", msg)
 
 	// Try not to loopback into oblivion...
 	if pub_name == g_node.Name() {
@@ -96,7 +96,7 @@ func poll_for_topics(node ros.Node, quit <-chan bool) {
 					var m *ros.DynamicMessageType
 					var err error
 					if m, err = ros.NewDynamicMessageType(topic_type); err != nil {
-						node.Logger().Info("Couldn't set message type: ", topic_type, " : Error: ", err)
+						node.Logger().Error("Couldn't set message type: ", topic_type, " : ", err)
 						continue
 					}
 
@@ -128,7 +128,7 @@ func main() {
 	node.Logger().SetSeverity(ros.LogLevelInfo)
 
 	// Change the package search path so we can use custom messages.
-	ros.SetRuntimePackagePath(ros.GetRuntimePackagePath() + ":~/environment/goenv/src/github.com/edwinhayes/rosgo/test")
+	ros.SetRuntimePackagePath(ros.GetRuntimePackagePath() + ":/home/ubuntu/environment/goenv/src/github.com/edwinhayes/rosgo/test/test_talker/vendor")
 
 	// We'll keep lists of ROS subscribers and publishers, so we can identify topics which we still need to subscribe to or publish.
 	subscribers = make(map[string]ros.Subscriber)
