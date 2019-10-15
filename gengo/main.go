@@ -52,7 +52,7 @@ func main() {
 
 	rosPkgPath := os.Getenv("ROS_PACKAGE_PATH")
 
-	context, err := NewMsgContext(strings.Split(rosPkgPath, ":"))
+	context, err := libgengo.NewMsgContext(strings.Split(rosPkgPath, ":"))
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(-1)
@@ -63,7 +63,7 @@ func main() {
 	fmt.Printf("Generating %v...", fullname)
 
 	if mode == "msg" {
-		var spec *MsgSpec
+		var spec *libgengo.MsgSpec
 		var err error
 		if flag.NArg() == 2 {
 			spec, err = context.LoadMsg(fullname)
@@ -75,7 +75,7 @@ func main() {
 			os.Exit(-1)
 		}
 		var code string
-		code, err = GenerateMessage(context, spec)
+		code, err = libgengo.GenerateMessage(context, spec)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(-1)
@@ -86,7 +86,7 @@ func main() {
 			os.Exit(-1)
 		}
 	} else if mode == "srv" {
-		var spec *SrvSpec
+		var spec *libgengo.SrvSpec
 		var err error
 		if flag.NArg() == 2 {
 			spec, err = context.LoadSrv(fullname)
@@ -97,7 +97,7 @@ func main() {
 			fmt.Println(err)
 			os.Exit(-1)
 		}
-		srvCode, reqCode, resCode, err := GenerateService(context, spec)
+		srvCode, reqCode, resCode, err := libgengo.GenerateService(context, spec)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(-1)

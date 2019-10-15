@@ -1,9 +1,6 @@
 package libgengo
 
 import (
-	"bytes"
-	"crypto/md5"
-	"encoding/hex"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -389,41 +386,4 @@ func (s *MsgSpec) String() string {
 
 	lines = append(lines, fmt.Sprintf("}"))
 	return strings.Join(lines, "\n")
-}
-
-func (s *MsgSpec) ComputeMD5(msgContext *MsgContext) (string, error) {
-	thisPkgName := s.Package
-	var buffer bytes.Buffer
-	for _, c := range s.Constants {
-		buffer.WriteString(fmt.Sprintf("%v %v=%v\n", c.Type, c.Name, c.ValueText))
-	}
-	for _, f := range s.Fields {
-		msgType := baseMsgType(f.Type)
-		if isBuiltinType(f.Type) {
-			buffer.WriteString(fmt.Sprintf("%v %v\n", f.Type, f.Name))
-		} else {
-			pkgName, baseType, err := packageResourceName(msgType)
-			if err != nil {
-				return "", err
-			}
-			// If no package name, it should be a messge in the current package
-			if len(pkgName) == 0 {
-				pkgName = thisPkgName
-			}
-			fullMsgName := pkgName + "/" + baseType
-			if msgSpec, err := msgContext.LoadMsg(fullMsgName); err != nil {
-				subMD5, err := msgSpec.ComputeMD5(msgContext)
-				if err != nil {
-					return "", err
-				}
-				buffer.WriteString(fmt.Sprintf("%v %v\n", subMD5, f.Name))
-			} else {
-				return "", fmt.Errorf("Message '%s' was not found", fullMsgName)
-			}
-		}
-	}
-	data := buffer.Bytes()
-	hash := md5.New()
-	sum := hash.Sum(data)
-	return hex.EncodeToString(sum), nil
 }

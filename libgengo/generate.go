@@ -20,7 +20,7 @@ import (
 	"{{ . }}"
 {{- end }}
 
-    "github.com/fetchrobotics/rosgo/ros"
+    "github.com/edwinhayes/rosgo/ros"
 )
 
 {{- if gt (len .Constants) 0 }}
@@ -296,7 +296,7 @@ type MsgGen struct {
 
 func (gen *MsgGen) analyzeImports() {
 	imp_path := ""
-	if len(*import_path) != 0 {
+	if (import_path != nil) && (len(*import_path) != 0) {
 		imp_path = *import_path + "/"
 	}
 
