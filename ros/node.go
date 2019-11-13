@@ -3,7 +3,6 @@ package ros
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/edwinhayes/rosgo/xmlrpc"
 	"math/rand"
 	"net"
 	"net/http"
@@ -15,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/edwinhayes/rosgo/xmlrpc"
 )
 
 const (
@@ -149,8 +150,8 @@ func newDefaultNode(name string, args []string) (*defaultNode, error) {
 
 	node.nameResolver = newNameResolver(node.namespace, node.name, remapping)
 	node.nonRosArgs = rest
-
-	node.qualifiedName = node.namespace + "/" + node.name
+	// Removed additional "/" from node.qualifiedName which breaks rosgraph tests in roswtf
+	node.qualifiedName = node.namespace + node.name
 	node.subscribers = make(map[string]*defaultSubscriber)
 	node.servers = make(map[string]*defaultServiceServer)
 	node.interruptChan = make(chan os.Signal)
