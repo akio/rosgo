@@ -35,18 +35,31 @@ func findAllMessages(rosPkgPaths []string) (map[string]string, error) {
 				continue
 			}
 			pkgPath := filepath.Join(p, f.Name())
-			if isRosPackage(pkgPath) {
-				pkgName := filepath.Base(pkgPath)
-				msgPath := filepath.Join(pkgPath, "msg")
-				msgPaths, err := filepath.Glob(msgPath + "/*.msg")
-				if err != nil {
+			files, err := ioutil.ReadDir(pkgPath)
+			if err != nil {
+				continue
+			}
+			for _, ff := range files {
+				if !f.IsDir() {
 					continue
 				}
-				for _, m := range msgPaths {
-					basename := filepath.Base(m)
-					rootname := basename[:len(basename)-4]
-					fullname := pkgName + "/" + rootname
-					msgs[fullname] = m
+				subPkgPath := filepath.Join(p, f.Name(), ff.Name())
+				if isRosPackage(subPkgPath) {
+					pkgPath = subPkgPath
+				}
+				if isRosPackage(pkgPath) {
+					pkgName := filepath.Base(pkgPath)
+					msgPath := filepath.Join(pkgPath, "msg")
+					msgPaths, err := filepath.Glob(msgPath + "/*.msg")
+					if err != nil {
+						continue
+					}
+					for _, m := range msgPaths {
+						basename := filepath.Base(m)
+						rootname := basename[:len(basename)-4]
+						fullname := pkgName + "/" + rootname
+						msgs[fullname] = m
+					}
 				}
 			}
 		}

@@ -9,11 +9,12 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/edwinhayes/rosgo/libgengo"
-	"github.com/pkg/errors"
 	"os"
 	"reflect"
 	"strings"
+
+	"github.com/edwinhayes/rosgo/libgengo"
+	"github.com/pkg/errors"
 )
 
 // DEFINE PUBLIC STRUCTURES.
@@ -223,8 +224,8 @@ func (m DynamicMessage) Serialize(buf *bytes.Buffer) error {
 			// Then we just write out all the elements one after another.
 			arrayValue := reflect.ValueOf(array)
 			for i := uint32(0); i < size; i++ {
-				var arrayItem interface{} = arrayValue.Index(int(i))
-
+				//Casting the array item to interface type
+				var arrayItem interface{} = arrayValue.Index(int(i)).Interface()
 				// Need to handle each type appropriately.
 				if field.IsBuiltin {
 					if field.Type == "string" {
@@ -391,12 +392,12 @@ func (m DynamicMessage) Serialize(buf *bytes.Buffer) error {
 					// Else it's not a builtin.
 
 					// Confirm the message we're holding is actually the correct type.
-					msg, ok := arrayItem.(DynamicMessage)
+					msg, ok := arrayItem.(*DynamicMessage)
 					if !ok {
 						return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(arrayItem).Name() + ", expected Message.")
 					}
-					if msg.dynamicType.spec.FullName != field.Type {
-						return errors.New("Field: " + field.Name + ": Found msg " + msg.dynamicType.spec.FullName + ", expected " + field.Type + ".")
+					if msg.dynamicType.spec.ShortName != field.Type {
+						return errors.New("Field: " + field.Name + ": Found msg " + msg.dynamicType.spec.ShortName + ", expected " + field.Type + ".")
 					}
 					// Otherwise, we just recursively serialise it.
 					if err = msg.Serialize(buf); err != nil {
@@ -580,12 +581,12 @@ func (m DynamicMessage) Serialize(buf *bytes.Buffer) error {
 				// Else it's not a builtin.
 
 				// Confirm the message we're holding is actually the correct type.
-				msg, ok := item.(DynamicMessage)
+				msg, ok := item.(*DynamicMessage)
 				if !ok {
 					return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected Message.")
 				}
-				if msg.dynamicType.spec.FullName != field.Type {
-					return errors.New("Field: " + field.Name + ": Found msg " + msg.dynamicType.spec.FullName + ", expected " + field.Type + ".")
+				if msg.dynamicType.spec.ShortName != field.Type {
+					return errors.New("Field: " + field.Name + ": Found msg " + msg.dynamicType.spec.ShortName + ", expected " + field.Type + ".")
 				}
 				// Otherwise, we just recursively serialise it.
 				if err = msg.Serialize(buf); err != nil {
