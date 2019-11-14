@@ -1,4 +1,3 @@
-// Connection header
 package ros
 
 import (
@@ -17,7 +16,7 @@ type connHeader struct {
 	headers map[string]string
 }
 
-const BufferSize = 1024
+const bufferSize = 1024
 
 func readConnectionHeader(r io.Reader) ([]header, error) {
 	buf := make([]byte, 4)

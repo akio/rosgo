@@ -6,16 +6,23 @@ import (
 	"os"
 )
 
+//LogLevel is the global int to set the log level severity of a logger
 type LogLevel int
 
 const (
+	//LogLevelDebug is zero value of LogLevel, most verbose
 	LogLevelDebug LogLevel = iota
+	//LogLevelInfo is default value of LogLevel
 	LogLevelInfo
+	//LogLevelWarn is a warning LogLevel
 	LogLevelWarn
+	//LogLevelError is a standard Error LogLevel
 	LogLevelError
+	//LogLevelFatal is a fatal Error LogLevel
 	LogLevelFatal
 )
 
+//Logger interface functions for log level severities
 type Logger interface {
 	Severity() LogLevel
 	SetSeverity(severity LogLevel)
@@ -35,7 +42,8 @@ type defaultLogger struct {
 	severity LogLevel
 }
 
-func NewDefaultLogger() *defaultLogger {
+//NewDefaultLogger returns a new defaultLogger with severity LogLevelInfo
+func NewDefaultLogger() Logger {
 	logger := new(defaultLogger)
 	logger.severity = LogLevelInfo
 	return logger

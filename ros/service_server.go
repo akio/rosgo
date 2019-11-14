@@ -36,7 +36,7 @@ type defaultServiceServer struct {
 func newDefaultServiceServer(node *defaultNode, service string, srvType ServiceType, handler interface{}) *defaultServiceServer {
 	logger := node.logger
 	server := new(defaultServiceServer)
-	if listener, err := listenRandomPort(node.listenIp, 10); err != nil {
+	if listener, err := listenRandomPort(node.listenIP, 10); err != nil {
 		panic(err)
 	} else {
 		if tcpListener, ok := listener.(*net.TCPListener); ok {
@@ -59,11 +59,11 @@ func newDefaultServiceServer(node *defaultNode, service string, srvType ServiceT
 	}
 	server.rosrpcAddr = fmt.Sprintf("rosrpc://%s:%s", node.hostname, port)
 	logger.Debugf("ServiceServer listen %s", server.rosrpcAddr)
-	_, err = callRosApi(node.masterUri, "registerService",
+	_, err = callRosAPI(node.masterURI, "registerService",
 		node.qualifiedName,
 		service,
 		server.rosrpcAddr,
-		node.xmlrpcUri)
+		node.xmlrpcURI)
 	if err != nil {
 		logger.Errorf("Failed to register service %s", service)
 		server.listener.Close()
@@ -120,7 +120,7 @@ func (s *defaultServiceServer) start() {
 			logger.Debug("defaultServiceServer.start Receive shutdownChan")
 			s.listener.Close()
 			logger.Debug("defaultServiceServer.start closed listener")
-			_, err := callRosApi(s.node.masterUri, "unregisterService",
+			_, err := callRosAPI(s.node.masterURI, "unregisterService",
 				s.node.qualifiedName, s.service, s.rosrpcAddr)
 			if err != nil {
 				logger.Warn("Failed unregisterService(%s): %v", s.service, err)
@@ -159,7 +159,7 @@ func newRemoteClientSession(s *defaultServiceServer, conn net.Conn) *remoteClien
 func (s *remoteClientSession) start() {
 	logger := s.server.node.logger
 	conn := s.conn
-	nodeId := s.server.node.qualifiedName
+	nodeID := s.server.node.qualifiedName
 	service := s.server.service
 	md5sum := s.server.srvType.MD5Sum()
 	srvType := s.server.srvType.Name()
@@ -199,7 +199,7 @@ func (s *remoteClientSession) start() {
 	headers = append(headers, header{"service", service})
 	headers = append(headers, header{"md5sum", md5sum})
 	headers = append(headers, header{"type", srvType})
-	headers = append(headers, header{"callerid", nodeId})
+	headers = append(headers, header{"callerid", nodeID})
 	logger.Debug("TCPROS Response Header")
 	for _, h := range headers {
 		logger.Debugf("  `%s` = `%s`", h.key, h.value)

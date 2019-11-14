@@ -13,8 +13,8 @@ func determineHost() (string, bool) {
 	}
 
 	// If the user set ROS_IP, use it as is
-	if rosIp, ok := os.LookupEnv("ROS_IP"); ok {
-		return rosIp, (rosIp == "::1" || strings.HasPrefix(rosIp, "127."))
+	if rosIP, ok := os.LookupEnv("ROS_IP"); ok {
+		return rosIP, (rosIP == "::1" || strings.HasPrefix(rosIP, "127."))
 	}
 
 	// Try using the hostname
