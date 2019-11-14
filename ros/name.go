@@ -7,11 +7,15 @@ import (
 )
 
 const (
-	Sep       = "/"
-	GlobalNS  = "/"
+	//Sep is a namespace separator string
+	Sep = "/"
+	//GlobalNS is the global namespace initial separator string
+	GlobalNS = "/"
+	//PrivateNS is private namespace initial separator string
 	PrivateNS = "~"
 )
 
+//NameMap is a string to string map of node names and resolved names
 type NameMap map[string]string
 
 func getNamespace(name string) string {
@@ -23,9 +27,9 @@ func getNamespace(name string) string {
 	result := name[:strings.LastIndex(name, Sep)+1]
 	if len(result) == 0 {
 		return Sep
-	} else {
-		return result
 	}
+	return result
+
 }
 
 func qualifyNodeName(nodeName string) (string, string, error) {
@@ -45,10 +49,10 @@ func qualifyNodeName(nodeName string) (string, string, error) {
 	}
 	if len(components) == 1 {
 		return GlobalNS, components[0], nil
-	} else {
-		namespace := GlobalNS + strings.Join(components[:len(components)-1], Sep)
-		return namespace, components[len(components)-1], nil
 	}
+	namespace := GlobalNS + strings.Join(components[:len(components)-1], Sep)
+	return namespace, components[len(components)-1], nil
+
 }
 
 func isValidName(name string) bool {
@@ -76,21 +80,24 @@ func isPrivateName(name string) bool {
 func canonicalizeName(name string) string {
 	if name == GlobalNS {
 		return name
-	} else {
-		components := []string{}
-		for _, word := range strings.Split(name, Sep) {
-			if len(word) > 0 {
-				components = append(components, word)
-			}
-		}
-		if name[0:1] == GlobalNS {
-			return GlobalNS + strings.Join(components, Sep)
-		} else {
-			return strings.Join(components, Sep)
+	}
+	components := []string{}
+	for _, word := range strings.Split(name, Sep) {
+		if len(word) > 0 {
+			components = append(components, word)
 		}
 	}
+	if name[0:1] == GlobalNS {
+		return GlobalNS + strings.Join(components, Sep)
+	}
+	return strings.Join(components, Sep)
+
 }
 
+//NameResolver struct definition for the NameResolver object.
+//Node name is the raw name of the node in question
+//namespace is the directory/qualifier of the node, by default "/"
+//mapping and resolvedMapping are NameMap maps
 type NameResolver struct {
 	nodeName        string
 	namespace       string
@@ -98,9 +105,9 @@ type NameResolver struct {
 	resolvedMapping NameMap
 }
 
+//
 func newNameResolver(namespace string, nodeName string, remapping NameMap) *NameResolver {
 	n := new(NameResolver)
-
 	n.nodeName = nodeName
 	n.namespace = canonicalizeName(namespace)
 	n.mapping = remapping
@@ -139,7 +146,7 @@ func (n *NameResolver) remap(name string) string {
 	key := n.resolve(name)
 	if value, ok := n.resolvedMapping[key]; ok {
 		return value
-	} else {
-		return key
 	}
+	return key
+
 }

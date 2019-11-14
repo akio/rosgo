@@ -51,7 +51,7 @@ func newDefaultPublisher(node *defaultNode,
 	pub.sessions = list.New()
 	pub.connectCallback = connectCallback
 	pub.disconnectCallback = disconnectCallback
-	if listener, err := listenRandomPort(node.listenIp, 10); err != nil {
+	if listener, err := listenRandomPort(node.listenIP, 10); err != nil {
 		panic(err)
 	} else {
 		pub.listener = listener
@@ -100,7 +100,7 @@ func (pub *defaultPublisher) start(wg *sync.WaitGroup) {
 			logger.Debug("defaultPublisher.start Receive shutdownChan")
 			pub.listener.Close()
 			logger.Debug("defaultPublisher.start closed listener")
-			_, err := callRosApi(pub.node.masterUri, "unregisterPublisher", pub.node.qualifiedName, pub.topic, pub.node.xmlrpcUri)
+			_, err := callRosAPI(pub.node.masterURI, "unregisterPublisher", pub.node.qualifiedName, pub.topic, pub.node.xmlrpcURI)
 			if err != nil {
 				logger.Warn(err)
 			}
@@ -159,7 +159,7 @@ func (pub *defaultPublisher) hostAndPort() (string, string) {
 
 type remoteSubscriberSession struct {
 	conn               net.Conn
-	nodeId             string
+	nodeID             string
 	topic              string
 	typeText           string
 	md5sum             string
@@ -175,7 +175,7 @@ type remoteSubscriberSession struct {
 func newRemoteSubscriberSession(pub *defaultPublisher, conn net.Conn) *remoteSubscriberSession {
 	session := new(remoteSubscriberSession)
 	session.conn = conn
-	session.nodeId = pub.node.qualifiedName
+	session.nodeID = pub.node.qualifiedName
 	session.topic = pub.topic
 	session.typeText = pub.msgType.Text()
 	session.md5sum = pub.msgType.MD5Sum()
@@ -242,7 +242,7 @@ func (session *remoteSubscriberSession) start() {
 	// 1. Read connection header
 	headers, err := readConnectionHeader(session.conn)
 	if err != nil {
-		panic(errors.New("Failed to read connection header."))
+		panic(errors.New("failed to read connection header"))
 	}
 	logger.Debug("TCPROS Connection Header:")
 	headerMap := make(map[string]string)
@@ -269,7 +269,7 @@ func (session *remoteSubscriberSession) start() {
 	// 2. Return reponse header
 	var resHeaders []header
 	resHeaders = append(resHeaders, header{"message_definition", session.typeText})
-	resHeaders = append(resHeaders, header{"callerid", session.nodeId})
+	resHeaders = append(resHeaders, header{"callerid", session.nodeID})
 	resHeaders = append(resHeaders, header{"latching", "0"})
 	resHeaders = append(resHeaders, header{"md5sum", session.md5sum})
 	resHeaders = append(resHeaders, header{"topic", session.topic})
@@ -280,7 +280,7 @@ func (session *remoteSubscriberSession) start() {
 	}
 	err = writeConnectionHeader(resHeaders, session.conn)
 	if err != nil {
-		panic(errors.New("Failed to write response header."))
+		panic(errors.New("failed to write response header"))
 	}
 
 	// 3. Start sending message
