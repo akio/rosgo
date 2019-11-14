@@ -102,7 +102,7 @@ func poll_for_topics(node ros.Node, quit <-chan bool) {
 
 					// Generate schema for the topic, and print it out.
 					var schema []byte
-					if schema, err = m.GenerateJSONSchema(topic_name); err != nil {
+					if schema, err = m.GenerateJSONSchema("/ros", topic_name); err != nil {
 						node.Logger().Error("Couldn't generate scheme: ", topic_name, " : ", err)
 						continue
 					}

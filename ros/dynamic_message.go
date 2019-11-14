@@ -170,18 +170,18 @@ func (t DynamicMessageType) NewMessage() Message {
 }
 
 // GenerateJSONSchema generates a (primitive) JSON schema for the associated DynamicMessageType; however note that since
-// we are mostly interested in making schema's for particular _topics_, the function takes a string topic name, which is used
-// to id the resulting schema.
-func (t DynamicMessageType) GenerateJSONSchema(topic string) ([]byte, error) {
+// we are mostly interested in making schema's for particular _topics_, the function takes a string prefix, and string topic name, which are
+// used to id the resulting schema.
+func (t DynamicMessageType) GenerateJSONSchema(prefix string, topic string) ([]byte, error) {
 	// The JSON schema for a message consist of the (recursive) properties names/types:
-	schemaItems, err := t.generateJSONSchemaProperties()
+	schemaItems, err := t.generateJSONSchemaProperties(prefix + topic)
 	if err != nil {
 		return nil, err
 	}
 
 	// Plus some extra keywords:
 	schemaItems["$schema"] = "https://json-schema.org/draft-07/schema#"
-	schemaItems["$id"] = "/ros" + topic
+	schemaItems["$id"] = prefix + topic
 
 	// The schema itself is created from the map of properties.
 	schemaString, err := json.Marshal(schemaItems)
@@ -193,11 +193,12 @@ func (t DynamicMessageType) GenerateJSONSchema(topic string) ([]byte, error) {
 	return schemaString, nil
 }
 
-func (t DynamicMessageType) generateJSONSchemaProperties() (map[string]interface{}, error) {
+func (t DynamicMessageType) generateJSONSchemaProperties(topic string) (map[string]interface{}, error) {
 	// Each message's schema indicates that it is an 'object' with some nested properties: those properties are the fields and their types.
 	properties := make(map[string]interface{})
 	schemaItems := make(map[string]interface{})
 	schemaItems["type"] = "object"
+	schemaItems["title"] = topic
 	schemaItems["properties"]=properties
 	
 	// Iterate over each of the fields in the message.
@@ -209,6 +210,7 @@ func (t DynamicMessageType) generateJSONSchemaProperties() (map[string]interface
 			propertyContent := make(map[string]interface{})
 			properties[field.GoName] = propertyContent
 			propertyContent["type"] = "array"
+			propertyContent["title"] = topic + Sep + field.GoName
 			arrayItems := make(map[string]interface{})
 			propertyContent["items"] = arrayItems
 
@@ -218,14 +220,14 @@ func (t DynamicMessageType) generateJSONSchemaProperties() (map[string]interface
 					arrayItems["type"] = "string"
 				} else if field.Type == "time" {
 					timeItems := make(map[string]interface{})
-					timeItems["Sec"] = map[string]string{"type": "integer"}
-					timeItems["NSec"] = map[string]string{"type": "integer"}
+					timeItems["Sec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "Sec"}
+					timeItems["NSec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "NSec"}
 					arrayItems["type"] = "object"
 					arrayItems["properties"] = timeItems
 				} else if field.Type == "duration" {
 					timeItems := make(map[string]interface{})
-					timeItems["Sec"] = map[string]string{"type": "integer"}
-					timeItems["NSec"] = map[string]string{"type": "integer"}
+					timeItems["Sec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "Sec"}
+					timeItems["NSec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "NSec"}
 					arrayItems["type"] = "object"
 					arrayItems["properties"] = timeItems
 				} else {
@@ -254,7 +256,7 @@ func (t DynamicMessageType) generateJSONSchemaProperties() (map[string]interface
 				}
 
 				// Recursively generate schema information for the nested type.
-				schemaElement, err := msgType.generateJSONSchemaProperties()
+				schemaElement, err := msgType.generateJSONSchemaProperties(topic + Sep + field.GoName)
 				if err != nil {
 					return nil, errors.Wrap(err, "Schema Field:"+field.Name)
 				}
@@ -265,19 +267,20 @@ func (t DynamicMessageType) generateJSONSchemaProperties() (map[string]interface
 			if field.IsBuiltin {
 				propertyContent := make(map[string]interface{})
 				properties[field.GoName] = propertyContent
+				propertyContent["title"] = topic + Sep + field.GoName
 
 				if field.Type == "string" {
 						propertyContent["type"] = "string"
 					} else if field.Type == "time" {
 						timeItems := make(map[string]interface{})
-						timeItems["Sec"] = map[string]string{"type": "integer"}
-						timeItems["NSec"] = map[string]string{"type": "integer"}
+						timeItems["Sec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "Sec"}
+						timeItems["NSec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "NSec"}
 						propertyContent["type"] = "object"
 						propertyContent["properties"] = timeItems
 					} else if field.Type == "duration" {
 						timeItems := make(map[string]interface{})
-						timeItems["Sec"] = map[string]string{"type": "integer"}
-						timeItems["NSec"] = map[string]string{"type": "integer"}
+						timeItems["Sec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "Sec"}
+						timeItems["NSec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "NSec"}
 						propertyContent["type"] = "object"
 						propertyContent["properties"] = timeItems
 					} else {
@@ -306,7 +309,7 @@ func (t DynamicMessageType) generateJSONSchemaProperties() (map[string]interface
 				}
 
 				// Recursively generate schema information for the nested type.
-				schemaElement, err := msgType.generateJSONSchemaProperties()
+				schemaElement, err := msgType.generateJSONSchemaProperties(topic + Sep + field.GoName)
 				if err != nil {
 					return nil, errors.Wrap(err, "Schema Field:"+field.Name)
 				}
