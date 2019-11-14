@@ -15,7 +15,7 @@ func unique(array []string) []string {
 		set[item] = true
 	}
 	var result []string
-	for k, _ := range set {
+	for k := range set {
 		result = append(result, k)
 	}
 	return result
@@ -30,7 +30,7 @@ func setUnion(lhs []string, rhs []string) []string {
 		set[item] = true
 	}
 	var result []string
-	for k, _ := range set {
+	for k := range set {
 		result = append(result, k)
 	}
 	return result
@@ -45,11 +45,11 @@ func setDifference(lhs []string, rhs []string) []string {
 	for _, item := range rhs {
 		right[item] = true
 	}
-	for k, _ := range right {
+	for k := range right {
 		delete(left, k)
 	}
 	var result []string
-	for k, _ := range left {
+	for k := range left {
 		result = append(result, k)
 	}
 	return result

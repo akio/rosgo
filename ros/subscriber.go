@@ -45,7 +45,7 @@ func newDefaultSubscriber(topic string, msgType MessageType, callback interface{
 	return sub
 }
 
-func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeId string, nodeApiUri string, masterUri string, jobChan chan func(), logger Logger) {
+func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeID string, nodeAPIURI string, masterURI string, jobChan chan func(), logger Logger) {
 	logger.Debugf("Subscriber goroutine for %s started.", sub.topic)
 	wg.Add(1)
 	defer wg.Done()
@@ -67,7 +67,7 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeId string, nodeApiUr
 			}
 			for _, pub := range newPubs {
 				protocols := []interface{}{[]interface{}{"TCPROS"}}
-				result, err := callRosApi(pub, "requestTopic", nodeId, sub.topic, protocols)
+				result, err := callRosAPI(pub, "requestTopic", nodeID, sub.topic, protocols)
 				if err != nil {
 					logger.Fatal(sub.topic, " : ", err)
 					continue
@@ -86,7 +86,7 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeId string, nodeApiUr
 					go startRemotePublisherConn(logger,
 						uri, sub.topic,
 						sub.msgType.MD5Sum(),
-						sub.msgType.Name(), nodeId,
+						sub.msgType.Name(), nodeID,
 						sub.msgChan,
 						quitChan,
 						sub.disconnectedChan,
@@ -112,16 +112,16 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeId string, nodeApiUr
 				args := []reflect.Value{reflect.ValueOf(m), reflect.ValueOf(msgEvent.event)}
 				for _, callback := range callbacks {
 					fun := reflect.ValueOf(callback)
-					num_args_needed := fun.Type().NumIn()
-					if num_args_needed <= 2 {
-						fun.Call(args[0:num_args_needed])
+					numArgsNeeded := fun.Type().NumIn()
+					if numArgsNeeded <= 2 {
+						fun.Call(args[0:numArgsNeeded])
 					}
 				}
 			}
 			logger.Debug(sub.topic, " : Callback job enqueued.")
-		case pubUri := <-sub.disconnectedChan:
-			logger.Debug(sub.topic, " : Connection disconnected to ", pubUri)
-			delete(sub.connections, pubUri)
+		case pubURI := <-sub.disconnectedChan:
+			logger.Debug(sub.topic, " : Connection disconnected to ", pubURI)
+			delete(sub.connections, pubURI)
 		case <-sub.shutdownChan:
 			// Shutdown subscription goroutine
 			logger.Debug(sub.topic, " : Receive shutdownChan")
@@ -129,7 +129,7 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeId string, nodeApiUr
 				closeChan <- struct{}{}
 				close(closeChan)
 			}
-			_, err := callRosApi(masterUri, "unregisterSubscriber", nodeId, sub.topic, nodeApiUri)
+			_, err := callRosAPI(masterURI, "unregisterSubscriber", nodeID, sub.topic, nodeAPIURI)
 			if err != nil {
 				logger.Warn(sub.topic, " : ", err)
 			}
@@ -139,8 +139,8 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeId string, nodeApiUr
 }
 
 func startRemotePublisherConn(logger Logger,
-	pubUri string, topic string, md5sum string,
-	msgType string, nodeId string,
+	pubURI string, topic string, md5sum string,
+	msgType string, nodeID string,
 	msgChan chan messageEvent,
 	quitChan chan struct{},
 	disconnectedChan chan string, msgTypeProper MessageType) {
@@ -150,9 +150,9 @@ func startRemotePublisherConn(logger Logger,
 		logger.Debug(topic, " : startRemotePublisherConn() exit")
 	}()
 
-	conn, err := net.Dial("tcp", pubUri)
+	conn, err := net.Dial("tcp", pubURI)
 	if err != nil {
-		logger.Error(topic, " : Failed to connect to ", pubUri)
+		logger.Error(topic, " : Failed to connect to ", pubURI)
 		return
 	}
 
@@ -161,7 +161,7 @@ func startRemotePublisherConn(logger Logger,
 	headers = append(headers, header{"topic", topic})
 	headers = append(headers, header{"md5sum", md5sum})
 	headers = append(headers, header{"type", msgType})
-	headers = append(headers, header{"callerid", nodeId})
+	headers = append(headers, header{"callerid", nodeID})
 	logger.Debug(topic, " : TCPROS Connection Header")
 	for _, h := range headers {
 		logger.Debugf("          `%s` = `%s`", h.key, h.value)
@@ -216,7 +216,7 @@ func startRemotePublisherConn(logger Logger,
 						continue
 					} else {
 						logger.Error(topic, " : Failed to read a message size")
-						disconnectedChan <- pubUri
+						disconnectedChan <- pubURI
 						return
 					}
 				}
@@ -232,7 +232,7 @@ func startRemotePublisherConn(logger Logger,
 						continue
 					} else {
 						logger.Error(topic, " : Failed to read a message body")
-						disconnectedChan <- pubUri
+						disconnectedChan <- pubURI
 						return
 					}
 				}

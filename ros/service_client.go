@@ -15,40 +15,40 @@ type defaultServiceClient struct {
 	logger    Logger
 	service   string
 	srvType   ServiceType
-	masterUri string
-	nodeId    string
+	masterURI string
+	nodeID    string
 }
 
-func newDefaultServiceClient(logger Logger, nodeId string, masterUri string, service string, srvType ServiceType) *defaultServiceClient {
+func newDefaultServiceClient(logger Logger, nodeID string, masterURI string, service string, srvType ServiceType) *defaultServiceClient {
 	client := new(defaultServiceClient)
 	client.logger = logger
 	client.service = service
 	client.srvType = srvType
-	client.masterUri = masterUri
-	client.nodeId = nodeId
+	client.masterURI = masterURI
+	client.nodeID = nodeID
 	return client
 }
 
 func (c *defaultServiceClient) Call(srv Service) error {
 	logger := c.logger
 
-	result, err := callRosApi(c.masterUri, "lookupService", c.nodeId, c.service)
+	result, err := callRosAPI(c.masterURI, "lookupService", c.nodeID, c.service)
 	if err != nil {
 		return err
 	}
 
-	serviceRawUrl, converted := result.(string)
+	serviceRawURL, converted := result.(string)
 	if !converted {
 		return fmt.Errorf("Result of 'lookupService' is not a string")
 	}
-	var serviceUrl *url.URL
-	serviceUrl, err = url.Parse(serviceRawUrl)
+	var serviceURL *url.URL
+	serviceURL, err = url.Parse(serviceRawURL)
 	if err != nil {
 		return err
 	}
 
 	var conn net.Conn
-	conn, err = net.Dial("tcp", serviceUrl.Host)
+	conn, err = net.Dial("tcp", serviceURL.Host)
 	if err != nil {
 		return err
 	}
@@ -60,7 +60,7 @@ func (c *defaultServiceClient) Call(srv Service) error {
 	headers = append(headers, header{"service", c.service})
 	headers = append(headers, header{"md5sum", md5sum})
 	headers = append(headers, header{"type", msgType})
-	headers = append(headers, header{"callerid", c.nodeId})
+	headers = append(headers, header{"callerid", c.nodeID})
 	logger.Debug("TCPROS Connection Header")
 	for _, h := range headers {
 		logger.Debugf("  `%s` = `%s`", h.key, h.value)
@@ -72,20 +72,20 @@ func (c *defaultServiceClient) Call(srv Service) error {
 
 	// 2. Read reponse header
 	conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
-	if resHeaders, err := readConnectionHeader(conn); err != nil {
+	resHeaders, err := readConnectionHeader(conn)
+	if err != nil {
 		return err
-	} else {
-		logger.Debug("TCPROS Response Header:")
-		resHeaderMap := make(map[string]string)
-		for _, h := range resHeaders {
-			resHeaderMap[h.key] = h.value
-			logger.Debugf("  `%s` = `%s`", h.key, h.value)
-		}
-		if resHeaderMap["type"] != msgType || resHeaderMap["md5sum"] != md5sum {
-			logger.Fatalf("Incompatible message type!")
-		}
-		logger.Debug("Start receiving messages...")
 	}
+	logger.Debug("TCPROS Response Header:")
+	resHeaderMap := make(map[string]string)
+	for _, h := range resHeaders {
+		resHeaderMap[h.key] = h.value
+		logger.Debugf("  `%s` = `%s`", h.key, h.value)
+	}
+	if resHeaderMap["type"] != msgType || resHeaderMap["md5sum"] != md5sum {
+		logger.Fatalf("Incompatible message type!")
+	}
+	logger.Debug("Start receiving messages...")
 
 	// 3. Send request
 	var buf bytes.Buffer
@@ -107,22 +107,20 @@ func (c *defaultServiceClient) Call(srv Service) error {
 	conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
 	if err := binary.Read(conn, binary.LittleEndian, &ok); err != nil {
 		return err
-	} else {
-		if ok == 0 {
-			var size uint32
-			conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
-			if err := binary.Read(conn, binary.LittleEndian, &size); err != nil {
-				return err
-			} else {
-				errMsg := make([]byte, int(size))
-				conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
-				if _, err := io.ReadFull(conn, errMsg); err != nil {
-					return err
-				} else {
-					return errors.New(string(errMsg))
-				}
-			}
+	}
+	if ok == 0 {
+		var size uint32
+		conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
+		if err := binary.Read(conn, binary.LittleEndian, &size); err != nil {
+			return err
 		}
+		errMsg := make([]byte, int(size))
+		conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
+		if _, err := io.ReadFull(conn, errMsg); err != nil {
+			return err
+		}
+		return errors.New(string(errMsg))
+
 	}
 
 	// 5. Receive response
