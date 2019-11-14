@@ -100,6 +100,15 @@ func poll_for_topics(node ros.Node, quit <-chan bool) {
 						continue
 					}
 
+					// Generate schema for the topic, and print it out.
+					var schema []byte
+					if schema, err = m.GenerateJSONSchema("/ros", topic_name); err != nil {
+						node.Logger().Error("Couldn't generate scheme: ", topic_name, " : ", err)
+						continue
+					}
+					node.Logger().Info("Schema for ", topic_name)
+					node.Logger().Info(string(schema))
+
 					// Then subscribe to the topic, and if we're successful, keep a note so we don't try to subscribe again.
 					s := node.NewSubscriber(topic_name, m, callback)
 					if s != nil {
