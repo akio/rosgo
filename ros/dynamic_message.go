@@ -42,6 +42,8 @@ type DynamicMessage struct {
 
 var rosPkgPath string // Colon separated list of paths to search for message definitions on.
 
+// TODO - Probably remove knownMessages to reduce memory consumption.
+
 var knownMessages map[string]string // Just for diagnostic purposes.
 
 var context *libgengo.MsgContext // We'll try to preserve a single message context to avoid reloading each time.
@@ -140,31 +142,181 @@ func GetKnownMsgs() map[string]string {
 //	DynamicMessageType
 
 // Name returns the full ROS name of the message type; required for ros.MessageType.
-func (m DynamicMessageType) Name() string {
-	return m.spec.FullName
+func (t DynamicMessageType) Name() string {
+	return t.spec.FullName
 }
 
 // Text returns the full ROS message specification for this message type; required for ros.MessageType.
-func (m DynamicMessageType) Text() string {
-	return m.spec.Text
+func (t DynamicMessageType) Text() string {
+	return t.spec.Text
 }
 
 // MD5Sum returns the ROS compatible MD5 sum of the message type; required for ros.MessageType.
-func (m DynamicMessageType) MD5Sum() string {
-	return m.spec.MD5Sum
+func (t DynamicMessageType) MD5Sum() string {
+	return t.spec.MD5Sum
 }
 
 // NewMessage creates a new DynamicMessage instantiating the message type; required for ros.MessageType.
-func (m DynamicMessageType) NewMessage() Message {
+func (t DynamicMessageType) NewMessage() Message {
 	// Don't instantiate messages for incomplete types.
-	if m.spec == nil {
+	if t.spec == nil {
 		return nil
 	}
 
 	// But otherwise, make a new one.
 	d := new(DynamicMessage)
-	d.dynamicType = &m
+	d.dynamicType = &t
 	return d
+}
+
+// GenerateJSONSchema generates a (primitive) JSON schema for the associated DynamicMessageType; however note that since
+// we are mostly interested in making schema's for particular _topics_, the function takes a string topic name, which is used
+// to id the resulting schema.
+func (t DynamicMessageType) GenerateJSONSchema(topic string) ([]byte, error) {
+	// The JSON schema for a message consist of the (recursive) properties names/types:
+	schemaItems, err := t.generateJSONSchemaProperties()
+	if err != nil {
+		return nil, err
+	}
+
+	// Plus some extra keywords:
+	schemaItems["$schema"] = "https://json-schema.org/draft-07/schema#"
+	schemaItems["$id"] = "/ros" + topic
+
+	// The schema itself is created from the map of properties.
+	schemaString, err := json.Marshal(schemaItems)
+	if err != nil {
+		return nil, err
+	}
+
+	// All done.
+	return schemaString, nil
+}
+
+func (t DynamicMessageType) generateJSONSchemaProperties() (map[string]interface{}, error) {
+	// Each message's schema indicates that it is an 'object' with some nested properties: those properties are the fields and their types.
+	properties := make(map[string]interface{})
+	schemaItems := make(map[string]interface{})
+	schemaItems["type"] = "object"
+	schemaItems["properties"]=properties
+	
+	// Iterate over each of the fields in the message.
+	for _, field := range t.spec.Fields {
+		if field.IsArray {
+			// It's an array.
+
+			// Arrays all have a type of 'array', regardless of that the hold, then the 'item' keyword determines what type goes in the array.
+			propertyContent := make(map[string]interface{})
+			properties[field.GoName] = propertyContent
+			propertyContent["type"] = "array"
+			arrayItems := make(map[string]interface{})
+			propertyContent["items"] = arrayItems
+
+			// Need to handle each type appropriately.
+			if field.IsBuiltin {
+				if field.Type == "string" {
+					arrayItems["type"] = "string"
+				} else if field.Type == "time" {
+					timeItems := make(map[string]interface{})
+					timeItems["Sec"] = map[string]string{"type": "integer"}
+					timeItems["NSec"] = map[string]string{"type": "integer"}
+					arrayItems["type"] = "object"
+					arrayItems["properties"] = timeItems
+				} else if field.Type == "duration" {
+					timeItems := make(map[string]interface{})
+					timeItems["Sec"] = map[string]string{"type": "integer"}
+					timeItems["NSec"] = map[string]string{"type": "integer"}
+					arrayItems["type"] = "object"
+					arrayItems["properties"] = timeItems
+				} else {
+					// It's a primitive.
+					var jsonType string
+					if field.GoType == "int8" || field.GoType == "uint8" || field.GoType == "int16" || field.GoType == "uint16" ||
+					   field.GoType == "int32" || field.GoType == "uint32" || field.GoType == "int64" || field.GoType == "uint64" {
+						jsonType = "integer" 
+					} else if field.GoType == "float32" || field.GoType == "float64" {
+						jsonType = "number"
+					} else if field.GoType == "bool" {
+						jsonType = "bool"
+					} else {
+						// Something went wrong.
+						return nil, errors.New("we haven't implemented this primitive yet")
+					}
+					arrayItems["type"] = jsonType
+				}
+			} else {
+				// It's another nested message.
+				
+				// Generate the nested type.
+				msgType, err := newDynamicMessageTypeNested(field.Type, field.Package)
+				if err != nil {
+					return nil, errors.Wrap(err, "Schema Field: "+field.Name)
+				}
+
+				// Recursively generate schema information for the nested type.
+				schemaElement, err := msgType.generateJSONSchemaProperties()
+				if err != nil {
+					return nil, errors.Wrap(err, "Schema Field:"+field.Name)
+				}
+				arrayItems["type"] = schemaElement
+			}
+		} else {
+			// It's a scalar.
+			if field.IsBuiltin {
+				propertyContent := make(map[string]interface{})
+				properties[field.GoName] = propertyContent
+
+				if field.Type == "string" {
+						propertyContent["type"] = "string"
+					} else if field.Type == "time" {
+						timeItems := make(map[string]interface{})
+						timeItems["Sec"] = map[string]string{"type": "integer"}
+						timeItems["NSec"] = map[string]string{"type": "integer"}
+						propertyContent["type"] = "object"
+						propertyContent["properties"] = timeItems
+					} else if field.Type == "duration" {
+						timeItems := make(map[string]interface{})
+						timeItems["Sec"] = map[string]string{"type": "integer"}
+						timeItems["NSec"] = map[string]string{"type": "integer"}
+						propertyContent["type"] = "object"
+						propertyContent["properties"] = timeItems
+					} else {
+						// It's a primitive.
+						var jsonType string
+						if field.GoType == "int8" || field.GoType == "uint8" || field.GoType == "int16" || field.GoType == "uint16" ||
+							field.GoType == "int32" || field.GoType == "uint32" || field.GoType == "int64" || field.GoType == "uint64" {
+							jsonType = "integer" 
+						} else if field.GoType == "float32" || field.GoType == "float64" {
+							jsonType = "number"
+						} else if field.GoType == "bool" {
+							jsonType = "bool"
+						} else {
+							// Something went wrong.
+							return nil, errors.New("we haven't implemented this primitive yet")
+						}
+						propertyContent["type"] = jsonType
+					}
+			} else {
+				// It's another nested message.
+
+				// Generate the nested type.
+				msgType, err := newDynamicMessageTypeNested(field.Type, field.Package)
+				if err != nil {
+					return nil, errors.Wrap(err, "Schema Field: "+field.Name)
+				}
+
+				// Recursively generate schema information for the nested type.
+				schemaElement, err := msgType.generateJSONSchemaProperties()
+				if err != nil {
+					return nil, errors.Wrap(err, "Schema Field:"+field.Name)
+				}
+				properties[field.GoName] = schemaElement
+			}
+		}
+	}
+
+	// All done.
+	return schemaItems, nil
 }
 
 //	DynamicMessage
@@ -173,10 +325,6 @@ func (m DynamicMessageType) NewMessage() Message {
 func (m DynamicMessage) Type() MessageType {
 	return m.dynamicType
 }
-
-//func (m DynamicMessage) GenerateJSONSchema() string {
-	// TODO - This.
-//}
 
 // MarshalJSON provides a custom implementation of JSON marshalling, so that when the DynamicMessage is recursively 
 // marshalled using the standard Go json.marshal() mechanism, the resulting JSON representation is a compact representation
