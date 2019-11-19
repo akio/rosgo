@@ -9,11 +9,13 @@ package main
 import (
 	"fmt"
 	"github.com/edwinhayes/rosgo/ros"
+	"github.com/edwinhayes/rosgo/libtest/libtest_talker"
 	"os"
 	"os/signal"
 	"strconv"
 	"strings"
 	"syscall"
+	"testing"
 	"time"
 )
 
@@ -122,6 +124,14 @@ func poll_for_topics(node ros.Node, quit <-chan bool) {
 }
 
 func main() {
+	// Run diagnostic tests.
+	t := new (testing.T)
+	libtest_talker.RTTest(t)
+	if t.Failed() {
+		fmt.Println("rosgo self-test failed.")
+		os.Exit(-2)
+	}
+
 	// Create our node.
 	node_name := "thinger_" + strconv.Itoa(os.Getpid())
 	node, err := ros.NewNode(node_name, os.Args)

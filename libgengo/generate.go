@@ -8,7 +8,7 @@ import (
 var import_path *string
 
 var msgTemplate = `
-// Automatically generated from the message definition "{{ .FullName }}.msg"
+// Package {{ .Package }} is automatically generated from the message definition "{{ .FullName }}.msg"
 package {{ .Package }}
 import (
     "bytes"
@@ -244,7 +244,7 @@ func (m *{{ .ShortName }}) Deserialize(buf *bytes.Reader) error {
 `
 
 var srvTemplate = `
-// Automatically generated from the message definition "{{ .FullName }}.srv"
+// Package {{ .Package }} is automatically generated from the message definition "{{ .FullName }}.srv"
 package {{ .Package }}
 import (
     "github.com/fetchrobotics/rosgo/ros"
