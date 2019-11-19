@@ -10,9 +10,11 @@ import (
 
 var message string
 var subscription int
+var eventname string
 
-func callback(msg *std_msgs.String) {
+func callback(msg *std_msgs.String, event ros.MessageEvent) {
 	message = string(msg.Data)
+	eventname = event.PublisherName
 }
 
 // RTTest performs a run-time test of using rosgo to create publisher and subscriber nodes
@@ -71,7 +73,12 @@ func RTTest(t *testing.T) {
 				message = ""
 			} else if message == "Second Subscriber" {
 				//Second subscription worked
-				return
+				if eventname == "/rosgo" {
+					return
+				} else {
+					t.Error("Wrong message event", eventname)
+					return
+				}
 			} else {
 				//An incorrect message has been recieved
 				t.Error("Wrong message recieved", message)

@@ -8,7 +8,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/edwinhayes/rosgo/libtest/libtest_listener_with_event"
 	"github.com/edwinhayes/rosgo/libtest/libtest_publish_subscribe"
 	"github.com/edwinhayes/rosgo/libtest/libtest_talker_with_callbacks"
 	"github.com/edwinhayes/rosgo/ros"
@@ -137,11 +136,6 @@ func diagnosticTests() {
 	libtest_publish_subscribe.RTTest(t)
 	if t.Failed() {
 		fmt.Println("rosgo publish_subscribe self-test failed")
-		os.Exit(-2)
-	}
-	libtest_listener_with_event.RTTest(t)
-	if t.Failed() {
-		fmt.Println("rosgo listener_with_event self-test failed")
 		os.Exit(-2)
 	}
 	fmt.Println("Diagnostic Tests Passed")
