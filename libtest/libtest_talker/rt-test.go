@@ -31,6 +31,7 @@ func RTTest(t *testing.T) {
 	if pub2 == nil {
 		t.Error("NewPublisher failed; ", pub)
 	}
+	
 	// Try to publish a message.
 	var m1 std_msgs.String
 	m1.Data = fmt.Sprintf("Hello World! The time is %s.", time.Now().String())
