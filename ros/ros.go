@@ -25,6 +25,8 @@ type Node interface {
 	NewServiceClient(service string, srvType ServiceType) ServiceClient
 	NewServiceServer(service string, srvType ServiceType, callback interface{}) ServiceServer
 
+	RemoveSubscriber(topic string)
+
 	OK() bool
 	SpinOnce()
 	Spin()
