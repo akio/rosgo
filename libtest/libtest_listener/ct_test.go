@@ -1,4 +1,4 @@
-package libtest_talker
+package libtest_listener
 
 import (
 	"testing"

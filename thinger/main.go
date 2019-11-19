@@ -8,8 +8,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/edwinhayes/rosgo/ros"
+	"github.com/edwinhayes/rosgo/libtest/libtest_listener"
+	"github.com/edwinhayes/rosgo/libtest/libtest_pubsub"
 	"github.com/edwinhayes/rosgo/libtest/libtest_talker"
+	"github.com/edwinhayes/rosgo/ros"
 	"os"
 	"os/signal"
 	"strconv"
@@ -114,15 +116,29 @@ func poll_for_topics(node ros.Node, quit <-chan bool) {
 	// Not all done, since defer?
 }
 
-func main() {
-	// Run diagnostic tests.
-	t := new (testing.T)
+func diagnosticTests() {
+	t := new(testing.T)
 	libtest_talker.RTTest(t)
 	if t.Failed() {
-		fmt.Println("rosgo self-test failed.")
+		fmt.Println("rosgo publisher self-test failed.")
 		os.Exit(-2)
 	}
+	libtest_listener.RTTest(t)
+	if t.Failed() {
+		fmt.Println("rosgo subscriber self-test failed.")
+		os.Exit(-2)
+	}
+	libtest_pubsub.RTTest(t)
+	if t.Failed() {
+		fmt.Println("rosgo pubsub self-test failed.")
+		os.Exit(-2)
+	}
+	fmt.Println("Diagnostic Tests Passed")
+}
 
+func main() {
+	// Run diagnostic tests.
+	diagnosticTests()
 	// Create our node.
 	node_name := "thinger_" + strconv.Itoa(os.Getpid())
 	node, err := ros.NewNode(node_name, os.Args)
