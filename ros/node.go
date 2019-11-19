@@ -229,6 +229,14 @@ func (node *defaultNode) OK() bool {
 	return ok
 }
 
+func (node *defaultNode) RemovePublisher(topic string) {
+	name := node.nameResolver.remap(topic)
+	if pub, ok := node.publishers.Load(name); ok {
+		pub.(*defaultPublisher).Shutdown()
+		node.publishers.Delete(name)
+	}
+}
+
 func (node *defaultNode) Name() string {
 	return node.name
 }
@@ -394,6 +402,15 @@ func (node *defaultNode) GetTopicTypes() []interface{} {
 	}
 	node.logger.Debug("Result: ", list)
 	return list
+}
+
+// RemoveSubscriber shuts down and deletes an existing topic subscriber.
+func (node *defaultNode) RemoveSubscriber(topic string) {
+	name := node.nameResolver.remap(topic)
+	if sub, ok := node.subscribers[name]; ok {
+		sub.Shutdown()
+		delete(node.subscribers, name)
+	}
 }
 
 func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callback interface{}) Subscriber {
