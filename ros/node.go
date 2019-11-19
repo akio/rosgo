@@ -229,6 +229,14 @@ func (node *defaultNode) OK() bool {
 	return ok
 }
 
+func (node *defaultNode) RemovePublisher(topic string) {
+	name := node.nameResolver.remap(topic)
+	if pub, ok := node.publishers.Load(name); ok {
+		pub.(*defaultPublisher).Shutdown()
+		node.publishers.Delete(name)
+	}
+}
+
 func (node *defaultNode) Name() string {
 	return node.name
 }
