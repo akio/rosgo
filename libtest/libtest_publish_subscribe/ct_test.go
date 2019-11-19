@@ -1,4 +1,4 @@
-package libtest_pubsub
+package libtest_publish_subscribe
 
 import (
 	"testing"

@@ -8,9 +8,12 @@ package main
 
 import (
 	"fmt"
+	//"github.com/edwinhayes/rosgo/libtest/libtest_client"
 	"github.com/edwinhayes/rosgo/libtest/libtest_listener"
-	"github.com/edwinhayes/rosgo/libtest/libtest_pubsub"
+	"github.com/edwinhayes/rosgo/libtest/libtest_listener_with_event"
+	"github.com/edwinhayes/rosgo/libtest/libtest_publish_subscribe"
 	"github.com/edwinhayes/rosgo/libtest/libtest_talker"
+	"github.com/edwinhayes/rosgo/libtest/libtest_talker_with_callbacks"
 	"github.com/edwinhayes/rosgo/ros"
 	"os"
 	"os/signal"
@@ -116,21 +119,33 @@ func poll_for_topics(node ros.Node, quit <-chan bool) {
 	// Not all done, since defer?
 }
 
+//TODO : Refactor the calling of tests
 func diagnosticTests() {
 	t := new(testing.T)
+
 	libtest_talker.RTTest(t)
 	if t.Failed() {
-		fmt.Println("rosgo publisher self-test failed.")
+		fmt.Println("rosgo talker self-test failed")
 		os.Exit(-2)
 	}
 	libtest_listener.RTTest(t)
 	if t.Failed() {
-		fmt.Println("rosgo subscriber self-test failed.")
+		fmt.Println("rosgo listener self-test failed")
 		os.Exit(-2)
 	}
-	libtest_pubsub.RTTest(t)
+	libtest_talker_with_callbacks.RTTest(t)
 	if t.Failed() {
-		fmt.Println("rosgo pubsub self-test failed.")
+		fmt.Println("rosgo talker_with_callbacks self-test failed")
+		os.Exit(-2)
+	}
+	libtest_publish_subscribe.RTTest(t)
+	if t.Failed() {
+		fmt.Println("rosgo publish_subscribe self-test failed")
+		os.Exit(-2)
+	}
+	libtest_listener_with_event.RTTest(t)
+	if t.Failed() {
+		fmt.Println("rosgo listener_with_event self-test failed")
 		os.Exit(-2)
 	}
 	fmt.Println("Diagnostic Tests Passed")

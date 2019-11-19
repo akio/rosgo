@@ -26,10 +26,12 @@ func RTTest(t *testing.T) {
 	pub := node.NewPublisher("selftest/string", std_msgs.MsgString)
 	if pub == nil {
 		t.Error("NewPublisher failed; ", pub)
+		return
 	}
 	pub2 := node.NewPublisher("selftest/all_fields", test_msgs.MsgAllFieldTypes)
 	if pub2 == nil {
 		t.Error("NewPublisher failed; ", pub)
+		return
 	}
 	// Try to publish a message.
 	var m1 std_msgs.String

@@ -8,7 +8,6 @@ import (
 )
 
 func callback(msg *std_msgs.String) {
-	return
 }
 
 //RTTest creates a node which subscribes to the standard rosout topic on the ros system
@@ -23,6 +22,10 @@ func RTTest(t *testing.T) {
 	defer node.Shutdown()
 	node.Logger().SetSeverity(ros.LogLevelWarn)
 	// Create a subscriber on the node.
-	node.NewSubscriber("selftest/string", std_msgs.MsgString, callback)
+	sub := node.NewSubscriber("selftest/string", std_msgs.MsgString, callback)
+	if sub == nil {
+		t.Error("NewSubscriber failed; ", sub)
+		return
+	}
 	return
 }
