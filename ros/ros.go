@@ -26,12 +26,12 @@ type Node interface {
 	NewServiceServer(service string, srvType ServiceType, callback interface{}) ServiceServer
 
 	RemoveSubscriber(topic string)
+	RemovePublisher(topic string)
 
 	OK() bool
 	SpinOnce()
 	Spin()
 	Shutdown()
-
 	Name() string
 
 	GetParam(name string) (interface{}, error)
