@@ -396,6 +396,15 @@ func (node *defaultNode) GetTopicTypes() []interface{} {
 	return list
 }
 
+// RemoveSubscriber shuts down and deletes an existing topic subscriber.
+func (node *defaultNode) RemoveSubscriber(topic string) {
+	name := node.nameResolver.remap(topic)
+	if sub, ok := node.subscribers[name]; ok {
+		sub.Shutdown()
+		delete(node.subscribers, name)
+	}
+}
+
 func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callback interface{}) Subscriber {
 	name := node.nameResolver.remap(topic)
 	sub, ok := node.subscribers[name]
