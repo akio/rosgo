@@ -23,7 +23,11 @@ func RTTest(t *testing.T) {
 	}
 	defer node.Shutdown()
 	node.Logger().SetSeverity(ros.LogLevelDebug)
-	node.NewSubscriber("/chatter", std_msgs.MsgString, callback)
+	sub := node.NewSubscriber("/chatter", std_msgs.MsgString, callback)
+	if sub == nil {
+		t.Error("NewSubscriber failed; ", sub)
+		return
+	}
 	node.Spin()
 	return
 }
