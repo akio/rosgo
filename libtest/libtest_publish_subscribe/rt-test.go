@@ -1,7 +1,6 @@
 package libtest_publish_subscribe
 
 import (
-	"fmt"
 	"github.com/edwinhayes/rosgo/libtest/msgs/std_msgs"
 	"github.com/edwinhayes/rosgo/ros"
 	"os"
@@ -11,10 +10,31 @@ import (
 var message string
 var subscription int
 var eventname string
+var m std_msgs.String
 
+//Subscriber callback with event check
 func callback(msg *std_msgs.String, event ros.MessageEvent) {
 	message = string(msg.Data)
 	eventname = event.PublisherName
+}
+
+//onConnect callback to run on publisher startup
+func onConnect(pub ros.SingleSubscriberPublisher) {
+	if pub.GetTopic() != "/rosgomessage" {
+		message = "onConnect"
+		return
+	}
+	m.Data = "First Subscriber"
+	pub.Publish(&m)
+	subscription = 2
+}
+
+//onDisconnect callback to run on publisher shutdown
+func onDisconnect(pub ros.SingleSubscriberPublisher) {
+	if pub.GetTopic() != "/rosgomessage" {
+		message = "onDisconnect"
+		return
+	}
 }
 
 // RTTest performs a run-time test of using rosgo to create publisher and subscriber nodes
@@ -26,35 +46,26 @@ func RTTest(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	node.Logger().SetSeverity(ros.LogLevelWarn)
-
+	node.Logger().SetSeverity(ros.LogLevelInfo)
 	defer node.Shutdown()
 
 	subscription = 1
-
-	pub := node.NewPublisher("rosgomessage", std_msgs.MsgString)
-	if pub == nil {
-		t.Error("NewPublisher failed; ", pub)
-		return
-	}
-
-	// Create a publisher on the node.
 
 	for node.OK() {
 		node.SpinOnce()
 
 		// Try to publish a message.
-		var m std_msgs.String
 		if subscription == 1 {
-			m.Data = "First Subscriber"
-			pub.Publish(&m)
+			pub := node.NewPublisherWithCallbacks("rosgomessage", std_msgs.MsgString, onConnect, onDisconnect)
+			if pub == nil {
+				t.Error("NewPublisher failed; ", pub)
+				return
+			}
 		} else {
 			m.Data = "Second Subscriber"
 			pub := node.NewPublisher("rosgomessage", std_msgs.MsgString)
 			if pub == nil {
 				t.Error("NewPublisher failed; ", pub)
-
-				fmt.Println("got here")
 				return
 			}
 			pub.Publish(&m)
@@ -62,6 +73,7 @@ func RTTest(t *testing.T) {
 
 		//Try to subscribe to the message
 		node.NewSubscriber("rosgomessage", std_msgs.MsgString, callback)
+
 		//Check the message is the same as what we published
 		if message != "" {
 			if message == "First Subscriber" {
@@ -69,19 +81,18 @@ func RTTest(t *testing.T) {
 				//Shutdown publisher and subscriber and initiate second test
 				node.RemoveSubscriber("rosgomessage")
 				node.RemovePublisher("rosgomessage")
-				subscription = 2
 				message = ""
 			} else if message == "Second Subscriber" {
 				//Second subscription worked
 				if eventname == "/rosgo" {
 					return
-				} else {
-					t.Error("Wrong message event", eventname)
-					return
 				}
+				t.Error("Wrong message event", eventname)
+				return
+
 			} else {
 				//An incorrect message has been recieved
-				t.Error("Wrong message recieved", message)
+				t.Error("Failed callback", message)
 				return
 			}
 		}
