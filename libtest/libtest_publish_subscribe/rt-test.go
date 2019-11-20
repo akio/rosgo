@@ -22,7 +22,6 @@ func callback(msg *std_msgs.String, event ros.MessageEvent) {
 func onConnect(pub ros.SingleSubscriberPublisher) {
 	if pub.GetTopic() != "/rosgomessage" {
 		message = "onConnect"
-		return
 	}
 	m.Data = "First Subscriber"
 	pub.Publish(&m)
@@ -33,7 +32,8 @@ func onConnect(pub ros.SingleSubscriberPublisher) {
 func onDisconnect(pub ros.SingleSubscriberPublisher) {
 	if pub.GetTopic() != "/rosgomessage" {
 		message = "onDisconnect"
-		return
+	} else {
+		message = ""
 	}
 }
 
@@ -81,7 +81,7 @@ func RTTest(t *testing.T) {
 				//Shutdown publisher and subscriber and initiate second test
 				node.RemoveSubscriber("rosgomessage")
 				node.RemovePublisher("rosgomessage")
-				message = ""
+
 			} else if message == "Second Subscriber" {
 				//Second subscription worked
 				if eventname == "/rosgo" {
@@ -89,7 +89,6 @@ func RTTest(t *testing.T) {
 				}
 				t.Error("Wrong message event", eventname)
 				return
-
 			} else {
 				//An incorrect message has been recieved
 				t.Error("Failed callback", message)
