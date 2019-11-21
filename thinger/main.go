@@ -8,7 +8,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/edwinhayes/rosgo/libtest/libtest_dynamic_message"
 	"github.com/edwinhayes/rosgo/libtest/libtest_publish_subscribe"
+	"github.com/edwinhayes/rosgo/libtest/libtest_service"
 	"github.com/edwinhayes/rosgo/ros"
 	"os"
 	"os/signal"
@@ -130,6 +132,16 @@ func diagnosticTests() {
 	libtest_publish_subscribe.RTTest(t)
 	if t.Failed() {
 		fmt.Println("rosgo publish_subscribe self-test failed")
+		os.Exit(-2)
+	}
+	libtest_dynamic_message.RTTest(t)
+	if t.Failed() {
+		fmt.Println("rosgo dynamic_message self-test failed")
+		os.Exit(-2)
+	}
+	libtest_service.RTTest(t)
+	if t.Failed() {
+		fmt.Println("rosgo service self-test failed")
 		os.Exit(-2)
 	}
 	fmt.Println("Diagnostic Tests Passed")
