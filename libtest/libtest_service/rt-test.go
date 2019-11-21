@@ -60,7 +60,6 @@ func RTTest(t *testing.T) {
 		service.Request.A = 10
 		service.Request.B = 10
 		if err = cli.Call(&service); err != nil {
-			return
 		}
 
 		//When a response is recieved
