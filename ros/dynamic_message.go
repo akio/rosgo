@@ -166,8 +166,160 @@ func (t DynamicMessageType) NewMessage() Message {
 	// But otherwise, make a new one.
 	d := new(DynamicMessage)
 	d.dynamicType = &t
-	d.data = make(map[string]interface{})
+	var err error
+	d.data, err = buildMap(t.Name())
+	if err != nil {
+		fmt.Printf("Failed to build default message: %v \n", err)
+	}
 	return d
+}
+
+//buildMap creates the zeroValue (default) data map for a new dynamic message
+func buildMap(s string) (map[string]interface{}, error) {
+	//Create map
+	d := make(map[string]interface{})
+
+	//Instantiate new dynamic message type from string name parsed
+	t, err := NewDynamicMessageType(s)
+	if err != nil {
+		return d, errors.Wrap(err, "Failed to create NewDynamicMessageType "+s)
+	}
+	//Range fields in the dynamic message type
+	for _, field := range t.spec.Fields {
+		if field.IsArray {
+			// It's an array.
+			//Create slices for GoType arrays
+			switch field.GoType {
+			case "bool":
+				d[field.GoName] = make([]bool, 0)
+			case "int8":
+				d[field.GoName] = make([]int8, 0)
+			case "int16":
+				d[field.GoName] = make([]int16, 0)
+			case "int32":
+				d[field.GoName] = make([]int32, 0)
+			case "int64":
+				d[field.GoName] = make([]int64, 0)
+			case "uint8":
+				d[field.GoName] = make([]uint8, 0)
+			case "uint16":
+				d[field.GoName] = make([]uint16, 0)
+			case "uint32":
+				d[field.GoName] = make([]uint32, 0)
+			case "uint64":
+				d[field.GoName] = make([]uint64, 0)
+			case "float32":
+				d[field.GoName] = make([]float32, 0)
+			case "float64":
+				d[field.GoName] = make([]float64, 0)
+			case "string":
+				d[field.GoName] = make([]string, 0)
+			case "time":
+				d[field.GoName] = make([]Time, 0)
+			case "duration":
+				d[field.GoName] = make([]Duration, 0)
+			default:
+				// In this case, it will probably be because the go_type is describing another ROS message, so we need to replace that with a nested DynamicMessage.
+				d[field.GoName] = make([]Message, 0)
+			}
+			var size uint32 = uint32(field.ArrayLen)
+			//In the case the array length is static, we iterated through array items
+			if field.ArrayLen != -1 {
+				for i := 0; i < int(size); i++ {
+					if field.IsBuiltin {
+						//Append the goType zeroValues to their arrays
+						switch field.GoType {
+						case "bool":
+							d[field.GoName] = append(d[field.GoName].([]bool), false)
+						case "int8":
+							d[field.GoName] = append(d[field.GoName].([]int8), 0)
+						case "int16":
+							d[field.GoName] = append(d[field.GoName].([]int16), 0)
+						case "int32":
+							d[field.GoName] = append(d[field.GoName].([]int32), 0)
+						case "int64":
+							d[field.GoName] = append(d[field.GoName].([]int64), 0)
+						case "uint8":
+							d[field.GoName] = append(d[field.GoName].([]uint8), 0)
+						case "uint16":
+							d[field.GoName] = append(d[field.GoName].([]uint16), 0)
+						case "uint32":
+							d[field.GoName] = append(d[field.GoName].([]uint32), 0)
+						case "uint64":
+							d[field.GoName] = append(d[field.GoName].([]uint64), 0)
+						case "float32":
+							d[field.GoName] = append(d[field.GoName].([]float32), 0.0)
+						case "float64":
+							d[field.GoName] = append(d[field.GoName].([]float64), 0.)
+						case "string":
+							d[field.GoName] = append(d[field.GoName].([]string), "")
+						case "ros.Time":
+							d[field.GoName] = append(d[field.GoName].([]Time), Time{})
+						case "ros.Duration":
+							d[field.GoName] = append(d[field.GoName].([]Duration), Duration{})
+						default:
+							// Something went wrong.
+							return d, errors.Wrap(err, "Builtin field "+field.GoType+" not found")
+						}
+					} else {
+						// Else it's not a builtin. Create a nested message type for values inside
+						t2, err := newDynamicMessageTypeNested(field.Type, field.Package)
+						if err != nil {
+							return d, errors.Wrap(err, "Failed to create newDynamicMessageTypeNested "+field.Type)
+						}
+						msg := t2.NewMessage()
+						//Append nested message map to message type array in main map
+						d[field.GoName] = append(d[field.GoName].([]Message), msg)
+					}
+					//Else array is dynamic, by default we do not initialize any values in it
+				}
+			}
+		} else if field.IsBuiltin {
+			//If its a built in type
+			switch field.GoType {
+			case "string":
+				d[field.GoName] = ""
+			case "bool":
+				d[field.GoName] = bool(false)
+			case "int8":
+				d[field.GoName] = int8(0)
+			case "int16":
+				d[field.GoName] = int16(0)
+			case "int32":
+				d[field.GoName] = int32(0)
+			case "int64":
+				d[field.GoName] = int64(0)
+			case "uint8":
+				d[field.GoName] = uint8(0)
+			case "uint16":
+				d[field.GoName] = uint16(0)
+			case "uint32":
+				d[field.GoName] = uint32(0)
+			case "uint64":
+				d[field.GoName] = uint64(0)
+			case "float32":
+				d[field.GoName] = float32(0.0)
+			case "float64":
+				d[field.GoName] = float64(0.0)
+			case "ros.Time":
+				d[field.GoName] = Time{}
+			case "ros.Duration":
+				d[field.GoName] = Duration{}
+			default:
+				return d, errors.Wrap(err, "Builtin field "+field.GoType+" not found")
+			}
+			//Else its a ros message type
+		} else {
+			//Create new dynamic message type nested
+			t2, err := newDynamicMessageTypeNested(field.Type, field.Package)
+			if err != nil {
+				return d, errors.Wrap(err, "Failed to create dewDynamicMessageTypeNested "+field.Type)
+			}
+			//Append message as a map item
+			d[field.GoName] = t2.NewMessage()
+		}
+	}
+	return d, err
 }
 
 // Data returns the data map field of the DynamicMessage

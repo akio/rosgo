@@ -8,6 +8,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/edwinhayes/rosgo/libtest/libtest_bytes"
 	"github.com/edwinhayes/rosgo/libtest/libtest_dynamic_message"
 	"github.com/edwinhayes/rosgo/libtest/libtest_param"
 	"github.com/edwinhayes/rosgo/libtest/libtest_publish_subscribe"
@@ -130,6 +131,11 @@ func poll_for_topics(node ros.Node, quit <-chan bool) {
 func diagnosticTests() {
 	t := new(testing.T)
 
+	libtest_bytes.RTTest(t)
+	if t.Failed() {
+		fmt.Println("rosgo bytes self-test failed")
+		os.Exit(-2)
+	}
 	libtest_publish_subscribe.RTTest(t)
 	if t.Failed() {
 		fmt.Println("rosgo publish_subscribe self-test failed")
