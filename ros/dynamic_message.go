@@ -169,7 +169,7 @@ func (t DynamicMessageType) NewMessage() Message {
 	var err error
 	d.data, err = buildMap(t.Name())
 	if err != nil {
-		fmt.Printf("Failed to build default message: %v \n", err)
+		return nil
 	}
 	return d
 }
