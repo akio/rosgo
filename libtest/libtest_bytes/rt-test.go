@@ -4,15 +4,33 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"github.com/edwinhayes/rosgo/libgengo"
 	"github.com/edwinhayes/rosgo/ros"
+	"os"
+	"strings"
 	"testing"
+	//"time"
 )
 
 //RTTest tests the serialization, deserialization, and JSON functions of dynamic_message.
 //Each function is compared with correct hard coded values to verify functionality
+//A map of all message definitions is created and cycled through to test serialization of each message
 func RTTest(t *testing.T) {
 	//var msgType *ros.DynamicMessageType
 	var err error
+
+	//Make a node
+	node, err := ros.NewNode("/rosgo", os.Args)
+	if err != nil {
+		t.Error("Failed to make node;", err)
+		return
+	}
+	node.Logger().SetSeverity(ros.LogLevelWarn)
+	defer node.Shutdown()
+
+	//Generate a map of all message types
+	rosPkgPath := os.Getenv("ROS_PACKAGE_PATH")
+	allMessages, err := libgengo.FindAllMessages(strings.Split(rosPkgPath, ":"))
 
 	//Instantiate a new dynamic message type
 	msgType, err := ros.NewDynamicMessageType("geometry_msgs/Twist")
@@ -89,6 +107,45 @@ func RTTest(t *testing.T) {
 	rosgoPayload := fmt.Sprintf("%s", payloadMsg)
 	if rosgoPayload != examplePayload {
 		t.Error("Marshalled JSON incorrect; ", err)
+		return
+	}
+
+	//Range through all messages
+	for node.OK() {
+		for message := range allMessages {
+
+			//Create new dynamicMessageType with message from map
+			msgType, err := ros.NewDynamicMessageType(message)
+			if err != nil {
+				t.Error("failed to get message definition; ", err)
+				return
+			}
+			//Instantiate new message type with zero values
+			dynamicMsg := msgType.NewMessage().(*ros.DynamicMessage)
+			//Create a new publisher based on message name
+			pubName := fmt.Sprintf("/shakedown/%s", message)
+			pub := node.NewPublisher(pubName, dynamicMsg.Type())
+			if pub == nil {
+				t.Error("failed to create publisher; ", err)
+				return
+			}
+
+			//Publish message
+			msg := ros.Message(dynamicMsg)
+			pub.Publish(msg)
+
+			//Serializing message into new bytes buffer
+			var buf bytes.Buffer
+			err = dynamicMsg.Serialize(&buf)
+			if err != nil {
+				t.Error("failed to serialize message; ", err)
+				return
+			}
+			//Remove publisher after a millisecond
+			//	time.Sleep(time.Millisecond)
+			node.RemovePublisher(pubName)
+
+		}
 		return
 	}
 

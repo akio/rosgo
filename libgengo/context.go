@@ -23,7 +23,7 @@ func isRosPackage(dir string) bool {
 	return false
 }
 
-func findAllMessages(rosPkgPaths []string) (map[string]string, error) {
+func FindAllMessages(rosPkgPaths []string) (map[string]string, error) {
 	msgs := make(map[string]string)
 	for _, p := range rosPkgPaths {
 		files, err := ioutil.ReadDir(p)
@@ -106,7 +106,7 @@ type MsgContext struct {
 
 func NewMsgContext(rosPkgPaths []string) (*MsgContext, error) {
 	ctx := new(MsgContext)
-	msgs, err := findAllMessages(rosPkgPaths)
+	msgs, err := FindAllMessages(rosPkgPaths)
 	if err != nil {
 		return nil, err
 	}
