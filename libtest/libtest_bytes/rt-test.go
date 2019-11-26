@@ -9,7 +9,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-	//"time"
 )
 
 //RTTest tests the serialization, deserialization, and JSON functions of dynamic_message.
