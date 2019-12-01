@@ -45,8 +45,11 @@ func RTTest(t *testing.T) {
 		return
 	}
 
+	//Example json Bytes for unmarshal test
+	jsonBytes := []byte{123, 34, 88, 34, 58, 53, 44, 34, 89, 34, 58, 48, 44, 34, 90, 34, 58, 48, 125}
+
 	//Example JSON payload, Marshaled JSON
-	examplePayload := "{\"Angular\":{\"X\":1,\"Y\":2,\"Z\":3},\"Linear\":{\"X\":0,\"Y\":0,\"Z\":0}}"
+	examplePayload := "{\"Angular\":{\"X\":1,\"Y\":2,\"Z\":3},\"Linear\":{\"X\":1,\"Y\":2,\"Z\":3}}"
 
 	//Declaring example bytes taken from external ROS source
 	rawmsg := "000000000000000000000000000000000000000000000000000000000000f03f00000000000000400000000000000840"
@@ -68,6 +71,7 @@ func RTTest(t *testing.T) {
 
 	//Creating new message instances of the message types to be used for serialization/deserialization tests
 	dynamicMsg := msgType.NewMessage().(*ros.DynamicMessage)
+	dynamicBlankMsg := msgType.NewMessage().(*ros.DynamicMessage)
 	returnMsg := msgType.NewMessage().(*ros.DynamicMessage)
 	nestedDynamicMsg := nestedMsgType.NewMessage().(*ros.DynamicMessage)
 
@@ -78,6 +82,7 @@ func RTTest(t *testing.T) {
 	d2["Y"] = float64(2)
 	d2["Z"] = float64(3)
 	d["Angular"] = nestedDynamicMsg
+	d["Linear"] = nestedDynamicMsg
 
 	//Serializing message into bytes buffer
 	var buf bytes.Buffer
@@ -95,6 +100,9 @@ func RTTest(t *testing.T) {
 		t.Error("failed to deserialize message; ", err)
 	}
 	rosgoMsg := fmt.Sprintf("%v", returnMsg)
+
+	//Using UnmasharlJSON method on a set of example bytes to compare with example Message
+	err = dynamicBlankMsg.UnmarshalJSON(jsonBytes)
 
 	//Using MarshalJSON method on dynamic message to create JSON payload
 	payloadMsg, err := dynamicMsg.MarshalJSON()
@@ -140,8 +148,6 @@ func RTTest(t *testing.T) {
 				t.Error("failed to serialize message; ", err)
 				return
 			}
-			//Remove publisher after a millisecond
-			//	time.Sleep(time.Millisecond)
 			node.RemovePublisher(pubName)
 
 		}
@@ -157,6 +163,11 @@ func RTTest(t *testing.T) {
 	//Comparing deserialized ros messages to check Deserialization worked
 	if rosgoMsg != exampleMsg {
 		t.Error("Deserialized message incorrect; ", err)
+		return
+	}
+	//Comparing unmarshalled payload to check unmarshalJSON worked
+	if dynamicBlankMsg != dynamicMsg {
+		t.Error("Unmarshalled message incorrect; ", err)
 		return
 	}
 	//Comparing json schema to example schema to check GenerateJSONSchema worked
