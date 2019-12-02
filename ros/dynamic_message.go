@@ -1214,7 +1214,7 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 						if err = binary.Read(buf, binary.LittleEndian, &data.NSec); err != nil {
 							return errors.Wrap(err, "Field: "+field.Name)
 						}
-						tmpData[field.GoName] = append(tmpData[field.GoName].([]Time), Time(data))
+						tmpData[field.GoName] = append(tmpData[field.GoName].([]Time), data)
 					} else if field.Type == "duration" {
 						var data Duration
 						// Time/duration types have two fields, so consume into these in two reads.
