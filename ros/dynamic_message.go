@@ -593,26 +593,14 @@ func (m DynamicMessage) UnmarshalJSON(buf []byte) error {
 					case "float64":
 						m.data[field.GoName] = append(m.data[field.GoName].([]float64), float64((data).(float64)))
 					case "ros.Time":
-						arrayBytes, err := json.Marshal(tmpArray[i])
-						sec, err := jsonparser.GetFloat(arrayBytes, "Sec")
-						nSec, err := jsonparser.GetFloat(arrayBytes, "NSec")
-						if err != nil {
-							return errors.Wrap(err, "Field: "+field.Name)
-						}
 						tmpTime := Time{}
-						tmpTime.Sec = uint32(sec)
-						tmpTime.NSec = uint32(nSec)
+						tmpTime.Sec = uint32(data.(map[string]interface{})["Sec"].(float64))
+						tmpTime.NSec = uint32(data.(map[string]interface{})["NSec"].(float64))
 						m.data[field.GoName] = append(m.data[field.GoName].([]Time), tmpTime)
 					case "ros.Duration":
-						arrayBytes, err := json.Marshal(tmpArray[i])
-						sec, err := jsonparser.GetFloat(arrayBytes, "Sec")
-						nSec, err := jsonparser.GetFloat(arrayBytes, "NSec")
-						if err != nil {
-							return errors.Wrap(err, "Field: "+field.Name)
-						}
 						tmpDuration := Duration{}
-						tmpDuration.Sec = uint32(sec)
-						tmpDuration.NSec = uint32(nSec)
+						tmpDuration.Sec = uint32(data.(map[string]interface{})["Sec"].(float64))
+						tmpDuration.NSec = uint32(data.(map[string]interface{})["NSec"].(float64))
 						m.data[field.GoName] = append(m.data[field.GoName].([]Duration), tmpDuration)
 					default:
 						//We have a nested message array
