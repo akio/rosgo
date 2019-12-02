@@ -9,12 +9,12 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"github.com/buger/jsonparser"
+	"github.com/edwinhayes/rosgo/libgengo"
+	"github.com/pkg/errors"
 	"os"
 	"reflect"
 	"strings"
-
-	"github.com/edwinhayes/rosgo/libgengo"
-	"github.com/pkg/errors"
 )
 
 // DEFINE PUBLIC STRUCTURES.
@@ -31,7 +31,7 @@ type DynamicMessageType struct {
 // it to be used throughout rosgo in the same manner as message types generated at compiletime by gengo.
 type DynamicMessage struct {
 	dynamicType *DynamicMessageType
-	data         map[string]interface{}
+	data        map[string]interface{}
 }
 
 // DEFINE PRIVATE STRUCTURES.
@@ -79,7 +79,7 @@ func NewDynamicMessageType(typeName string) (*DynamicMessageType, error) {
 
 // newDynamicMessageTypeNested generates a DynamicMessageType from the available ROS message definitions.  The first time the function is run, a message 'context' is created by
 // searching through the available ROS message definitions, then the ROS message type to use for the defintion is looked up by name.  On subsequent calls, the ROS message type
-// is looked up directly from the existing context.  This 'nested' version of the function is able to be called recursively, where packageName should be the typeName of the 
+// is looked up directly from the existing context.  This 'nested' version of the function is able to be called recursively, where packageName should be the typeName of the
 // parent ROS message; this is used internally for handling complex ROS messages.
 func newDynamicMessageTypeNested(typeName string, packageName string) (*DynamicMessageType, error) {
 	// Create an empty message type.
@@ -162,11 +162,168 @@ func (t DynamicMessageType) NewMessage() Message {
 	if t.spec == nil {
 		return nil
 	}
-
 	// But otherwise, make a new one.
 	d := new(DynamicMessage)
 	d.dynamicType = &t
+	var err error
+	d.data, err = zeroValueData(t.Name())
+	if err != nil {
+		return nil
+	}
 	return d
+}
+
+//zeroValueData creates the zeroValue (default) data map for a new dynamic message
+func zeroValueData(s string) (map[string]interface{}, error) {
+	//Create map
+	d := make(map[string]interface{})
+
+	//Instantiate new dynamic message type from string name parsed
+	t, err := NewDynamicMessageType(s)
+	if err != nil {
+		return d, errors.Wrap(err, "Failed to create NewDynamicMessageType "+s)
+	}
+	//Range fields in the dynamic message type
+	for _, field := range t.spec.Fields {
+		if field.IsArray {
+			// It's an array.
+			//Create slices for GoType arrays
+			switch field.GoType {
+			case "bool":
+				d[field.GoName] = make([]bool, 0)
+			case "int8":
+				d[field.GoName] = make([]int8, 0)
+			case "int16":
+				d[field.GoName] = make([]int16, 0)
+			case "int32":
+				d[field.GoName] = make([]int32, 0)
+			case "int64":
+				d[field.GoName] = make([]int64, 0)
+			case "uint8":
+				d[field.GoName] = make([]uint8, 0)
+			case "uint16":
+				d[field.GoName] = make([]uint16, 0)
+			case "uint32":
+				d[field.GoName] = make([]uint32, 0)
+			case "uint64":
+				d[field.GoName] = make([]uint64, 0)
+			case "float32":
+				d[field.GoName] = make([]float32, 0)
+			case "float64":
+				d[field.GoName] = make([]float64, 0)
+			case "string":
+				d[field.GoName] = make([]string, 0)
+			case "time":
+				d[field.GoName] = make([]Time, 0)
+			case "duration":
+				d[field.GoName] = make([]Duration, 0)
+			default:
+				// In this case, it will probably be because the go_type is describing another ROS message, so we need to replace that with a nested DynamicMessage.
+				d[field.GoName] = make([]Message, 0)
+			}
+			var size uint32 = uint32(field.ArrayLen)
+			//In the case the array length is static, we iterated through array items
+			if field.ArrayLen != -1 {
+				for i := 0; i < int(size); i++ {
+					if field.IsBuiltin {
+						//Append the goType zeroValues to their arrays
+						switch field.GoType {
+						case "bool":
+							d[field.GoName] = append(d[field.GoName].([]bool), false)
+						case "int8":
+							d[field.GoName] = append(d[field.GoName].([]int8), 0)
+						case "int16":
+							d[field.GoName] = append(d[field.GoName].([]int16), 0)
+						case "int32":
+							d[field.GoName] = append(d[field.GoName].([]int32), 0)
+						case "int64":
+							d[field.GoName] = append(d[field.GoName].([]int64), 0)
+						case "uint8":
+							d[field.GoName] = append(d[field.GoName].([]uint8), 0)
+						case "uint16":
+							d[field.GoName] = append(d[field.GoName].([]uint16), 0)
+						case "uint32":
+							d[field.GoName] = append(d[field.GoName].([]uint32), 0)
+						case "uint64":
+							d[field.GoName] = append(d[field.GoName].([]uint64), 0)
+						case "float32":
+							d[field.GoName] = append(d[field.GoName].([]float32), 0.0)
+						case "float64":
+							d[field.GoName] = append(d[field.GoName].([]float64), 0.)
+						case "string":
+							d[field.GoName] = append(d[field.GoName].([]string), "")
+						case "ros.Time":
+							d[field.GoName] = append(d[field.GoName].([]Time), Time{})
+						case "ros.Duration":
+							d[field.GoName] = append(d[field.GoName].([]Duration), Duration{})
+						default:
+							// Something went wrong.
+							return d, errors.Wrap(err, "Builtin field "+field.GoType+" not found")
+						}
+					} else {
+						// Else it's not a builtin. Create a nested message type for values inside
+						t2, err := newDynamicMessageTypeNested(field.Type, field.Package)
+						if err != nil {
+							return d, errors.Wrap(err, "Failed to create newDynamicMessageTypeNested "+field.Type)
+						}
+						msg := t2.NewMessage()
+						//Append nested message map to message type array in main map
+						d[field.GoName] = append(d[field.GoName].([]Message), msg)
+					}
+					//Else array is dynamic, by default we do not initialize any values in it
+				}
+			}
+		} else if field.IsBuiltin {
+			//If its a built in type
+			switch field.GoType {
+			case "string":
+				d[field.GoName] = ""
+			case "bool":
+				d[field.GoName] = bool(false)
+			case "int8":
+				d[field.GoName] = int8(0)
+			case "int16":
+				d[field.GoName] = int16(0)
+			case "int32":
+				d[field.GoName] = int32(0)
+			case "int64":
+				d[field.GoName] = int64(0)
+			case "uint8":
+				d[field.GoName] = uint8(0)
+			case "uint16":
+				d[field.GoName] = uint16(0)
+			case "uint32":
+				d[field.GoName] = uint32(0)
+			case "uint64":
+				d[field.GoName] = uint64(0)
+			case "float32":
+				d[field.GoName] = float32(0.0)
+			case "float64":
+				d[field.GoName] = float64(0.0)
+			case "ros.Time":
+				d[field.GoName] = Time{}
+			case "ros.Duration":
+				d[field.GoName] = Duration{}
+			default:
+				return d, errors.Wrap(err, "Builtin field "+field.GoType+" not found")
+			}
+			//Else its a ros message type
+		} else {
+			//Create new dynamic message type nested
+			t2, err := newDynamicMessageTypeNested(field.Type, field.Package)
+			if err != nil {
+				return d, errors.Wrap(err, "Failed to create dewDynamicMessageTypeNested "+field.Type)
+			}
+			//Append message as a map item
+			d[field.GoName] = t2.NewMessage()
+		}
+	}
+	return d, err
+}
+
+// Data returns the data map field of the DynamicMessage
+func (m DynamicMessage) Data() map[string]interface{} {
+	return m.data
 }
 
 // GenerateJSONSchema generates a (primitive) JSON schema for the associated DynamicMessageType; however note that since
@@ -199,8 +356,8 @@ func (t DynamicMessageType) generateJSONSchemaProperties(topic string) (map[stri
 	schemaItems := make(map[string]interface{})
 	schemaItems["type"] = "object"
 	schemaItems["title"] = topic
-	schemaItems["properties"]=properties
-	
+	schemaItems["properties"] = properties
+
 	// Iterate over each of the fields in the message.
 	for _, field := range t.spec.Fields {
 		if field.IsArray {
@@ -234,8 +391,8 @@ func (t DynamicMessageType) generateJSONSchemaProperties(topic string) (map[stri
 					// It's a primitive.
 					var jsonType string
 					if field.GoType == "int8" || field.GoType == "uint8" || field.GoType == "int16" || field.GoType == "uint16" ||
-					   field.GoType == "int32" || field.GoType == "uint32" || field.GoType == "int64" || field.GoType == "uint64" {
-						jsonType = "integer" 
+						field.GoType == "int32" || field.GoType == "uint32" || field.GoType == "int64" || field.GoType == "uint64" {
+						jsonType = "integer"
 					} else if field.GoType == "float32" || field.GoType == "float64" {
 						jsonType = "number"
 					} else if field.GoType == "bool" {
@@ -248,7 +405,7 @@ func (t DynamicMessageType) generateJSONSchemaProperties(topic string) (map[stri
 				}
 			} else {
 				// It's another nested message.
-				
+
 				// Generate the nested type.
 				msgType, err := newDynamicMessageTypeNested(field.Type, field.Package)
 				if err != nil {
@@ -270,35 +427,37 @@ func (t DynamicMessageType) generateJSONSchemaProperties(topic string) (map[stri
 				propertyContent["title"] = topic + Sep + field.GoName
 
 				if field.Type == "string" {
-						propertyContent["type"] = "string"
-					} else if field.Type == "time" {
-						timeItems := make(map[string]interface{})
-						timeItems["Sec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "Sec"}
-						timeItems["NSec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "NSec"}
-						propertyContent["type"] = "object"
-						propertyContent["properties"] = timeItems
-					} else if field.Type == "duration" {
-						timeItems := make(map[string]interface{})
-						timeItems["Sec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "Sec"}
-						timeItems["NSec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "NSec"}
-						propertyContent["type"] = "object"
-						propertyContent["properties"] = timeItems
+					propertyContent["type"] = "string"
+				} else if field.Type == "time" {
+					timeItems := make(map[string]interface{})
+					timeItems["Sec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "Sec"}
+					timeItems["NSec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "NSec"}
+					propertyContent["type"] = "object"
+					propertyContent["properties"] = timeItems
+				} else if field.Type == "duration" {
+					timeItems := make(map[string]interface{})
+					timeItems["Sec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "Sec"}
+					timeItems["NSec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "NSec"}
+					propertyContent["type"] = "object"
+					propertyContent["properties"] = timeItems
+				} else {
+					// It's a primitive.
+					var jsonType string
+					if field.GoType == "int8" || field.GoType == "uint8" || field.GoType == "int16" || field.GoType == "uint16" ||
+						field.GoType == "int32" || field.GoType == "uint32" || field.GoType == "int64" || field.GoType == "uint64" {
+						jsonType = "integer"
+						jsonType = "integer"
+						jsonType = "integer"
+					} else if field.GoType == "float32" || field.GoType == "float64" {
+						jsonType = "number"
+					} else if field.GoType == "bool" {
+						jsonType = "bool"
 					} else {
-						// It's a primitive.
-						var jsonType string
-						if field.GoType == "int8" || field.GoType == "uint8" || field.GoType == "int16" || field.GoType == "uint16" ||
-							field.GoType == "int32" || field.GoType == "uint32" || field.GoType == "int64" || field.GoType == "uint64" {
-							jsonType = "integer" 
-						} else if field.GoType == "float32" || field.GoType == "float64" {
-							jsonType = "number"
-						} else if field.GoType == "bool" {
-							jsonType = "bool"
-						} else {
-							// Something went wrong.
-							return nil, errors.New("we haven't implemented this primitive yet")
-						}
-						propertyContent["type"] = jsonType
+						// Something went wrong.
+						return nil, errors.New("we haven't implemented this primitive yet")
 					}
+					propertyContent["type"] = jsonType
+				}
 			} else {
 				// It's another nested message.
 
@@ -329,7 +488,7 @@ func (m DynamicMessage) Type() MessageType {
 	return m.dynamicType
 }
 
-// MarshalJSON provides a custom implementation of JSON marshalling, so that when the DynamicMessage is recursively 
+// MarshalJSON provides a custom implementation of JSON marshalling, so that when the DynamicMessage is recursively
 // marshalled using the standard Go json.marshal() mechanism, the resulting JSON representation is a compact representation
 // of just the important message payload (and not the message definition).  It's important that this representation matches
 // the schema generated by GenerateJSONSchema().
@@ -337,11 +496,230 @@ func (m DynamicMessage) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m.data)
 }
 
-//func (m DynamicMessage) UnmarshalJSON(buf []byte) error {
-	// TODO - This is not as easy, because a DynamicMessage already needs to be pointing at the correct type in order for
-	//	the unmarshalled m.data to make any sense - how are you supposed to do this in the case of any nested messages,
-	//	given that the JSON object won't contain any information about the schema.
-//}
+//UnmarshalJSON provides a custom implementation of JSON unmarshalling. Using the dynamicMessage provided, Msgspec is used to
+//determine the individual parsing of each JSON encoded payload item into the correct Go type. It is important each type is
+//correct so that the message serializes correctly and is understood by the ROS system
+func (m DynamicMessage) UnmarshalJSON(buf []byte) error {
+
+	var err error
+	var tmpArray []interface{}
+	//We range the message spec fields as this is more predictable than using JSON structure to loop
+	for _, field := range m.dynamicType.spec.Fields {
+		//If the field is an array
+		if field.IsArray {
+			//Here we grab the msgBytes and json decoded msgType for the field Name lookup
+			msgBytes, msgType, _, _ := jsonparser.Get(buf, field.GoName)
+			jsonType := fmt.Sprintf("%v", msgType)
+			//For scenario where a []uint8 array is provided, ros byte array encoded as json string
+			if jsonType == "string" {
+				bytes, err := jsonparser.GetString(buf, field.GoName)
+				if err != nil {
+					return errors.Wrap(err, "Field: "+field.Name)
+				}
+				m.data[field.GoName] = []byte(bytes)
+			} else if jsonType == "array" {
+				//Continue if the payload provides an array
+				//TODO: Utilize the array callback feature in the jsonparser package, structure will change significantly
+				//Using a builtin json unmarshal is cheating and uses too many resources
+				err := json.Unmarshal(msgBytes, &tmpArray)
+				if err != nil {
+					return errors.Wrap(err, "Field: "+field.Name)
+				}
+				//here we are checking the size of the array provided in json
+				//If the array is in field spec is fixed length and it does not match, an error will occur
+				size := len(tmpArray)
+				if field.ArrayLen != -1 && field.ArrayLen != size {
+					return errors.New("Fixed array length incorrect : " + field.GoName)
+				}
+				//Loop through array items
+				for i := 0; i < size; i++ {
+					//Get the json bytes of the array Item
+					arrayBytes, err := json.Marshal(tmpArray[i])
+					if err != nil {
+						return errors.Wrap(err, "Field: "+field.Name)
+					}
+					//If it is a builtin goType
+					if field.IsBuiltin {
+						//Here we grab the msgBytes and json decoded msgType for the field Name lookup in array
+						msgBytes, msgType, _, _ := jsonparser.Get(arrayBytes, field.GoName)
+						jsonType := fmt.Sprintf("%v", msgType)
+						if jsonType == "bool" {
+							//Lookup bool field inside array
+							data, err := jsonparser.GetBoolean(msgBytes, field.GoName)
+							if err != nil {
+								return errors.Wrap(err, "Field: "+field.Name)
+							}
+							m.data[field.GoName] = append(m.data[field.GoName].([]bool), bool(data))
+						} else if jsonType == "number" {
+							//Lookup number inside array
+							data, err := jsonparser.GetFloat(msgBytes, field.GoName)
+							if err != nil {
+								return errors.Wrap(err, "Field: "+field.Name)
+							}
+							switch field.GoType {
+							case "int8":
+								m.data[field.GoName] = append(m.data[field.GoName].([]int8), int8(data))
+							case "int16":
+								m.data[field.GoName] = append(m.data[field.GoName].([]int16), int16(data))
+							case "int32":
+								m.data[field.GoName] = append(m.data[field.GoName].([]int32), int32(data))
+							case "int64":
+								m.data[field.GoName] = append(m.data[field.GoName].([]int64), int64(data))
+							case "uint8":
+								m.data[field.GoName] = append(m.data[field.GoName].([]uint8), uint8(data))
+							case "uint16":
+								m.data[field.GoName] = append(m.data[field.GoName].([]uint16), uint16(data))
+							case "uint32":
+								m.data[field.GoName] = append(m.data[field.GoName].([]uint32), uint32(data))
+							case "uint64":
+								m.data[field.GoName] = append(m.data[field.GoName].([]uint64), uint64(data))
+							case "float32":
+								m.data[field.GoName] = append(m.data[field.GoName].([]float32), float32(data))
+							case "float64":
+								m.data[field.GoName] = append(m.data[field.GoName].([]float64), float64(data))
+							}
+						} else if jsonType == "string" {
+							//Lookup string inside array
+							data, err := jsonparser.GetString(msgBytes, field.GoName)
+							if err != nil {
+								return errors.Wrap(err, "Field: "+field.Name)
+							}
+							if field.GoType == "string" {
+								m.data[field.GoName] = append(m.data[field.GoName].([]string), string(data))
+							} else {
+								return errors.New("Expected type []string, found : " + field.GoType)
+							}
+						} else if jsonType == "object" {
+							//Time and Duration are provided as JSON objects
+							switch field.GoType {
+							case "ros.Time":
+								sec, err := jsonparser.GetFloat(msgBytes, "Sec")
+								nSec, err := jsonparser.GetFloat(msgBytes, "NSec")
+								if err != nil {
+									return errors.Wrap(err, "Field: "+field.Name)
+								}
+								tmpTime := Time{}
+								tmpTime.Sec = uint32(sec)
+								tmpTime.NSec = uint32(nSec)
+								m.data[field.GoName] = append(m.data[field.GoName].([]Time), tmpTime)
+							case "ros.Duration":
+								sec, err := jsonparser.GetFloat(msgBytes, "Sec")
+								nSec, err := jsonparser.GetFloat(msgBytes, "NSec")
+								if err != nil {
+									return errors.Wrap(err, "Field: "+field.Name)
+								}
+								tmpDuration := Duration{}
+								tmpDuration.Sec = uint32(sec)
+								tmpDuration.NSec = uint32(nSec)
+								m.data[field.GoName] = append(m.data[field.GoName].([]Duration), tmpDuration)
+							}
+						}
+					} else {
+						//We have a nested message array
+						t2, err := newDynamicMessageTypeNested(field.Type, field.Package)
+						if err != nil {
+							return errors.Wrap(err, "Field: "+field.Name)
+						}
+						nestedMsg := t2.NewMessage().(*DynamicMessage)
+						if err = nestedMsg.UnmarshalJSON(arrayBytes); err != nil {
+							return errors.Wrap(err, "Field: "+field.Name)
+						}
+						m.data[field.GoName] = append(m.data[field.GoName].([]Message), nestedMsg)
+					}
+				}
+			}
+		} else {
+			//Here we grab the msgBytes and json decoded msgType for the field Name lookup
+			msgBytes, msgType, _, _ := jsonparser.Get(buf, field.GoName)
+			jsonType := fmt.Sprintf("%v", msgType)
+			if jsonType == "bool" {
+				//Lookup bool field inside json message
+				data, err := jsonparser.GetBoolean(msgBytes, field.GoName)
+				if err != nil {
+					return errors.Wrap(err, "Field: "+field.Name)
+				}
+				m.data[field.GoName] = bool(data)
+			} else if jsonType == "number" {
+				//Lookup number field inside json message
+				data, err := jsonparser.GetFloat(buf, field.GoName)
+				if err != nil {
+					return errors.Wrap(err, "Field: "+field.Name)
+				}
+				switch field.GoType {
+				case "int8":
+					m.data[field.GoName] = int8(data)
+				case "int16":
+					m.data[field.GoName] = int16(data)
+				case "int32":
+					m.data[field.GoName] = int32(data)
+				case "int64":
+					m.data[field.GoName] = int64(data)
+				case "uint8":
+					m.data[field.GoName] = uint8(data)
+				case "uint16":
+					m.data[field.GoName] = uint16(data)
+				case "uint32":
+					m.data[field.GoName] = uint32(data)
+				case "uint64":
+					m.data[field.GoName] = uint64(data)
+				case "float32":
+					m.data[field.GoName] = float32(data)
+				case "float64":
+					m.data[field.GoName] = float64(data)
+				default:
+					return errors.New("Built-in type not found : " + field.GoType)
+				}
+			} else if jsonType == "string" {
+				//Lookup string field inside json message
+				data, err := jsonparser.GetString(buf, field.GoName)
+				if err != nil {
+					return errors.Wrap(err, "Field: "+field.Name)
+				}
+				if field.GoType == "string" {
+					m.data[field.GoName] = data
+				} else {
+					return errors.New("Expected type []string, found : " + field.GoType)
+				}
+			} else if jsonType == "object" {
+				//Time and Duration are provided as JSON objects
+				switch field.GoType {
+				case "ros.Time":
+					sec, err := jsonparser.GetFloat(msgBytes, "Sec")
+					nSec, err := jsonparser.GetFloat(msgBytes, "NSec")
+					if err != nil {
+						return errors.Wrap(err, "Field: "+field.Name)
+					}
+					tmpTime := Time{}
+					tmpTime.Sec = uint32(sec)
+					tmpTime.NSec = uint32(nSec)
+					m.data[field.GoName] = tmpTime
+				case "ros.Duration":
+					sec, err := jsonparser.GetFloat(msgBytes, "Sec")
+					nSec, err := jsonparser.GetFloat(msgBytes, "NSec")
+					if err != nil {
+						return errors.Wrap(err, "Field: "+field.Name)
+					}
+					tmpDuration := Duration{}
+					tmpDuration.Sec = uint32(sec)
+					tmpDuration.NSec = uint32(nSec)
+					m.data[field.GoName] = tmpDuration
+				default:
+					//We've got a nested ros message
+					t2, err := newDynamicMessageTypeNested(field.Type, field.Package)
+					if err != nil {
+						return errors.Wrap(err, "Field: "+field.Name)
+					}
+					nestedMsg := t2.NewMessage().(*DynamicMessage)
+					if err = nestedMsg.UnmarshalJSON(msgBytes); err != nil {
+						return errors.Wrap(err, "Field: "+field.Name)
+					}
+					m.data[field.GoName] = nestedMsg
+				}
+			}
+		}
+	}
+	return err
+}
 
 // Serialize converts a DynamicMessage into a TCPROS bytestream allowing it to be published to other nodes; required for
 // ros.Message.
