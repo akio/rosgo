@@ -186,8 +186,7 @@ func zeroValueData(s string) (map[string]interface{}, error) {
 	//Range fields in the dynamic message type
 	for _, field := range t.spec.Fields {
 		if field.IsArray {
-			// It's an array.
-			//Create slices for GoType arrays
+			//It's an array. Create empty Slices
 			switch field.GoType {
 			case "bool":
 				d[field.GoName] = make([]bool, 0)
@@ -213,9 +212,9 @@ func zeroValueData(s string) (map[string]interface{}, error) {
 				d[field.GoName] = make([]float64, 0)
 			case "string":
 				d[field.GoName] = make([]string, 0)
-			case "time":
+			case "ros.Time":
 				d[field.GoName] = make([]Time, 0)
-			case "duration":
+			case "ros.Duration":
 				d[field.GoName] = make([]Duration, 0)
 			default:
 				// In this case, it will probably be because the go_type is describing another ROS message, so we need to replace that with a nested DynamicMessage.
@@ -507,6 +506,40 @@ func (m DynamicMessage) UnmarshalJSON(buf []byte) error {
 	for _, field := range m.dynamicType.spec.Fields {
 		//If the field is an array
 		if field.IsArray {
+			//Arrays are declared here
+			switch field.GoType {
+			case "bool":
+				m.data[field.GoName] = make([]bool, 0)
+			case "int8":
+				m.data[field.GoName] = make([]int8, 0)
+			case "int16":
+				m.data[field.GoName] = make([]int16, 0)
+			case "int32":
+				m.data[field.GoName] = make([]int32, 0)
+			case "int64":
+				m.data[field.GoName] = make([]int64, 0)
+			case "uint8":
+				m.data[field.GoName] = make([]uint8, 0)
+			case "uint16":
+				m.data[field.GoName] = make([]uint16, 0)
+			case "uint32":
+				m.data[field.GoName] = make([]uint32, 0)
+			case "uint64":
+				m.data[field.GoName] = make([]uint64, 0)
+			case "float32":
+				m.data[field.GoName] = make([]float32, 0)
+			case "float64":
+				m.data[field.GoName] = make([]float64, 0)
+			case "string":
+				m.data[field.GoName] = make([]string, 0)
+			case "ros.Time":
+				m.data[field.GoName] = make([]Time, 0)
+			case "ros.Duration":
+				m.data[field.GoName] = make([]Duration, 0)
+			default:
+				// In this case, it will probably be because the go_type is describing another ROS message, so we need to replace that with a nested DynamicMessage.
+				m.data[field.GoName] = make([]Message, 0)
+			}
 			//Here we grab the msgBytes and json decoded msgType for the field Name lookup
 			msgBytes, msgType, _, _ := jsonparser.Get(buf, field.GoName)
 			jsonType := fmt.Sprintf("%v", msgType)
@@ -533,94 +566,66 @@ func (m DynamicMessage) UnmarshalJSON(buf []byte) error {
 				}
 				//Loop through array items
 				for i := 0; i < size; i++ {
-					//Get the json bytes of the array Item
-					arrayBytes, err := json.Marshal(tmpArray[i])
-					if err != nil {
-						return errors.Wrap(err, "Field: "+field.Name)
-					}
-					//If it is a builtin goType
-					if field.IsBuiltin {
-						//Here we grab the msgBytes and json decoded msgType for the field Name lookup in array
-						msgBytes, msgType, _, _ := jsonparser.Get(arrayBytes, field.GoName)
-						jsonType := fmt.Sprintf("%v", msgType)
-						if jsonType == "bool" {
-							//Lookup bool field inside array
-							data, err := jsonparser.GetBoolean(msgBytes, field.GoName)
-							if err != nil {
-								return errors.Wrap(err, "Field: "+field.Name)
-							}
-							m.data[field.GoName] = append(m.data[field.GoName].([]bool), bool(data))
-						} else if jsonType == "number" {
-							//Lookup number inside array
-							data, err := jsonparser.GetFloat(msgBytes, field.GoName)
-							if err != nil {
-								return errors.Wrap(err, "Field: "+field.Name)
-							}
-							switch field.GoType {
-							case "int8":
-								m.data[field.GoName] = append(m.data[field.GoName].([]int8), int8(data))
-							case "int16":
-								m.data[field.GoName] = append(m.data[field.GoName].([]int16), int16(data))
-							case "int32":
-								m.data[field.GoName] = append(m.data[field.GoName].([]int32), int32(data))
-							case "int64":
-								m.data[field.GoName] = append(m.data[field.GoName].([]int64), int64(data))
-							case "uint8":
-								m.data[field.GoName] = append(m.data[field.GoName].([]uint8), uint8(data))
-							case "uint16":
-								m.data[field.GoName] = append(m.data[field.GoName].([]uint16), uint16(data))
-							case "uint32":
-								m.data[field.GoName] = append(m.data[field.GoName].([]uint32), uint32(data))
-							case "uint64":
-								m.data[field.GoName] = append(m.data[field.GoName].([]uint64), uint64(data))
-							case "float32":
-								m.data[field.GoName] = append(m.data[field.GoName].([]float32), float32(data))
-							case "float64":
-								m.data[field.GoName] = append(m.data[field.GoName].([]float64), float64(data))
-							}
-						} else if jsonType == "string" {
-							//Lookup string inside array
-							data, err := jsonparser.GetString(msgBytes, field.GoName)
-							if err != nil {
-								return errors.Wrap(err, "Field: "+field.Name)
-							}
-							if field.GoType == "string" {
-								m.data[field.GoName] = append(m.data[field.GoName].([]string), string(data))
-							} else {
-								return errors.New("Expected type []string, found : " + field.GoType)
-							}
-						} else if jsonType == "object" {
-							//Time and Duration are provided as JSON objects
-							switch field.GoType {
-							case "ros.Time":
-								sec, err := jsonparser.GetFloat(msgBytes, "Sec")
-								nSec, err := jsonparser.GetFloat(msgBytes, "NSec")
-								if err != nil {
-									return errors.Wrap(err, "Field: "+field.Name)
-								}
-								tmpTime := Time{}
-								tmpTime.Sec = uint32(sec)
-								tmpTime.NSec = uint32(nSec)
-								m.data[field.GoName] = append(m.data[field.GoName].([]Time), tmpTime)
-							case "ros.Duration":
-								sec, err := jsonparser.GetFloat(msgBytes, "Sec")
-								nSec, err := jsonparser.GetFloat(msgBytes, "NSec")
-								if err != nil {
-									return errors.Wrap(err, "Field: "+field.Name)
-								}
-								tmpDuration := Duration{}
-								tmpDuration.Sec = uint32(sec)
-								tmpDuration.NSec = uint32(nSec)
-								m.data[field.GoName] = append(m.data[field.GoName].([]Duration), tmpDuration)
-							}
+					data := tmpArray[i]
+					switch field.GoType {
+					case "bool":
+						m.data[field.GoName] = append(m.data[field.GoName].([]bool), bool((data).(bool)))
+					case "string":
+						m.data[field.GoName] = append(m.data[field.GoName].([]string), string((data).(string)))
+					case "int8":
+						m.data[field.GoName] = append(m.data[field.GoName].([]int8), int8((data).(int8)))
+					case "int16":
+						m.data[field.GoName] = append(m.data[field.GoName].([]int16), int16((data).(int16)))
+					case "int32":
+						m.data[field.GoName] = append(m.data[field.GoName].([]int32), int32((data).(int32)))
+					case "int64":
+						m.data[field.GoName] = append(m.data[field.GoName].([]int64), int64((data).(int64)))
+					case "uint8":
+						m.data[field.GoName] = append(m.data[field.GoName].([]uint8), uint8((data).(uint8)))
+					case "uint16":
+						m.data[field.GoName] = append(m.data[field.GoName].([]uint16), uint16((data).(uint16)))
+					case "uint32":
+						m.data[field.GoName] = append(m.data[field.GoName].([]uint32), uint32((data).(uint32)))
+					case "uint64":
+						m.data[field.GoName] = append(m.data[field.GoName].([]uint64), uint64((data).(uint64)))
+					case "float32":
+						m.data[field.GoName] = append(m.data[field.GoName].([]float32), float32((data).(float32)))
+					case "float64":
+						m.data[field.GoName] = append(m.data[field.GoName].([]float64), float64((data).(float64)))
+					case "ros.Time":
+						arrayBytes, err := json.Marshal(tmpArray[i])
+						sec, err := jsonparser.GetFloat(arrayBytes, "Sec")
+						nSec, err := jsonparser.GetFloat(arrayBytes, "NSec")
+						if err != nil {
+							return errors.Wrap(err, "Field: "+field.Name)
 						}
-					} else {
+						tmpTime := Time{}
+						tmpTime.Sec = uint32(sec)
+						tmpTime.NSec = uint32(nSec)
+						m.data[field.GoName] = append(m.data[field.GoName].([]Time), tmpTime)
+					case "ros.Duration":
+						arrayBytes, err := json.Marshal(tmpArray[i])
+						sec, err := jsonparser.GetFloat(arrayBytes, "Sec")
+						nSec, err := jsonparser.GetFloat(arrayBytes, "NSec")
+						if err != nil {
+							return errors.Wrap(err, "Field: "+field.Name)
+						}
+						tmpDuration := Duration{}
+						tmpDuration.Sec = uint32(sec)
+						tmpDuration.NSec = uint32(nSec)
+						m.data[field.GoName] = append(m.data[field.GoName].([]Duration), tmpDuration)
+					default:
 						//We have a nested message array
 						t2, err := newDynamicMessageTypeNested(field.Type, field.Package)
 						if err != nil {
 							return errors.Wrap(err, "Field: "+field.Name)
 						}
 						nestedMsg := t2.NewMessage().(*DynamicMessage)
+						//Get the json bytes of the array Item
+						arrayBytes, err := json.Marshal(tmpArray[i])
+						if err != nil {
+							return errors.Wrap(err, "Field: "+field.Name)
+						}
 						if err = nestedMsg.UnmarshalJSON(arrayBytes); err != nil {
 							return errors.Wrap(err, "Field: "+field.Name)
 						}
@@ -1178,9 +1183,9 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 				tmpData[field.GoName] = make([]float64, 0)
 			case "string":
 				tmpData[field.GoName] = make([]string, 0)
-			case "time":
+			case "ros.Time":
 				tmpData[field.GoName] = make([]Time, 0)
-			case "duration":
+			case "ros.Duration":
 				tmpData[field.GoName] = make([]Duration, 0)
 			default:
 				// In this case, it will probably be because the go_type is describing another ROS message, so we need to replace that with a nested DynamicMessage.
@@ -1209,7 +1214,7 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 						if err = binary.Read(buf, binary.LittleEndian, &data.NSec); err != nil {
 							return errors.Wrap(err, "Field: "+field.Name)
 						}
-						tmpData[field.GoName] = append(tmpData[field.GoName].([]Time), data)
+						tmpData[field.GoName] = append(tmpData[field.GoName].([]Time), Time(data))
 					} else if field.Type == "duration" {
 						var data Duration
 						// Time/duration types have two fields, so consume into these in two reads.
