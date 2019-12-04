@@ -759,12 +759,6 @@ func (m DynamicMessage) UnmarshalJSON(buf []byte) error {
 					//goType is a nested Message array
 					m.data[goField.GoName] = make([]Message, 0)
 				}
-				//Find message spec array field that matches JSON key array
-				// for _, field := range m.dynamicType.spec.Fields {
-				// 	if string(keyName) == field.GoName {
-				// 		goField = field
-				// 	}
-				// }
 				//Parse JSON array
 				jsonparser.ArrayEach(value, arrayHandler)
 			default:
