@@ -4,10 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"github.com/edwinhayes/rosgo/libgengo"
 	"github.com/edwinhayes/rosgo/ros"
-	"os"
-	"strings"
 	"testing"
 )
 
@@ -17,19 +14,6 @@ import (
 func RTTest(t *testing.T) {
 	//var msgType *ros.DynamicMessageType
 	var err error
-
-	//Make a node
-	node, err := ros.NewNode("/rosgo", os.Args)
-	if err != nil {
-		t.Error("Failed to make node;", err)
-		return
-	}
-	node.Logger().SetSeverity(ros.LogLevelWarn)
-	defer node.Shutdown()
-
-	//Generate a map of all message types
-	rosPkgPath := os.Getenv("ROS_PACKAGE_PATH")
-	allMessages, err := libgengo.FindAllMessages(strings.Split(rosPkgPath, ":"))
 
 	//Instantiate a new dynamic message type
 	msgType, err := ros.NewDynamicMessageType("geometry_msgs/Twist")
@@ -44,22 +28,18 @@ func RTTest(t *testing.T) {
 		t.Error("failed to get message definition; ", err)
 		return
 	}
-
-	//Example json Bytes for unmarshal test
-	jsonBytes := []byte{123, 34, 88, 34, 58, 53, 44, 34, 89, 34, 58, 48, 44, 34, 90, 34, 58, 48, 125}
-
 	//Example JSON payload, Marshaled JSON
-	examplePayload := "{\"Angular\":{\"X\":1,\"Y\":2,\"Z\":3},\"Linear\":{\"X\":1,\"Y\":2,\"Z\":3}}"
+	examplePayload := `{"Angular":{"X":1,"Y":2,"Z":3},"Linear":{"X":1,"Y":2,"Z":3}}`
 
 	//Declaring example bytes taken from external ROS source
-	rawmsg := "000000000000000000000000000000000000000000000000000000000000f03f00000000000000400000000000000840"
+	rawmsg := "000000000000f03f00000000000000400000000000000840000000000000f03f00000000000000400000000000000840"
 	exampleBytes, err := hex.DecodeString(rawmsg)
 
 	//Example message data
-	exampleMsg := "geometry_msgs/Twist::map[Angular:geometry_msgs/Vector3::map[X:1 Y:2 Z:3] Linear:geometry_msgs/Vector3::map[X:0 Y:0 Z:0]]"
+	exampleMsg := "geometry_msgs/Twist::map[Angular:geometry_msgs/Vector3::map[X:1 Y:2 Z:3] Linear:geometry_msgs/Vector3::map[X:1 Y:2 Z:3]]"
 
 	//Example schema
-	exampleSchema := "{\"$id\":\"/ros/chatty\",\"$schema\":\"https://json-schema.org/draft-07/schema#\",\"properties\":{\"X\":{\"title\":\"/ros/chatty/X\",\"type\":\"number\"},\"Y\":{\"title\":\"/ros/chatty/Y\",\"type\":\"number\"},\"Z\":{\"title\":\"/ros/chatty/Z\",\"type\":\"number\"}},\"title\":\"/ros/chatty\",\"type\":\"object\"}"
+	exampleSchema := `{"$id":"/ros/chatty","$schema":"https://json-schema.org/draft-07/schema#","properties":{"X":{"title":"/ros/chatty/X","type":"number"},"Y":{"title":"/ros/chatty/Y","type":"number"},"Z":{"title":"/ros/chatty/Z","type":"number"}},"title":"/ros/chatty","type":"object"}`
 	//Generating a schema for geometry_msgs/Vector3 on topic chatty
 	schema, err := nestedMsgType.GenerateJSONSchema("/ros/", "chatty")
 	if err != nil {
@@ -84,6 +64,9 @@ func RTTest(t *testing.T) {
 	d["Angular"] = nestedDynamicMsg
 	d["Linear"] = nestedDynamicMsg
 
+	//Using UnmasharlJSON method on a set of example bytes to compare with example Message
+	err = dynamicBlankMsg.UnmarshalJSON([]byte(examplePayload))
+
 	//Serializing message into bytes buffer
 	var buf bytes.Buffer
 	err = dynamicMsg.Serialize(&buf)
@@ -93,6 +76,14 @@ func RTTest(t *testing.T) {
 	}
 	rosgoBytes := buf.Bytes()
 
+	var buf2 bytes.Buffer
+	err = dynamicBlankMsg.Serialize(&buf2)
+	if err != nil {
+		t.Error("failed to serialize message; ", err)
+		return
+	}
+	jsonBytes := buf2.Bytes()
+
 	//Deserializing message into bytes reader
 	reader := bytes.NewReader(buf.Bytes())
 	err = returnMsg.Deserialize(reader)
@@ -100,9 +91,6 @@ func RTTest(t *testing.T) {
 		t.Error("failed to deserialize message; ", err)
 	}
 	rosgoMsg := fmt.Sprintf("%v", returnMsg)
-
-	//Using UnmasharlJSON method on a set of example bytes to compare with example Message
-	err = dynamicBlankMsg.UnmarshalJSON(jsonBytes)
 
 	//Using MarshalJSON method on dynamic message to create JSON payload
 	payloadMsg, err := dynamicMsg.MarshalJSON()
@@ -114,43 +102,6 @@ func RTTest(t *testing.T) {
 	rosgoPayload := fmt.Sprintf("%s", payloadMsg)
 	if rosgoPayload != examplePayload {
 		t.Error("Marshalled JSON incorrect; ", err)
-		return
-	}
-
-	//Range through all messages
-	for node.OK() {
-		for message := range allMessages {
-
-			//Create new dynamicMessageType with message from map
-			msgType, err := ros.NewDynamicMessageType(message)
-			if err != nil {
-				t.Error("failed to get message definition; ", err)
-				return
-			}
-			//Instantiate new message type with zero values
-			dynamicMsg := msgType.NewMessage().(*ros.DynamicMessage)
-			//Create a new publisher based on message name
-			pubName := fmt.Sprintf("/shakedown/%s", message)
-			pub := node.NewPublisher(pubName, dynamicMsg.Type())
-			if pub == nil {
-				t.Error("failed to create publisher; ", err)
-				return
-			}
-
-			//Publish message
-			msg := ros.Message(dynamicMsg)
-			pub.Publish(msg)
-
-			//Serializing message into new bytes buffer
-			var buf bytes.Buffer
-			err = dynamicMsg.Serialize(&buf)
-			if err != nil {
-				t.Error("failed to serialize message; ", err)
-				return
-			}
-			node.RemovePublisher(pubName)
-
-		}
 		return
 	}
 
@@ -166,7 +117,8 @@ func RTTest(t *testing.T) {
 		return
 	}
 	//Comparing unmarshalled payload to check unmarshalJSON worked
-	if dynamicBlankMsg != dynamicMsg {
+	res = bytes.Compare(jsonBytes, rosgoBytes)
+	if res != 0 {
 		t.Error("Unmarshalled message incorrect; ", err)
 		return
 	}
