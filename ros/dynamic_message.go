@@ -521,7 +521,11 @@ func (m DynamicMessage) UnmarshalJSON(buf []byte) error {
 
 	//JSON key is an array
 	arrayHandler = func(key []byte, dataType jsonparser.ValueType, offset int, err error) {
-
+		for _, field := range m.dynamicType.spec.Fields {
+			if string(keyName) == field.GoName {
+				goField = field
+			}
+		}
 		switch dataType.String() {
 		//We have a string array
 		case "string":
@@ -726,7 +730,7 @@ func (m DynamicMessage) UnmarshalJSON(buf []byte) error {
 			//We have a JSON array
 			case "array":
 				//Redeclare message array fields incase they do not exist
-				switch goField.GoName {
+				switch goField.GoType {
 				case "bool":
 					m.data[goField.GoName] = make([]bool, 0)
 				case "int8":
