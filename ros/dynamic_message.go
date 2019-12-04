@@ -521,11 +521,7 @@ func (m DynamicMessage) UnmarshalJSON(buf []byte) error {
 
 	//JSON key is an array
 	arrayHandler = func(key []byte, dataType jsonparser.ValueType, offset int, err error) {
-		for _, field := range m.dynamicType.spec.Fields {
-			if string(keyName) == field.GoName {
-				goField = field
-			}
-		}
+
 		switch dataType.String() {
 		//We have a string array
 		case "string":
