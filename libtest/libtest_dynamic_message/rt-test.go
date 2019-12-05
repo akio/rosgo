@@ -10,7 +10,7 @@ var message string
 
 //callback retrieves mapped data from ros.DynamicMessage.data
 func callback(msg *ros.DynamicMessage) {
-	message = (msg.Data()["Data"].(string))
+	message = (msg.Data()["data"].(string))
 }
 
 //RTTest creates a new DynamicMessageType from a known type and instantiates a DynamicMessage with data
@@ -37,7 +37,7 @@ func RTTest(t *testing.T) {
 	//Make a dynamicMessage with data
 	dynamicMsg := msgType.NewMessage().(*ros.DynamicMessage)
 	d := dynamicMsg.Data()
-	d["Data"] = "hello"
+	d["data"] = "hello"
 
 	//Make a publisher and subscriber
 	pub := node.NewPublisher("/chatter", dynamicMsg.Type())
