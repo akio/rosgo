@@ -6,6 +6,7 @@ package ros
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -189,36 +190,36 @@ func zeroValueData(s string) (map[string]interface{}, error) {
 			//It's an array. Create empty Slices
 			switch field.GoType {
 			case "bool":
-				d[field.GoName] = make([]bool, 0)
+				d[field.Name] = make([]bool, 0)
 			case "int8":
-				d[field.GoName] = make([]int8, 0)
+				d[field.Name] = make([]int8, 0)
 			case "int16":
-				d[field.GoName] = make([]int16, 0)
+				d[field.Name] = make([]int16, 0)
 			case "int32":
-				d[field.GoName] = make([]int32, 0)
+				d[field.Name] = make([]int32, 0)
 			case "int64":
-				d[field.GoName] = make([]int64, 0)
+				d[field.Name] = make([]int64, 0)
 			case "uint8":
-				d[field.GoName] = make([]uint8, 0)
+				d[field.Name] = make([]uint8, 0)
 			case "uint16":
-				d[field.GoName] = make([]uint16, 0)
+				d[field.Name] = make([]uint16, 0)
 			case "uint32":
-				d[field.GoName] = make([]uint32, 0)
+				d[field.Name] = make([]uint32, 0)
 			case "uint64":
-				d[field.GoName] = make([]uint64, 0)
+				d[field.Name] = make([]uint64, 0)
 			case "float32":
-				d[field.GoName] = make([]float32, 0)
+				d[field.Name] = make([]float32, 0)
 			case "float64":
-				d[field.GoName] = make([]float64, 0)
+				d[field.Name] = make([]float64, 0)
 			case "string":
-				d[field.GoName] = make([]string, 0)
+				d[field.Name] = make([]string, 0)
 			case "ros.Time":
-				d[field.GoName] = make([]Time, 0)
+				d[field.Name] = make([]Time, 0)
 			case "ros.Duration":
-				d[field.GoName] = make([]Duration, 0)
+				d[field.Name] = make([]Duration, 0)
 			default:
 				// In this case, it will probably be because the go_type is describing another ROS message, so we need to replace that with a nested DynamicMessage.
-				d[field.GoName] = make([]Message, 0)
+				d[field.Name] = make([]Message, 0)
 			}
 			var size uint32 = uint32(field.ArrayLen)
 			//In the case the array length is static, we iterated through array items
@@ -228,33 +229,33 @@ func zeroValueData(s string) (map[string]interface{}, error) {
 						//Append the goType zeroValues to their arrays
 						switch field.GoType {
 						case "bool":
-							d[field.GoName] = append(d[field.GoName].([]bool), false)
+							d[field.Name] = append(d[field.Name].([]bool), false)
 						case "int8":
-							d[field.GoName] = append(d[field.GoName].([]int8), 0)
+							d[field.Name] = append(d[field.Name].([]int8), 0)
 						case "int16":
-							d[field.GoName] = append(d[field.GoName].([]int16), 0)
+							d[field.Name] = append(d[field.Name].([]int16), 0)
 						case "int32":
-							d[field.GoName] = append(d[field.GoName].([]int32), 0)
+							d[field.Name] = append(d[field.Name].([]int32), 0)
 						case "int64":
-							d[field.GoName] = append(d[field.GoName].([]int64), 0)
+							d[field.Name] = append(d[field.Name].([]int64), 0)
 						case "uint8":
-							d[field.GoName] = append(d[field.GoName].([]uint8), 0)
+							d[field.Name] = append(d[field.Name].([]uint8), 0)
 						case "uint16":
-							d[field.GoName] = append(d[field.GoName].([]uint16), 0)
+							d[field.Name] = append(d[field.Name].([]uint16), 0)
 						case "uint32":
-							d[field.GoName] = append(d[field.GoName].([]uint32), 0)
+							d[field.Name] = append(d[field.Name].([]uint32), 0)
 						case "uint64":
-							d[field.GoName] = append(d[field.GoName].([]uint64), 0)
+							d[field.Name] = append(d[field.Name].([]uint64), 0)
 						case "float32":
-							d[field.GoName] = append(d[field.GoName].([]float32), 0.0)
+							d[field.Name] = append(d[field.Name].([]float32), 0.0)
 						case "float64":
-							d[field.GoName] = append(d[field.GoName].([]float64), 0.)
+							d[field.Name] = append(d[field.Name].([]float64), 0.)
 						case "string":
-							d[field.GoName] = append(d[field.GoName].([]string), "")
+							d[field.Name] = append(d[field.Name].([]string), "")
 						case "ros.Time":
-							d[field.GoName] = append(d[field.GoName].([]Time), Time{})
+							d[field.Name] = append(d[field.Name].([]Time), Time{})
 						case "ros.Duration":
-							d[field.GoName] = append(d[field.GoName].([]Duration), Duration{})
+							d[field.Name] = append(d[field.Name].([]Duration), Duration{})
 						default:
 							// Something went wrong.
 							return d, errors.Wrap(err, "Builtin field "+field.GoType+" not found")
@@ -267,7 +268,7 @@ func zeroValueData(s string) (map[string]interface{}, error) {
 						}
 						msg := t2.NewMessage()
 						//Append nested message map to message type array in main map
-						d[field.GoName] = append(d[field.GoName].([]Message), msg)
+						d[field.Name] = append(d[field.Name].([]Message), msg)
 					}
 					//Else array is dynamic, by default we do not initialize any values in it
 				}
@@ -276,33 +277,33 @@ func zeroValueData(s string) (map[string]interface{}, error) {
 			//If its a built in type
 			switch field.GoType {
 			case "string":
-				d[field.GoName] = ""
+				d[field.Name] = ""
 			case "bool":
-				d[field.GoName] = bool(false)
+				d[field.Name] = bool(false)
 			case "int8":
-				d[field.GoName] = int8(0)
+				d[field.Name] = int8(0)
 			case "int16":
-				d[field.GoName] = int16(0)
+				d[field.Name] = int16(0)
 			case "int32":
-				d[field.GoName] = int32(0)
+				d[field.Name] = int32(0)
 			case "int64":
-				d[field.GoName] = int64(0)
+				d[field.Name] = int64(0)
 			case "uint8":
-				d[field.GoName] = uint8(0)
+				d[field.Name] = uint8(0)
 			case "uint16":
-				d[field.GoName] = uint16(0)
+				d[field.Name] = uint16(0)
 			case "uint32":
-				d[field.GoName] = uint32(0)
+				d[field.Name] = uint32(0)
 			case "uint64":
-				d[field.GoName] = uint64(0)
+				d[field.Name] = uint64(0)
 			case "float32":
-				d[field.GoName] = float32(0.0)
+				d[field.Name] = float32(0.0)
 			case "float64":
-				d[field.GoName] = float64(0.0)
+				d[field.Name] = float64(0.0)
 			case "ros.Time":
-				d[field.GoName] = Time{}
+				d[field.Name] = Time{}
 			case "ros.Duration":
-				d[field.GoName] = Duration{}
+				d[field.Name] = Duration{}
 			default:
 				return d, errors.Wrap(err, "Builtin field "+field.GoType+" not found")
 			}
@@ -314,7 +315,7 @@ func zeroValueData(s string) (map[string]interface{}, error) {
 				return d, errors.Wrap(err, "Failed to create dewDynamicMessageTypeNested "+field.Type)
 			}
 			//Append message as a map item
-			d[field.GoName] = t2.NewMessage()
+			d[field.Name] = t2.NewMessage()
 		}
 	}
 	return d, err
@@ -362,15 +363,15 @@ func (t DynamicMessageType) generateJSONSchemaProperties(topic string) (map[stri
 		if field.IsArray {
 			// It's an array.
 			propertyContent := make(map[string]interface{})
-			properties[field.GoName] = propertyContent
+			properties[field.Name] = propertyContent
 
 			if field.GoType == "uint8" {
-				propertyContent["title"] = topic + Sep + field.GoName
+				propertyContent["title"] = topic + Sep + field.Name
 				propertyContent["type"] = "string"
 			} else {
 				// Arrays all have a type of 'array', regardless of that the hold, then the 'item' keyword determines what type goes in the array.
 				propertyContent["type"] = "array"
-				propertyContent["title"] = topic + Sep + field.GoName
+				propertyContent["title"] = topic + Sep + field.Name
 				arrayItems := make(map[string]interface{})
 				propertyContent["items"] = arrayItems
 
@@ -380,14 +381,14 @@ func (t DynamicMessageType) generateJSONSchemaProperties(topic string) (map[stri
 						arrayItems["type"] = "string"
 					} else if field.Type == "time" {
 						timeItems := make(map[string]interface{})
-						timeItems["Sec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "Sec"}
-						timeItems["NSec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "NSec"}
+						timeItems["sec"] = map[string]string{"type": "integer", "title": topic + Sep + field.Name + Sep + "sec"}
+						timeItems["nsec"] = map[string]string{"type": "integer", "title": topic + Sep + field.Name + Sep + "nsec"}
 						arrayItems["type"] = "object"
 						arrayItems["properties"] = timeItems
 					} else if field.Type == "duration" {
 						timeItems := make(map[string]interface{})
-						timeItems["Sec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "Sec"}
-						timeItems["NSec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "NSec"}
+						timeItems["sec"] = map[string]string{"type": "integer", "title": topic + Sep + field.Name + Sep + "sec"}
+						timeItems["nsec"] = map[string]string{"type": "integer", "title": topic + Sep + field.Name + Sep + "nsec"}
 						arrayItems["type"] = "object"
 						arrayItems["properties"] = timeItems
 					} else {
@@ -417,7 +418,7 @@ func (t DynamicMessageType) generateJSONSchemaProperties(topic string) (map[stri
 					}
 
 					// Recursively generate schema information for the nested type.
-					schemaElement, err := msgType.generateJSONSchemaProperties(topic + Sep + field.GoName)
+					schemaElement, err := msgType.generateJSONSchemaProperties(topic + Sep + field.Name)
 					if err != nil {
 						return nil, errors.Wrap(err, "Schema Field:"+field.Name)
 					}
@@ -428,21 +429,21 @@ func (t DynamicMessageType) generateJSONSchemaProperties(topic string) (map[stri
 			// It's a scalar.
 			if field.IsBuiltin {
 				propertyContent := make(map[string]interface{})
-				properties[field.GoName] = propertyContent
-				propertyContent["title"] = topic + Sep + field.GoName
+				properties[field.Name] = propertyContent
+				propertyContent["title"] = topic + Sep + field.Name
 
 				if field.Type == "string" {
 					propertyContent["type"] = "string"
 				} else if field.Type == "time" {
 					timeItems := make(map[string]interface{})
-					timeItems["Sec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "Sec"}
-					timeItems["NSec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "NSec"}
+					timeItems["sec"] = map[string]string{"type": "integer", "title": topic + Sep + field.Name + Sep + "sec"}
+					timeItems["nsec"] = map[string]string{"type": "integer", "title": topic + Sep + field.Name + Sep + "nsec"}
 					propertyContent["type"] = "object"
 					propertyContent["properties"] = timeItems
 				} else if field.Type == "duration" {
 					timeItems := make(map[string]interface{})
-					timeItems["Sec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "Sec"}
-					timeItems["NSec"] = map[string]string{"type": "integer", "title": topic + Sep + field.GoName + Sep + "NSec"}
+					timeItems["sec"] = map[string]string{"type": "integer", "title": topic + Sep + field.Name + Sep + "sec"}
+					timeItems["nsec"] = map[string]string{"type": "integer", "title": topic + Sep + field.Name + Sep + "nsec"}
 					propertyContent["type"] = "object"
 					propertyContent["properties"] = timeItems
 				} else {
@@ -473,11 +474,11 @@ func (t DynamicMessageType) generateJSONSchemaProperties(topic string) (map[stri
 				}
 
 				// Recursively generate schema information for the nested type.
-				schemaElement, err := msgType.generateJSONSchemaProperties(topic + Sep + field.GoName)
+				schemaElement, err := msgType.generateJSONSchemaProperties(topic + Sep + field.Name)
 				if err != nil {
 					return nil, errors.Wrap(err, "Schema Field:"+field.Name)
 				}
-				properties[field.GoName] = schemaElement
+				properties[field.Name] = schemaElement
 			}
 		}
 	}
@@ -521,11 +522,10 @@ func (m DynamicMessage) UnmarshalJSON(buf []byte) error {
 
 	//JSON key is an array
 	arrayHandler = func(key []byte, dataType jsonparser.ValueType, offset int, err error) {
-
 		switch dataType.String() {
 		//We have a string array
 		case "string":
-			m.data[goField.GoName] = append(m.data[goField.GoName].([]string), string(key))
+			m.data[goField.Name] = append(m.data[goField.Name].([]string), string(key))
 		//We have a number or int array.
 		case "number":
 			//We have a float to parse
@@ -544,54 +544,54 @@ func (m DynamicMessage) UnmarshalJSON(buf []byte) error {
 			//Append field to data array
 			switch goField.GoType {
 			case "int8":
-				m.data[goField.GoName] = append(m.data[goField.GoName].([]int8), int8((data.(int64))))
+				m.data[goField.Name] = append(m.data[goField.Name].([]int8), int8((data.(int64))))
 			case "int16":
-				m.data[goField.GoName] = append(m.data[goField.GoName].([]int16), int16((data.(int64))))
+				m.data[goField.Name] = append(m.data[goField.Name].([]int16), int16((data.(int64))))
 			case "int32":
-				m.data[goField.GoName] = append(m.data[goField.GoName].([]int32), int32((data.(int64))))
+				m.data[goField.Name] = append(m.data[goField.Name].([]int32), int32((data.(int64))))
 			case "int64":
-				m.data[goField.GoName] = append(m.data[goField.GoName].([]int64), int64((data.(int64))))
+				m.data[goField.Name] = append(m.data[goField.Name].([]int64), int64((data.(int64))))
 			case "uint8":
-				m.data[goField.GoName] = append(m.data[goField.GoName].([]uint8), uint8((data.(int64))))
+				m.data[goField.Name] = append(m.data[goField.Name].([]uint8), uint8((data.(int64))))
 			case "uint16":
-				m.data[goField.GoName] = append(m.data[goField.GoName].([]uint16), uint16((data.(int64))))
+				m.data[goField.Name] = append(m.data[goField.Name].([]uint16), uint16((data.(int64))))
 			case "uint32":
-				m.data[goField.GoName] = append(m.data[goField.GoName].([]uint32), uint32((data.(int64))))
+				m.data[goField.Name] = append(m.data[goField.Name].([]uint32), uint32((data.(int64))))
 			case "uint64":
-				m.data[goField.GoName] = append(m.data[goField.GoName].([]uint64), uint64((data.(int64))))
+				m.data[goField.Name] = append(m.data[goField.Name].([]uint64), uint64((data.(int64))))
 			case "float32":
-				m.data[goField.GoName] = append(m.data[goField.GoName].([]float32), float32((data.(float64))))
+				m.data[goField.Name] = append(m.data[goField.Name].([]float32), float32((data.(float64))))
 			case "float64":
-				m.data[goField.GoName] = append(m.data[goField.GoName].([]float64), data.(float64))
+				m.data[goField.Name] = append(m.data[goField.Name].([]float64), data.(float64))
 			}
 		//We have a bool array
 		case "boolean":
 			data, err := jsonparser.GetBoolean(buf, string(key))
 			_ = err
-			m.data[goField.GoName] = append(m.data[goField.GoName].([]bool), data)
+			m.data[goField.Name] = append(m.data[goField.Name].([]bool), data)
 		//We have an object array
 		case "object":
 			switch goField.GoType {
 			//We have a time object
 			case "ros.Time":
 				tmpTime := Time{}
-				Sec, err := jsonparser.GetInt(key, "Sec")
-				NSec, err := jsonparser.GetInt(key, "NSec")
+				sec, err := jsonparser.GetInt(key, "sec")
+				nsec, err := jsonparser.GetInt(key, "nsec")
 				if err == nil {
-					tmpTime.Sec = uint32(Sec)
-					tmpTime.NSec = uint32(NSec)
+					tmpTime.Sec = uint32(sec)
+					tmpTime.NSec = uint32(nsec)
 				}
-				m.data[goField.GoName] = append(m.data[goField.GoName].([]Time), tmpTime)
+				m.data[goField.Name] = append(m.data[goField.Name].([]Time), tmpTime)
 			//We have a duration object
 			case "ros.Duration":
 				tmpDuration := Duration{}
-				Sec, err := jsonparser.GetInt(key, "Sec")
-				NSec, err := jsonparser.GetInt(key, "NSec")
+				sec, err := jsonparser.GetInt(key, "sec")
+				nsec, err := jsonparser.GetInt(key, "nsec")
 				if err == nil {
-					tmpDuration.Sec = uint32(Sec)
-					tmpDuration.NSec = uint32(NSec)
+					tmpDuration.Sec = uint32(sec)
+					tmpDuration.NSec = uint32(nsec)
 				}
-				m.data[goField.GoName] = append(m.data[goField.GoName].([]Duration), tmpDuration)
+				m.data[goField.Name] = append(m.data[goField.Name].([]Duration), tmpDuration)
 			//We have a nested message
 			default:
 				newMsgType := goField.GoType
@@ -605,7 +605,7 @@ func (m DynamicMessage) UnmarshalJSON(buf []byte) error {
 				}
 				msg = msgType.NewMessage().(*DynamicMessage)
 				err = msg.UnmarshalJSON(key)
-				m.data[goField.GoName] = append(m.data[goField.GoName].([]Message), msg)
+				m.data[goField.Name] = append(m.data[goField.Name].([]Message), msg)
 				//Store msg type
 				oldMsgType = newMsgType
 				//No error handling in array, see next comment
@@ -625,10 +625,9 @@ func (m DynamicMessage) UnmarshalJSON(buf []byte) error {
 	objectHandler = func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
 		//Store keyName for usage in ArrayEach function
 		keyName = key
-
 		//Find message spec field that matches JSON key
 		for _, field := range m.dynamicType.spec.Fields {
-			if string(key) == field.GoName {
+			if string(key) == field.Name {
 				goField = field
 			}
 		}
@@ -639,9 +638,13 @@ func (m DynamicMessage) UnmarshalJSON(buf []byte) error {
 			case "string":
 				//Special case where we have a byte array encoded as JSON string
 				if goField.GoType == "uint8" {
-					m.data[goField.GoName] = []byte(value)
+					data, err := base64.StdEncoding.DecodeString(string(value))
+					if err != nil {
+						return errors.Wrap(err, "Byte Array Field: "+goField.Name)
+					}
+					m.data[goField.Name] = data
 				} else {
-					m.data[goField.GoName] = string(value)
+					m.data[goField.Name] = string(value)
 				}
 			//We have a JSON number or int
 			case "number":
@@ -661,25 +664,25 @@ func (m DynamicMessage) UnmarshalJSON(buf []byte) error {
 				//Copy number value to message field
 				switch goField.GoType {
 				case "int8":
-					m.data[goField.GoName] = int8(data.(int64))
+					m.data[goField.Name] = int8(data.(int64))
 				case "int16":
-					m.data[goField.GoName] = int16(data.(int64))
+					m.data[goField.Name] = int16(data.(int64))
 				case "int32":
-					m.data[goField.GoName] = int32(data.(int64))
+					m.data[goField.Name] = int32(data.(int64))
 				case "int64":
-					m.data[goField.GoName] = int64(data.(int64))
+					m.data[goField.Name] = int64(data.(int64))
 				case "uint8":
-					m.data[goField.GoName] = uint8(data.(int64))
+					m.data[goField.Name] = uint8(data.(int64))
 				case "uint16":
-					m.data[goField.GoName] = uint16(data.(int64))
+					m.data[goField.Name] = uint16(data.(int64))
 				case "uint32":
-					m.data[goField.GoName] = uint32(data.(int64))
+					m.data[goField.Name] = uint32(data.(int64))
 				case "uint64":
-					m.data[goField.GoName] = uint64(data.(int64))
+					m.data[goField.Name] = uint64(data.(int64))
 				case "float32":
-					m.data[goField.GoName] = float32(data.(float64))
+					m.data[goField.Name] = float32(data.(float64))
 				case "float64":
-					m.data[goField.GoName] = data.(float64)
+					m.data[goField.Name] = data.(float64)
 				}
 			//We have a JSON bool
 			case "boolean":
@@ -687,30 +690,30 @@ func (m DynamicMessage) UnmarshalJSON(buf []byte) error {
 				if err != nil {
 					return errors.Wrap(err, "Field: "+goField.Name)
 				}
-				m.data[goField.GoName] = data
+				m.data[goField.Name] = data
 			//We have a JSON object
 			case "object":
 				switch goField.GoType {
 				//We have a time object
 				case "ros.Time":
 					tmpTime := Time{}
-					Sec, err := jsonparser.GetInt(value, "Sec")
-					NSec, err := jsonparser.GetInt(value, "NSec")
+					sec, err := jsonparser.GetInt(value, "sec")
+					nsec, err := jsonparser.GetInt(value, "nsec")
 					if err == nil {
-						tmpTime.Sec = uint32(Sec)
-						tmpTime.NSec = uint32(NSec)
+						tmpTime.Sec = uint32(sec)
+						tmpTime.NSec = uint32(nsec)
 					}
-					m.data[goField.GoName] = tmpTime
+					m.data[goField.Name] = tmpTime
 				//We have a duration object
 				case "ros.Duration":
 					tmpDuration := Duration{}
-					Sec, err := jsonparser.GetInt(value, "Sec")
-					NSec, err := jsonparser.GetInt(value, "NSec")
+					sec, err := jsonparser.GetInt(value, "sec")
+					nsec, err := jsonparser.GetInt(value, "nsec")
 					if err == nil {
-						tmpDuration.Sec = uint32(Sec)
-						tmpDuration.NSec = uint32(NSec)
+						tmpDuration.Sec = uint32(sec)
+						tmpDuration.NSec = uint32(nsec)
 					}
-					m.data[goField.GoName] = tmpDuration
+					m.data[goField.Name] = tmpDuration
 				default:
 					//We have a nested message
 					msgType, err := newDynamicMessageTypeNested(goField.Type, goField.Package)
@@ -721,43 +724,43 @@ func (m DynamicMessage) UnmarshalJSON(buf []byte) error {
 					if err = msg.UnmarshalJSON(value); err != nil {
 						return errors.Wrap(err, "Field: "+goField.Name)
 					}
-					m.data[goField.GoName] = msg
+					m.data[goField.Name] = msg
 				}
 			//We have a JSON array
 			case "array":
 				//Redeclare message array fields incase they do not exist
 				switch goField.GoType {
 				case "bool":
-					m.data[goField.GoName] = make([]bool, 0)
+					m.data[goField.Name] = make([]bool, 0)
 				case "int8":
-					m.data[goField.GoName] = make([]int8, 0)
+					m.data[goField.Name] = make([]int8, 0)
 				case "int16":
-					m.data[goField.GoName] = make([]int16, 0)
+					m.data[goField.Name] = make([]int16, 0)
 				case "int32":
-					m.data[goField.GoName] = make([]int32, 0)
+					m.data[goField.Name] = make([]int32, 0)
 				case "int64":
-					m.data[goField.GoName] = make([]int64, 0)
+					m.data[goField.Name] = make([]int64, 0)
 				case "uint8":
-					m.data[goField.GoName] = make([]uint8, 0)
+					m.data[goField.Name] = make([]uint8, 0)
 				case "uint16":
-					m.data[goField.GoName] = make([]uint16, 0)
+					m.data[goField.Name] = make([]uint16, 0)
 				case "uint32":
-					m.data[goField.GoName] = make([]uint32, 0)
+					m.data[goField.Name] = make([]uint32, 0)
 				case "uint64":
-					m.data[goField.GoName] = make([]uint64, 0)
+					m.data[goField.Name] = make([]uint64, 0)
 				case "float32":
-					m.data[goField.GoName] = make([]float32, 0)
+					m.data[goField.Name] = make([]float32, 0)
 				case "float64":
-					m.data[goField.GoName] = make([]float64, 0)
+					m.data[goField.Name] = make([]float64, 0)
 				case "string":
-					m.data[goField.GoName] = make([]string, 0)
+					m.data[goField.Name] = make([]string, 0)
 				case "ros.Time":
-					m.data[goField.GoName] = make([]Time, 0)
+					m.data[goField.Name] = make([]Time, 0)
 				case "ros.Duration":
-					m.data[goField.GoName] = make([]Duration, 0)
+					m.data[goField.Name] = make([]Duration, 0)
 				default:
 					//goType is a nested Message array
-					m.data[goField.GoName] = make([]Message, 0)
+					m.data[goField.Name] = make([]Message, 0)
 				}
 				//Parse JSON array
 				jsonparser.ArrayEach(value, arrayHandler)
@@ -787,7 +790,7 @@ func (m DynamicMessage) Serialize(buf *bytes.Buffer) error {
 			// It's an array.
 
 			// Look up the item.
-			array, ok := m.data[field.GoName]
+			array, ok := m.data[field.Name]
 			if !ok {
 				return errors.New("Field: " + field.Name + ": No data found.")
 			}
@@ -992,7 +995,7 @@ func (m DynamicMessage) Serialize(buf *bytes.Buffer) error {
 			// It's a scalar.
 
 			// Look up the item.
-			item, ok := m.data[field.GoName]
+			item, ok := m.data[field.Name]
 			if !ok {
 				return errors.New("Field: " + field.Name + ": No data found.")
 			}
@@ -1208,36 +1211,36 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 			// Create an array of the target type.
 			switch field.GoType {
 			case "bool":
-				tmpData[field.GoName] = make([]bool, 0)
+				tmpData[field.Name] = make([]bool, 0)
 			case "int8":
-				tmpData[field.GoName] = make([]int8, 0)
+				tmpData[field.Name] = make([]int8, 0)
 			case "int16":
-				tmpData[field.GoName] = make([]int16, 0)
+				tmpData[field.Name] = make([]int16, 0)
 			case "int32":
-				tmpData[field.GoName] = make([]int32, 0)
+				tmpData[field.Name] = make([]int32, 0)
 			case "int64":
-				tmpData[field.GoName] = make([]int64, 0)
+				tmpData[field.Name] = make([]int64, 0)
 			case "uint8":
-				tmpData[field.GoName] = make([]uint8, 0)
+				tmpData[field.Name] = make([]uint8, 0)
 			case "uint16":
-				tmpData[field.GoName] = make([]uint16, 0)
+				tmpData[field.Name] = make([]uint16, 0)
 			case "uint32":
-				tmpData[field.GoName] = make([]uint32, 0)
+				tmpData[field.Name] = make([]uint32, 0)
 			case "uint64":
-				tmpData[field.GoName] = make([]uint64, 0)
+				tmpData[field.Name] = make([]uint64, 0)
 			case "float32":
-				tmpData[field.GoName] = make([]float32, 0)
+				tmpData[field.Name] = make([]float32, 0)
 			case "float64":
-				tmpData[field.GoName] = make([]float64, 0)
+				tmpData[field.Name] = make([]float64, 0)
 			case "string":
-				tmpData[field.GoName] = make([]string, 0)
+				tmpData[field.Name] = make([]string, 0)
 			case "ros.Time":
-				tmpData[field.GoName] = make([]Time, 0)
+				tmpData[field.Name] = make([]Time, 0)
 			case "ros.Duration":
-				tmpData[field.GoName] = make([]Duration, 0)
+				tmpData[field.Name] = make([]Duration, 0)
 			default:
 				// In this case, it will probably be because the go_type is describing another ROS message, so we need to replace that with a nested DynamicMessage.
-				tmpData[field.GoName] = make([]Message, 0)
+				tmpData[field.Name] = make([]Message, 0)
 			}
 			// Iterate over each item in the array.
 			for i := 0; i < int(size); i++ {
@@ -1252,7 +1255,7 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 						if err = binary.Read(buf, binary.LittleEndian, &data); err != nil {
 							return errors.Wrap(err, "Field: "+field.Name)
 						}
-						tmpData[field.GoName] = append(tmpData[field.GoName].([]string), string(data))
+						tmpData[field.Name] = append(tmpData[field.Name].([]string), string(data))
 					} else if field.Type == "time" {
 						var data Time
 						// Time/duration types have two fields, so consume into these in two reads.
@@ -1262,7 +1265,7 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 						if err = binary.Read(buf, binary.LittleEndian, &data.NSec); err != nil {
 							return errors.Wrap(err, "Field: "+field.Name)
 						}
-						tmpData[field.GoName] = append(tmpData[field.GoName].([]Time), data)
+						tmpData[field.Name] = append(tmpData[field.Name].([]Time), data)
 					} else if field.Type == "duration" {
 						var data Duration
 						// Time/duration types have two fields, so consume into these in two reads.
@@ -1272,7 +1275,7 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 						if err = binary.Read(buf, binary.LittleEndian, &data.NSec); err != nil {
 							return errors.Wrap(err, "Field: "+field.Name)
 						}
-						tmpData[field.GoName] = append(tmpData[field.GoName].([]Duration), data)
+						tmpData[field.Name] = append(tmpData[field.Name].([]Duration), data)
 					} else {
 						// It's a regular primitive element.
 
@@ -1281,47 +1284,47 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 						case "bool":
 							var data bool
 							binary.Read(buf, binary.LittleEndian, &data)
-							tmpData[field.GoName] = append(tmpData[field.GoName].([]bool), data)
+							tmpData[field.Name] = append(tmpData[field.Name].([]bool), data)
 						case "int8":
 							var data int8
 							binary.Read(buf, binary.LittleEndian, &data)
-							tmpData[field.GoName] = append(tmpData[field.GoName].([]int8), data)
+							tmpData[field.Name] = append(tmpData[field.Name].([]int8), data)
 						case "int16":
 							var data int16
 							binary.Read(buf, binary.LittleEndian, &data)
-							tmpData[field.GoName] = append(tmpData[field.GoName].([]int16), data)
+							tmpData[field.Name] = append(tmpData[field.Name].([]int16), data)
 						case "int32":
 							var data int32
 							binary.Read(buf, binary.LittleEndian, &data)
-							tmpData[field.GoName] = append(tmpData[field.GoName].([]int32), data)
+							tmpData[field.Name] = append(tmpData[field.Name].([]int32), data)
 						case "int64":
 							var data int64
 							binary.Read(buf, binary.LittleEndian, &data)
-							tmpData[field.GoName] = append(tmpData[field.GoName].([]int64), data)
+							tmpData[field.Name] = append(tmpData[field.Name].([]int64), data)
 						case "uint8":
 							var data uint8
 							binary.Read(buf, binary.LittleEndian, &data)
-							tmpData[field.GoName] = append(tmpData[field.GoName].([]uint8), data)
+							tmpData[field.Name] = append(tmpData[field.Name].([]uint8), data)
 						case "uint16":
 							var data uint16
 							binary.Read(buf, binary.LittleEndian, &data)
-							tmpData[field.GoName] = append(tmpData[field.GoName].([]uint16), data)
+							tmpData[field.Name] = append(tmpData[field.Name].([]uint16), data)
 						case "uint32":
 							var data uint32
 							binary.Read(buf, binary.LittleEndian, &data)
-							tmpData[field.GoName] = append(tmpData[field.GoName].([]uint32), data)
+							tmpData[field.Name] = append(tmpData[field.Name].([]uint32), data)
 						case "uint64":
 							var data uint64
 							binary.Read(buf, binary.LittleEndian, &data)
-							tmpData[field.GoName] = append(tmpData[field.GoName].([]uint64), data)
+							tmpData[field.Name] = append(tmpData[field.Name].([]uint64), data)
 						case "float32":
 							var data float32
 							binary.Read(buf, binary.LittleEndian, &data)
-							tmpData[field.GoName] = append(tmpData[field.GoName].([]float32), data)
+							tmpData[field.Name] = append(tmpData[field.Name].([]float32), data)
 						case "float64":
 							var data float64
 							binary.Read(buf, binary.LittleEndian, &data)
-							tmpData[field.GoName] = append(tmpData[field.GoName].([]float64), data)
+							tmpData[field.Name] = append(tmpData[field.Name].([]float64), data)
 						default:
 							// Something went wrong.
 							return errors.New("we haven't implemented this primitive yet")
@@ -1340,7 +1343,7 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 					if err = msg.Deserialize(buf); err != nil {
 						return errors.Wrap(err, "Field: "+field.Name)
 					}
-					tmpData[field.GoName] = append(tmpData[field.GoName].([]Message), msg)
+					tmpData[field.Name] = append(tmpData[field.Name].([]Message), msg)
 				}
 			}
 		} else {
@@ -1357,7 +1360,7 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 					if err = binary.Read(buf, binary.LittleEndian, data); err != nil {
 						return errors.Wrap(err, "Field: "+field.Name)
 					}
-					tmpData[field.GoName] = string(data)
+					tmpData[field.Name] = string(data)
 				} else if field.Type == "time" {
 					var data Time
 					// Time/duration types have two fields, so consume into these in two reads.
@@ -1367,7 +1370,7 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 					if err = binary.Read(buf, binary.LittleEndian, &data.NSec); err != nil {
 						return errors.Wrap(err, "Field: "+field.Name)
 					}
-					tmpData[field.GoName] = data
+					tmpData[field.Name] = data
 				} else if field.Type == "duration" {
 					var data Duration
 					// Time/duration types have two fields, so consume into these in two reads.
@@ -1377,54 +1380,54 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 					if err = binary.Read(buf, binary.LittleEndian, &data.NSec); err != nil {
 						return errors.Wrap(err, "Field: "+field.Name)
 					}
-					tmpData[field.GoName] = data
+					tmpData[field.Name] = data
 				} else {
 					// It's a regular primitive element.
 					switch field.GoType {
 					case "bool":
 						var data bool
 						err = binary.Read(buf, binary.LittleEndian, &data)
-						tmpData[field.GoName] = data
+						tmpData[field.Name] = data
 					case "int8":
 						var data int8
 						err = binary.Read(buf, binary.LittleEndian, &data)
-						tmpData[field.GoName] = data
+						tmpData[field.Name] = data
 					case "int16":
 						var data int16
 						err = binary.Read(buf, binary.LittleEndian, &data)
-						tmpData[field.GoName] = data
+						tmpData[field.Name] = data
 					case "int32":
 						var data int32
 						err = binary.Read(buf, binary.LittleEndian, &data)
-						tmpData[field.GoName] = data
+						tmpData[field.Name] = data
 					case "int64":
 						var data int64
 						err = binary.Read(buf, binary.LittleEndian, &data)
-						tmpData[field.GoName] = data
+						tmpData[field.Name] = data
 					case "uint8":
 						var data uint8
 						err = binary.Read(buf, binary.LittleEndian, &data)
-						tmpData[field.GoName] = data
+						tmpData[field.Name] = data
 					case "uint16":
 						var data uint16
 						err = binary.Read(buf, binary.LittleEndian, &data)
-						tmpData[field.GoName] = data
+						tmpData[field.Name] = data
 					case "uint32":
 						var data uint32
 						err = binary.Read(buf, binary.LittleEndian, &data)
-						tmpData[field.GoName] = data
+						tmpData[field.Name] = data
 					case "uint64":
 						var data uint64
 						err = binary.Read(buf, binary.LittleEndian, &data)
-						tmpData[field.GoName] = data
+						tmpData[field.Name] = data
 					case "float32":
 						var data float32
 						err = binary.Read(buf, binary.LittleEndian, &data)
-						tmpData[field.GoName] = data
+						tmpData[field.Name] = data
 					case "float64":
 						var data float64
 						err = binary.Read(buf, binary.LittleEndian, &data)
-						tmpData[field.GoName] = data
+						tmpData[field.Name] = data
 					default:
 						// Something went wrong.
 						return errors.New("we haven't implemented this primitive yet")
@@ -1439,8 +1442,8 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 				if err != nil {
 					return errors.Wrap(err, "Field: "+field.Name)
 				}
-				tmpData[field.GoName] = msgType.NewMessage()
-				if err = tmpData[field.GoName].(Message).Deserialize(buf); err != nil {
+				tmpData[field.Name] = msgType.NewMessage()
+				if err = tmpData[field.Name].(Message).Deserialize(buf); err != nil {
 					return errors.Wrap(err, "Field: "+field.Name)
 				}
 			}
