@@ -29,19 +29,19 @@ func RTTest(t *testing.T) {
 		return
 	}
 	//Example JSON payload, Marshaled JSON
-	examplePayload := `{"Angular":{"X":1,"Y":2,"Z":3},"Linear":{"X":1,"Y":2,"Z":3}}`
+	examplePayload := `{"angular":{"x":1,"y":2,"z":3},"linear":{"x":1,"y":2,"z":3}}`
 
 	//Declaring example bytes taken from external ROS source
 	rawmsg := "000000000000f03f00000000000000400000000000000840000000000000f03f00000000000000400000000000000840"
 	exampleBytes, err := hex.DecodeString(rawmsg)
 
 	//Example message data
-	exampleMsg := "geometry_msgs/Twist::map[Angular:geometry_msgs/Vector3::map[X:1 Y:2 Z:3] Linear:geometry_msgs/Vector3::map[X:1 Y:2 Z:3]]"
+	exampleMsg := "geometry_msgs/Twist::map[angular:geometry_msgs/Vector3::map[x:1 y:2 z:3] linear:geometry_msgs/Vector3::map[x:1 y:2 z:3]]"
 
 	//Example schema
-	exampleSchema := `{"$id":"/ros/chatty","$schema":"https://json-schema.org/draft-07/schema#","properties":{"X":{"title":"/ros/chatty/X","type":"number"},"Y":{"title":"/ros/chatty/Y","type":"number"},"Z":{"title":"/ros/chatty/Z","type":"number"}},"title":"/ros/chatty","type":"object"}`
+	exampleSchema := `{"$id":"/ros/testy","$schema":"https://json-schema.org/draft-07/schema#","properties":{"x":{"title":"/ros/testy/x","type":"number"},"y":{"title":"/ros/testy/y","type":"number"},"z":{"title":"/ros/testy/z","type":"number"}},"title":"/ros/testy","type":"object"}`
 	//Generating a schema for geometry_msgs/Vector3 on topic chatty
-	schema, err := nestedMsgType.GenerateJSONSchema("/ros/", "chatty")
+	schema, err := nestedMsgType.GenerateJSONSchema("/ros/", "testy")
 	if err != nil {
 		t.Error("failed to get generate JSON schema; ", err)
 		return
@@ -58,11 +58,11 @@ func RTTest(t *testing.T) {
 	//Declaring some sample data for serialization
 	d := dynamicMsg.Data()
 	d2 := nestedDynamicMsg.Data()
-	d2["X"] = float64(1)
-	d2["Y"] = float64(2)
-	d2["Z"] = float64(3)
-	d["Angular"] = nestedDynamicMsg
-	d["Linear"] = nestedDynamicMsg
+	d2["x"] = float64(1)
+	d2["y"] = float64(2)
+	d2["z"] = float64(3)
+	d["angular"] = nestedDynamicMsg
+	d["linear"] = nestedDynamicMsg
 
 	//Using UnmasharlJSON method on a set of example bytes to compare with example Message
 	err = dynamicBlankMsg.UnmarshalJSON([]byte(examplePayload))
