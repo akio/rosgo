@@ -8,8 +8,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/edwinhayes/rosgo/libtest/libtest_bytes"
+	"github.com/edwinhayes/rosgo/libtest/libtest_dynamic_message"
+	"github.com/edwinhayes/rosgo/libtest/libtest_param"
+	"github.com/edwinhayes/rosgo/libtest/libtest_publish_subscribe"
+	"github.com/edwinhayes/rosgo/libtest/libtest_service"
 	"github.com/edwinhayes/rosgo/ros"
-	"github.com/edwinhayes/rosgo/libtest/libtest_talker"
 	"os"
 	"os/signal"
 	"strconv"
@@ -123,15 +127,41 @@ func poll_for_topics(node ros.Node, quit <-chan bool) {
 	// Not all done, since defer?
 }
 
-func main() {
-	// Run diagnostic tests.
-	t := new (testing.T)
-	libtest_talker.RTTest(t)
+//TODO : Refactor the calling of tests
+func diagnosticTests() {
+	t := new(testing.T)
+
+	libtest_bytes.RTTest(t)
 	if t.Failed() {
-		fmt.Println("rosgo self-test failed.")
+		fmt.Println("rosgo bytes self-test failed")
 		os.Exit(-2)
 	}
+	libtest_publish_subscribe.RTTest(t)
+	if t.Failed() {
+		fmt.Println("rosgo publish_subscribe self-test failed")
+		os.Exit(-2)
+	}
+	libtest_dynamic_message.RTTest(t)
+	if t.Failed() {
+		fmt.Println("rosgo dynamic_message self-test failed")
+		os.Exit(-2)
+	}
+	libtest_service.RTTest(t)
+	if t.Failed() {
+		fmt.Println("rosgo service self-test failed")
+		os.Exit(-2)
+	}
+	libtest_param.RTTest(t)
+	if t.Failed() {
+		fmt.Println("rosgo param self-test failed")
+		os.Exit(-2)
+	}
+	fmt.Println("Diagnostic Tests Passed")
+}
 
+func main() {
+	// Run diagnostic tests.
+	diagnosticTests()
 	// Create our node.
 	node_name := "thinger_" + strconv.Itoa(os.Getpid())
 	node, err := ros.NewNode(node_name, os.Args)

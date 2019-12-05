@@ -1,4 +1,4 @@
-package libtest_talker
+package libtest_service
 
 import (
 	"testing"
@@ -6,10 +6,6 @@ import (
 
 func Test(t *testing.T) {
 	RTTest(t)
-}
-
-func Other(t *testing.T) {
-	return
 }
 
 // ALL DONE.
