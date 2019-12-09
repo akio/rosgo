@@ -187,13 +187,14 @@ func newDefaultNode(name string, args []string) (*defaultNode, error) {
 
 	listener, err := listenRandomPort(node.listenIP, 10)
 	if err != nil {
-		logger.Fatal(err)
+		logger.Error(err)
 		return nil, err
 	}
 	_, port, err := net.SplitHostPort(listener.Addr().String())
 	if err != nil {
 		// Not reached
-		panic(err)
+		logger.Error(err)
+		return nil, err
 	}
 	node.xmlrpcURI = fmt.Sprintf("http://%s:%s", node.hostname, port)
 	logger.Debugf("listen on http://%s", listener.Addr().String())
@@ -348,12 +349,12 @@ func (node *defaultNode) requestTopic(callerID string, topic string, protocols [
 	return buildRosAPIResult(code, message, value), nil
 }
 
-func (node *defaultNode) NewPublisher(topic string, msgType MessageType) Publisher {
+func (node *defaultNode) NewPublisher(topic string, msgType MessageType) (Publisher, error) {
 	name := node.nameResolver.remap(topic)
 	return node.NewPublisherWithCallbacks(name, msgType, nil, nil)
 }
 
-func (node *defaultNode) NewPublisherWithCallbacks(topic string, msgType MessageType, connectCallback, disconnectCallback func(SingleSubscriberPublisher)) Publisher {
+func (node *defaultNode) NewPublisherWithCallbacks(topic string, msgType MessageType, connectCallback, disconnectCallback func(SingleSubscriberPublisher)) (Publisher, error) {
 	name := node.nameResolver.remap(topic)
 	pub, ok := node.publishers.Load(topic)
 	logger := node.logger
@@ -363,30 +364,32 @@ func (node *defaultNode) NewPublisherWithCallbacks(topic string, msgType Message
 			name, msgType.Name(),
 			node.xmlrpcURI)
 		if err != nil {
-			logger.Fatalf("Failed to call registerPublisher(): %s", err)
+			logger.Errorf("Failed to call registerPublisher(): %s", err)
+			return nil, err
 		}
 
 		pub = newDefaultPublisher(node, name, msgType, connectCallback, disconnectCallback)
 		node.publishers.Store(name, pub)
 		go pub.(*defaultPublisher).start(&node.waitGroup)
 	}
-	return pub.(*defaultPublisher)
+	return pub.(*defaultPublisher), nil
 }
 
-func (node *defaultNode) GetPublishedTopics(subgraph string) []interface{} {
+func (node *defaultNode) GetPublishedTopics(subgraph string) ([]interface{}, error) {
 	node.logger.Debug("Call Master API getPublishedTopics")
 	result, err := callRosAPI(node.masterURI, "getPublishedTopics",
 		node.qualifiedName,
 		subgraph)
 	if err != nil {
-		node.logger.Fatalf("Failed to call getPublishedTopics() for %s.", err)
+		node.logger.Errorf("Failed to call getPublishedTopics() for %s.", err)
+		return nil, err
 	}
 	list, ok := result.([]interface{})
 	if !ok {
-		node.logger.Fatalf("result is not []string but %s.", reflect.TypeOf(result).String())
+		node.logger.Errorf("result is not []string but %s.", reflect.TypeOf(result).String())
 	}
 	node.logger.Debug("Result: ", list)
-	return list
+	return list, nil
 }
 
 func (node *defaultNode) GetTopicTypes() []interface{} {
@@ -394,11 +397,11 @@ func (node *defaultNode) GetTopicTypes() []interface{} {
 	result, err := callRosAPI(node.masterURI, "getTopicTypes",
 		node.qualifiedName)
 	if err != nil {
-		node.logger.Fatalf("Failed to call getTopicTypes() for %s.", err)
+		node.logger.Errorf("Failed to call getTopicTypes() for %s.", err)
 	}
 	list, ok := result.([]interface{})
 	if !ok {
-		node.logger.Fatalf("result is not []string but %s.", reflect.TypeOf(result).String())
+		node.logger.Errorf("result is not []string but %s.", reflect.TypeOf(result).String())
 	}
 	node.logger.Debug("Result: ", list)
 	return list
@@ -413,7 +416,7 @@ func (node *defaultNode) RemoveSubscriber(topic string) {
 	}
 }
 
-func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callback interface{}) Subscriber {
+func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callback interface{}) (Subscriber, error) {
 	name := node.nameResolver.remap(topic)
 	sub, ok := node.subscribers[name]
 	logger := node.logger
@@ -425,17 +428,18 @@ func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callba
 			msgType.Name(),
 			node.xmlrpcURI)
 		if err != nil {
-			logger.Fatalf("Failed to call registerSubscriber() for %s.", err)
+			logger.Errorf("Failed to call registerSubscriber() for %s.", err)
+			return nil, err
 		}
 		list, ok := result.([]interface{})
 		if !ok {
-			logger.Fatalf("result is not []string but %s.", reflect.TypeOf(result).String())
+			logger.Errorf("result is not []string but %s.", reflect.TypeOf(result).String())
 		}
 		var publishers []string
 		for _, item := range list {
 			s, ok := item.(string)
 			if !ok {
-				logger.Fatal("Publisher list contains no string object")
+				logger.Error("Publisher list contains no string object")
 			}
 			publishers = append(publishers, s)
 		}
@@ -453,7 +457,7 @@ func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callba
 	} else {
 		sub.callbacks = append(sub.callbacks, callback)
 	}
-	return sub
+	return sub, nil
 }
 
 func (node *defaultNode) NewServiceClient(service string, srvType ServiceType) ServiceClient {

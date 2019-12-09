@@ -56,16 +56,16 @@ func RTTest(t *testing.T) {
 
 		// Try to publish a message.
 		if subscription == 1 {
-			pub := node.NewPublisherWithCallbacks("rosgomessage", std_msgs.MsgString, onConnect, onDisconnect)
-			if pub == nil {
-				t.Error("NewPublisher failed; ", pub)
+			pub, err := node.NewPublisherWithCallbacks("rosgomessage", std_msgs.MsgString, onConnect, onDisconnect)
+			if err != nil {
+				t.Error("NewPublisher failed; ", pub, err)
 				return
 			}
 		} else {
 			m.Data = "Second Subscriber"
-			pub := node.NewPublisher("rosgomessage", std_msgs.MsgString)
-			if pub == nil {
-				t.Error("NewPublisher failed; ", pub)
+			pub, err := node.NewPublisher("rosgomessage", std_msgs.MsgString)
+			if err != nil {
+				t.Error("NewPublisher failed; ", pub, err)
 				return
 			}
 			pub.Publish(&m)

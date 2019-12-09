@@ -40,8 +40,8 @@ func RTTest(t *testing.T) {
 	d["Data"] = "hello"
 
 	//Make a publisher and subscriber
-	pub := node.NewPublisher("/chatter", dynamicMsg.Type())
-	if pub == nil {
+	pub, err := node.NewPublisher("/chatter", dynamicMsg.Type())
+	if err != nil {
 		t.Error("Failed to make publisher with dynamic message type")
 	}
 	node.NewSubscriber("/chatter", msgType, callback)

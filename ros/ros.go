@@ -6,14 +6,14 @@ import (
 
 //Node interface which contains functions of a ROS Node
 type Node interface {
-	NewPublisher(topic string, msgType MessageType) Publisher
+	NewPublisher(topic string, msgType MessageType) (Publisher, error)
 	// Create a publisher which gives you callbacks when subscribers
 	// connect and disconnect.  The callbacks are called in their own
 	// goroutines, so they don't need to return immediately to let the
 	// connection proceed.
 	NewPublisherWithCallbacks(topic string,
 		msgType MessageType,
-		connectCallback, disconnectCallback func(SingleSubscriberPublisher)) Publisher
+		connectCallback, disconnectCallback func(SingleSubscriberPublisher)) (Publisher, error)
 	// callback should be a function which takes 0, 1, or 2 arguments.
 	// If it takes 0 arguments, it will simply be called without the
 	// message.  1-argument functions are the normal case, and the
@@ -21,7 +21,7 @@ type Node interface {
 	// function takes 2 arguments, the first argument should be of the
 	// generated message type and the second argument should be of
 	// type MessageEvent.
-	NewSubscriber(topic string, msgType MessageType, callback interface{}) Subscriber
+	NewSubscriber(topic string, msgType MessageType, callback interface{}) (Subscriber, error)
 	NewServiceClient(service string, srvType ServiceType) ServiceClient
 	NewServiceServer(service string, srvType ServiceType, callback interface{}) ServiceServer
 
@@ -40,7 +40,7 @@ type Node interface {
 	SearchParam(name string) (string, error)
 	DeleteParam(name string) error
 
-	GetPublishedTopics(subgraph string) []interface{}
+	GetPublishedTopics(subgraph string) ([]interface{}, error)
 	GetTopicTypes() []interface{}
 
 	Logger() Logger
