@@ -69,7 +69,7 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeID string, nodeAPIUR
 				protocols := []interface{}{[]interface{}{"TCPROS"}}
 				result, err := callRosAPI(pub, "requestTopic", nodeID, sub.topic, protocols)
 				if err != nil {
-					logger.Fatal(sub.topic, " : ", err)
+					logger.Error(sub.topic, " : ", err)
 					continue
 				}
 				protocolParams := result.([]interface{})

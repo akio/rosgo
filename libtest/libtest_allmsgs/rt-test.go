@@ -43,8 +43,8 @@ func RTTest(t *testing.T) {
 			dynamicMsg := msgType.NewMessage().(*ros.DynamicMessage)
 			//Create a new publisher based on message name
 			pubName := fmt.Sprintf("/shakedown/%s", message)
-			pub := node.NewPublisher(pubName, dynamicMsg.Type())
-			if pub == nil {
+			pub, err := node.NewPublisher(pubName, dynamicMsg.Type())
+			if err != nil {
 				t.Error("failed to create publisher; ", err)
 				return
 			}
