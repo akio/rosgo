@@ -3,7 +3,6 @@ package ros
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/edwinhayes/rosgo/xmlrpc"
 	"math/rand"
 	"net"
 	"net/http"
@@ -15,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/edwinhayes/rosgo/xmlrpc"
 )
 
 const (
@@ -26,6 +27,8 @@ const (
 	APIStatusSuccess = 1
 	//Remap string constant for splitting components
 	Remap = ":="
+	//Default setting for OS interrupts
+	defaultInterrupts = true
 )
 
 func processArguments(args []string) (NameMap, NameMap, NameMap, []string) {
@@ -55,28 +58,29 @@ func processArguments(args []string) (NameMap, NameMap, NameMap, []string) {
 // *defaultNode implements Node interface
 // a defaultNode instance must be accessed in user goroutine.
 type defaultNode struct {
-	name           string
-	namespace      string
-	qualifiedName  string
-	masterURI      string
-	xmlrpcURI      string
-	xmlrpcListener net.Listener
-	xmlrpcHandler  *xmlrpc.Handler
-	subscribers    map[string]*defaultSubscriber
-	publishers     sync.Map
-	servers        map[string]*defaultServiceServer
-	jobChan        chan func()
-	interruptChan  chan os.Signal
-	logger         Logger
-	ok             bool
-	okMutex        sync.RWMutex
-	waitGroup      sync.WaitGroup
-	logDir         string
-	hostname       string
-	listenIP       string
-	homeDir        string
-	nameResolver   *NameResolver
-	nonRosArgs     []string
+	name             string
+	namespace        string
+	qualifiedName    string
+	masterURI        string
+	xmlrpcURI        string
+	xmlrpcListener   net.Listener
+	xmlrpcHandler    *xmlrpc.Handler
+	subscribers      map[string]*defaultSubscriber
+	publishers       sync.Map
+	servers          map[string]*defaultServiceServer
+	jobChan          chan func()
+	interruptChan    chan os.Signal
+	enableInterrupts bool
+	logger           Logger
+	ok               bool
+	okMutex          sync.RWMutex
+	waitGroup        sync.WaitGroup
+	logDir           string
+	hostname         string
+	listenIP         string
+	homeDir          string
+	nameResolver     *NameResolver
+	nonRosArgs       []string
 }
 
 func listenRandomPort(address string, trialLimit int) (net.Listener, error) {
@@ -123,6 +127,14 @@ func newDefaultNode(name string, args []string) (*defaultNode, error) {
 	if value, ok := specials["__ns"]; ok {
 		node.namespace = value
 	}
+	if value, ok := specials["__si"]; ok {
+		val, err := strconv.ParseBool(value)
+		if err != nil {
+			node.enableInterrupts = val
+		}
+	} else {
+		node.enableInterrupts = defaultInterrupts
+	}
 	node.logDir = filepath.Join(node.homeDir, "log")
 	if logDir := os.Getenv("ROS_LOG_DIR"); len(logDir) > 0 {
 		node.logDir = logDir
@@ -164,15 +176,16 @@ func newDefaultNode(name string, args []string) (*defaultNode, error) {
 	node.logger = logger
 
 	// Install signal handler
-	signal.Notify(node.interruptChan, os.Interrupt)
-	go func() {
-		<-node.interruptChan
-		logger.Info("Interrupted")
-		node.okMutex.Lock()
-		node.ok = false
-		node.okMutex.Unlock()
-	}()
-
+	if node.enableInterrupts == true {
+		signal.Notify(node.interruptChan, os.Interrupt)
+		go func() {
+			<-node.interruptChan
+			logger.Info("Interrupted")
+			node.okMutex.Lock()
+			node.ok = false
+			node.okMutex.Unlock()
+		}()
+	}
 	node.jobChan = make(chan func(), 100)
 
 	logger.Debugf("Master URI = %s", node.masterURI)
