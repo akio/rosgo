@@ -470,10 +470,7 @@ func (m *DynamicMessage) UnmarshalJSON(buf []byte) error {
 				fieldExists = true
 			}
 		}
-		if fieldExists == false {
-			return errors.New("Field Unknown: " + string(key))
-		}
-		if err == nil {
+		if fieldExists == true {
 			//Scalars First
 			switch dataType.String() {
 			//We have a JSON string
@@ -610,6 +607,8 @@ func (m *DynamicMessage) UnmarshalJSON(buf []byte) error {
 				//We do nothing here as blank fields may return value type NotExist or Null
 				err = errors.Wrap(err, "Null field: "+string(key))
 			}
+		} else {
+			return errors.New("Field Unknown: " + string(key))
 		}
 		return err
 	}
