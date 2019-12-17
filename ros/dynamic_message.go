@@ -351,6 +351,7 @@ func (m *DynamicMessage) UnmarshalJSON(buf []byte) error {
 	var msg *DynamicMessage
 	var msgType *DynamicMessageType
 	var data interface{}
+	var fieldExists bool
 
 	//Declaring jsonparser unmarshalling functions
 	var arrayHandler func([]byte, jsonparser.ValueType, int, error)
@@ -461,13 +462,15 @@ func (m *DynamicMessage) UnmarshalJSON(buf []byte) error {
 	objectHandler = func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
 		//Store keyName for usage in ArrayEach function
 		keyName = key
+		fieldExists = false
 		//Find message spec field that matches JSON key
 		for _, field := range m.dynamicType.spec.Fields {
 			if string(key) == field.Name {
 				goField = field
+				fieldExists = true
 			}
 		}
-		if err == nil {
+		if fieldExists == true {
 			//Scalars First
 			switch dataType.String() {
 			//We have a JSON string
@@ -602,14 +605,15 @@ func (m *DynamicMessage) UnmarshalJSON(buf []byte) error {
 				jsonparser.ArrayEach(value, arrayHandler)
 			default:
 				//We do nothing here as blank fields may return value type NotExist or Null
-				errors.New("Null field found")
+				err = errors.Wrap(err, "Null field: "+string(key))
 			}
+		} else {
+			return errors.New("Field Unknown: " + string(key))
 		}
 		return err
 	}
 	//Perform JSON object handler function
-	jsonparser.ObjectEach(buf, objectHandler)
-
+	err = jsonparser.ObjectEach(buf, objectHandler)
 	return err
 }
 
@@ -703,7 +707,7 @@ func (m *DynamicMessage) Serialize(buf *bytes.Buffer) error {
 								return errors.Wrap(err, "Field: "+field.Name)
 							}
 						case "int8":
-							// Make sure we've actually got a bool.
+							// Make sure we've actually got an int8.
 							v, ok := arrayItem.(int8)
 							if !ok {
 								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(arrayItem).Name() + ", expected int8.")
@@ -713,7 +717,7 @@ func (m *DynamicMessage) Serialize(buf *bytes.Buffer) error {
 								return errors.Wrap(err, "Field: "+field.Name)
 							}
 						case "int16":
-							// Make sure we've actually got a bool.
+							// Make sure we've actually got an int16.
 							v, ok := arrayItem.(int16)
 							if !ok {
 								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(arrayItem).Name() + ", expected int16.")
@@ -723,7 +727,7 @@ func (m *DynamicMessage) Serialize(buf *bytes.Buffer) error {
 								return errors.Wrap(err, "Field: "+field.Name)
 							}
 						case "int32":
-							// Make sure we've actually got a bool.
+							// Make sure we've actually got an int32.
 							v, ok := arrayItem.(int32)
 							if !ok {
 								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(arrayItem).Name() + ", expected int32.")
@@ -733,7 +737,7 @@ func (m *DynamicMessage) Serialize(buf *bytes.Buffer) error {
 								return errors.Wrap(err, "Field: "+field.Name)
 							}
 						case "int64":
-							// Make sure we've actually got a bool.
+							// Make sure we've actually got an int64.
 							v, ok := arrayItem.(int64)
 							if !ok {
 								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(arrayItem).Name() + ", expected int64.")
@@ -743,7 +747,7 @@ func (m *DynamicMessage) Serialize(buf *bytes.Buffer) error {
 								return errors.Wrap(err, "Field: "+field.Name)
 							}
 						case "uint8":
-							// Make sure we've actually got a bool.
+							// Make sure we've actually got a uint8.
 							v, ok := arrayItem.(uint8)
 							if !ok {
 								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(arrayItem).Name() + ", expected uint8.")
@@ -753,7 +757,7 @@ func (m *DynamicMessage) Serialize(buf *bytes.Buffer) error {
 								return errors.Wrap(err, "Field: "+field.Name)
 							}
 						case "uint16":
-							// Make sure we've actually got a bool.
+							// Make sure we've actually got a uint16.
 							v, ok := arrayItem.(uint16)
 							if !ok {
 								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(arrayItem).Name() + ", expected uint16.")
@@ -763,7 +767,7 @@ func (m *DynamicMessage) Serialize(buf *bytes.Buffer) error {
 								return errors.Wrap(err, "Field: "+field.Name)
 							}
 						case "uint32":
-							// Make sure we've actually got a bool.
+							// Make sure we've actually got a uint32.
 							v, ok := arrayItem.(uint32)
 							if !ok {
 								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(arrayItem).Name() + ", expected uint32.")
@@ -773,7 +777,7 @@ func (m *DynamicMessage) Serialize(buf *bytes.Buffer) error {
 								return errors.Wrap(err, "Field: "+field.Name)
 							}
 						case "uint64":
-							// Make sure we've actually got a bool.
+							// Make sure we've actually got a uint64.
 							v, ok := arrayItem.(uint64)
 							if !ok {
 								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(arrayItem).Name() + ", expected uint64.")
@@ -783,7 +787,7 @@ func (m *DynamicMessage) Serialize(buf *bytes.Buffer) error {
 								return errors.Wrap(err, "Field: "+field.Name)
 							}
 						case "float32":
-							// Make sure we've actually got a bool.
+							// Make sure we've actually got a float32.
 							v, ok := arrayItem.(float32)
 							if !ok {
 								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(arrayItem).Name() + ", expected float32.")
@@ -793,7 +797,7 @@ func (m *DynamicMessage) Serialize(buf *bytes.Buffer) error {
 								return errors.Wrap(err, "Field: "+field.Name)
 							}
 						case "float64":
-							// Make sure we've actually got a bool.
+							// Make sure we've actually got a float64.
 							v, ok := arrayItem.(float64)
 							if !ok {
 								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(arrayItem).Name() + ", expected float64.")
@@ -892,7 +896,7 @@ func (m *DynamicMessage) Serialize(buf *bytes.Buffer) error {
 							return errors.Wrap(err, "Field: "+field.Name)
 						}
 					case "int8":
-						// Make sure we've actually got a bool.
+						// Make sure we've actually got an int8.
 						v, ok := item.(int8)
 						if !ok {
 							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected int8.")
@@ -902,7 +906,7 @@ func (m *DynamicMessage) Serialize(buf *bytes.Buffer) error {
 							return errors.Wrap(err, "Field: "+field.Name)
 						}
 					case "int16":
-						// Make sure we've actually got a bool.
+						// Make sure we've actually got an int16.
 						v, ok := item.(int16)
 						if !ok {
 							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected int16.")
@@ -912,7 +916,7 @@ func (m *DynamicMessage) Serialize(buf *bytes.Buffer) error {
 							return errors.Wrap(err, "Field: "+field.Name)
 						}
 					case "int32":
-						// Make sure we've actually got a bool.
+						// Make sure we've actually got an int32.
 						v, ok := item.(int32)
 						if !ok {
 							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected int32.")
@@ -922,7 +926,7 @@ func (m *DynamicMessage) Serialize(buf *bytes.Buffer) error {
 							return errors.Wrap(err, "Field: "+field.Name)
 						}
 					case "int64":
-						// Make sure we've actually got a bool.
+						// Make sure we've actually got an int64.
 						v, ok := item.(int64)
 						if !ok {
 							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected int64.")
@@ -932,7 +936,7 @@ func (m *DynamicMessage) Serialize(buf *bytes.Buffer) error {
 							return errors.Wrap(err, "Field: "+field.Name)
 						}
 					case "uint8":
-						// Make sure we've actually got a bool.
+						// Make sure we've actually got a uint8.
 						v, ok := item.(uint8)
 						if !ok {
 							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected uint8.")
@@ -942,7 +946,7 @@ func (m *DynamicMessage) Serialize(buf *bytes.Buffer) error {
 							return errors.Wrap(err, "Field: "+field.Name)
 						}
 					case "uint16":
-						// Make sure we've actually got a bool.
+						// Make sure we've actually got a uint16.
 						v, ok := item.(uint16)
 						if !ok {
 							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected uint16.")
@@ -952,7 +956,7 @@ func (m *DynamicMessage) Serialize(buf *bytes.Buffer) error {
 							return errors.Wrap(err, "Field: "+field.Name)
 						}
 					case "uint32":
-						// Make sure we've actually got a bool.
+						// Make sure we've actually got a uint32.
 						v, ok := item.(uint32)
 						if !ok {
 							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected uint32.")
@@ -962,7 +966,7 @@ func (m *DynamicMessage) Serialize(buf *bytes.Buffer) error {
 							return errors.Wrap(err, "Field: "+field.Name)
 						}
 					case "uint64":
-						// Make sure we've actually got a bool.
+						// Make sure we've actually got a uint64.
 						v, ok := item.(uint64)
 						if !ok {
 							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected uint64.")
@@ -972,7 +976,7 @@ func (m *DynamicMessage) Serialize(buf *bytes.Buffer) error {
 							return errors.Wrap(err, "Field: "+field.Name)
 						}
 					case "float32":
-						// Make sure we've actually got a bool.
+						// Make sure we've actually got a float32.
 						v, ok := item.(float32)
 						if !ok {
 							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected float32.")
@@ -982,7 +986,7 @@ func (m *DynamicMessage) Serialize(buf *bytes.Buffer) error {
 							return errors.Wrap(err, "Field: "+field.Name)
 						}
 					case "float64":
-						// Make sure we've actually got a bool.
+						// Make sure we've actually got a float64.
 						v, ok := item.(float64)
 						if !ok {
 							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected float64.")

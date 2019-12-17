@@ -244,6 +244,25 @@ func startRemotePublisherConn(logger Logger,
 	}
 }
 
+func setDifference(lhs []string, rhs []string) []string {
+	left := map[string]bool{}
+	for _, item := range lhs {
+		left[item] = true
+	}
+	right := map[string]bool{}
+	for _, item := range rhs {
+		right[item] = true
+	}
+	for k := range right {
+		delete(left, k)
+	}
+	var result []string
+	for k := range left {
+		result = append(result, k)
+	}
+	return result
+}
+
 func (sub *defaultSubscriber) Shutdown() {
 	sub.shutdownChan <- struct{}{}
 }
