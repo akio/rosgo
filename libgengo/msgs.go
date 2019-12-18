@@ -217,12 +217,14 @@ func ToGoName(name string) string {
 	var buffer []string
 	words := strings.Split(name, "_")
 	for _, word := range words {
-		head := strings.ToUpper(word[:1])
-		tail := ""
-		if len(word) > 1 {
-			tail = word[1:]
+		if len(word) > 0 {
+			head := strings.ToUpper(word[:1])
+			tail := ""
+			if len(word) > 1 {
+				tail = word[1:]
+			}
+			buffer = append(append(buffer, head), tail)
 		}
-		buffer = append(append(buffer, head), tail)
 	}
 	return strings.Join(buffer, "")
 }
