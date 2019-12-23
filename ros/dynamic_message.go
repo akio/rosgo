@@ -397,9 +397,9 @@ func (m *DynamicMessage) UnmarshalJSON(buf []byte) error {
 			case "uint64":
 				m.data[goField.Name] = append(m.data[goField.Name].([]uint64), uint64((data.(int64))))
 			case "float32":
-				m.data[goField.Name] = append(m.data[goField.Name].([]float32), float32((data.(float64))))
+				m.data[goField.Name] = append(m.data[goField.Name].([]JsonFloat32), JsonFloat32{F: float32((data.(float64)))})
 			case "float64":
-				m.data[goField.Name] = append(m.data[goField.Name].([]float64), data.(float64))
+				m.data[goField.Name] = append(m.data[goField.Name].([]JsonFloat64), JsonFloat64{F: data.(float64)})
 			}
 		//We have a bool array
 		case "boolean":
@@ -519,9 +519,9 @@ func (m *DynamicMessage) UnmarshalJSON(buf []byte) error {
 				case "uint64":
 					m.data[goField.Name] = uint64(data.(int64))
 				case "float32":
-					m.data[goField.Name] = float32(data.(float64))
+					m.data[goField.Name] = JsonFloat32{F: float32(data.(float64))}
 				case "float64":
-					m.data[goField.Name] = data.(float64)
+					m.data[goField.Name] = JsonFloat64{F: data.(float64)}
 				}
 			//We have a JSON bool
 			case "boolean":
@@ -588,9 +588,9 @@ func (m *DynamicMessage) UnmarshalJSON(buf []byte) error {
 				case "uint64":
 					m.data[goField.Name] = make([]uint64, 0)
 				case "float32":
-					m.data[goField.Name] = make([]float32, 0)
+					m.data[goField.Name] = make([]JsonFloat32, 0)
 				case "float64":
-					m.data[goField.Name] = make([]float64, 0)
+					m.data[goField.Name] = make([]JsonFloat64, 0)
 				case "string":
 					m.data[goField.Name] = make([]string, 0)
 				case "ros.Time":
@@ -788,22 +788,22 @@ func (m *DynamicMessage) Serialize(buf *bytes.Buffer) error {
 							}
 						case "float32":
 							// Make sure we've actually got a float32.
-							v, ok := arrayItem.(float32)
+							v, ok := arrayItem.(JsonFloat32)
 							if !ok {
-								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(arrayItem).Name() + ", expected float32.")
+								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(arrayItem).Name() + ", expected JsonFloat32.")
 							}
 							// Then write out the value.
-							if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+							if err := binary.Write(buf, binary.LittleEndian, v.F); err != nil {
 								return errors.Wrap(err, "Field: "+field.Name)
 							}
 						case "float64":
 							// Make sure we've actually got a float64.
-							v, ok := arrayItem.(float64)
+							v, ok := arrayItem.(JsonFloat64)
 							if !ok {
-								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(arrayItem).Name() + ", expected float64.")
+								return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(arrayItem).Name() + ", expected JsonFloat64.")
 							}
 							// Then write out the value.
-							if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+							if err := binary.Write(buf, binary.LittleEndian, v.F); err != nil {
 								return errors.Wrap(err, "Field: "+field.Name)
 							}
 						default:
@@ -977,22 +977,22 @@ func (m *DynamicMessage) Serialize(buf *bytes.Buffer) error {
 						}
 					case "float32":
 						// Make sure we've actually got a float32.
-						v, ok := item.(float32)
+						v, ok := item.(JsonFloat32)
 						if !ok {
-							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected float32.")
+							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected JsonFloat32.")
 						}
 						// Then write out the value.
-						if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+						if err := binary.Write(buf, binary.LittleEndian, v.F); err != nil {
 							return errors.Wrap(err, "Field: "+field.Name)
 						}
 					case "float64":
 						// Make sure we've actually got a float64.
-						v, ok := item.(float64)
+						v, ok := item.(JsonFloat64)
 						if !ok {
-							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected float64.")
+							return errors.New("Field: " + field.Name + ": Found " + reflect.TypeOf(item).Name() + ", expected JsonFloat64.")
 						}
 						// Then write out the value.
-						if err := binary.Write(buf, binary.LittleEndian, v); err != nil {
+						if err := binary.Write(buf, binary.LittleEndian, v.F); err != nil {
 							return errors.Wrap(err, "Field: "+field.Name)
 						}
 					default:
@@ -1067,9 +1067,9 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 			case "uint64":
 				tmpData[field.Name] = make([]uint64, 0)
 			case "float32":
-				tmpData[field.Name] = make([]float32, 0)
+				tmpData[field.Name] = make([]JsonFloat32, 0)
 			case "float64":
-				tmpData[field.Name] = make([]float64, 0)
+				tmpData[field.Name] = make([]JsonFloat64, 0)
 			case "string":
 				tmpData[field.Name] = make([]string, 0)
 			case "ros.Time":
@@ -1158,11 +1158,11 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 						case "float32":
 							var data float32
 							binary.Read(buf, binary.LittleEndian, &data)
-							tmpData[field.Name] = append(tmpData[field.Name].([]float32), data)
+							tmpData[field.Name] = append(tmpData[field.Name].([]JsonFloat32), JsonFloat32{F: data})
 						case "float64":
 							var data float64
 							binary.Read(buf, binary.LittleEndian, &data)
-							tmpData[field.Name] = append(tmpData[field.Name].([]float64), data)
+							tmpData[field.Name] = append(tmpData[field.Name].([]JsonFloat64), JsonFloat64{F: data})
 						default:
 							// Something went wrong.
 							return errors.New("we haven't implemented this primitive yet")
@@ -1261,11 +1261,11 @@ func (m *DynamicMessage) Deserialize(buf *bytes.Reader) error {
 					case "float32":
 						var data float32
 						err = binary.Read(buf, binary.LittleEndian, &data)
-						tmpData[field.Name] = data
+						tmpData[field.Name] = JsonFloat32{F: data}
 					case "float64":
 						var data float64
 						err = binary.Read(buf, binary.LittleEndian, &data)
-						tmpData[field.Name] = data
+						tmpData[field.Name] = JsonFloat64{F: data}
 					default:
 						// Something went wrong.
 						return errors.New("we haven't implemented this primitive yet")
@@ -1334,9 +1334,9 @@ func zeroValueData(s string) (map[string]interface{}, error) {
 			case "uint64":
 				d[field.Name] = make([]uint64, 0)
 			case "float32":
-				d[field.Name] = make([]float32, 0)
+				d[field.Name] = make([]JsonFloat32, 0)
 			case "float64":
-				d[field.Name] = make([]float64, 0)
+				d[field.Name] = make([]JsonFloat64, 0)
 			case "string":
 				d[field.Name] = make([]string, 0)
 			case "ros.Time":
@@ -1373,9 +1373,9 @@ func zeroValueData(s string) (map[string]interface{}, error) {
 						case "uint64":
 							d[field.Name] = append(d[field.Name].([]uint64), 0)
 						case "float32":
-							d[field.Name] = append(d[field.Name].([]float32), 0.0)
+							d[field.Name] = append(d[field.Name].([]JsonFloat32), JsonFloat32{F: 0.0})
 						case "float64":
-							d[field.Name] = append(d[field.Name].([]float64), 0.)
+							d[field.Name] = append(d[field.Name].([]JsonFloat64), JsonFloat64{F: 0.0})
 						case "string":
 							d[field.Name] = append(d[field.Name].([]string), "")
 						case "ros.Time":
@@ -1423,9 +1423,9 @@ func zeroValueData(s string) (map[string]interface{}, error) {
 			case "uint64":
 				d[field.Name] = uint64(0)
 			case "float32":
-				d[field.Name] = float32(0.0)
+				d[field.Name] = JsonFloat32{F: float32(0.0)}
 			case "float64":
-				d[field.Name] = float64(0.0)
+				d[field.Name] = JsonFloat64{F: float64(0.0)}
 			case "ros.Time":
 				d[field.Name] = Time{}
 			case "ros.Duration":

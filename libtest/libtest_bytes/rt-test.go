@@ -36,7 +36,7 @@ func RTTest(t *testing.T) {
 	exampleBytes, err := hex.DecodeString(rawmsg)
 
 	//Example message data
-	exampleMsg := "geometry_msgs/Twist::map[angular:geometry_msgs/Vector3::map[x:1 y:2 z:3] linear:geometry_msgs/Vector3::map[x:1 y:2 z:3]]"
+	exampleMsg := "geometry_msgs/Twist::map[angular:geometry_msgs/Vector3::map[x:1.00000 y:2.00000 z:3.00000] linear:geometry_msgs/Vector3::map[x:1.00000 y:2.00000 z:3.00000]]"
 
 	//Example schema
 	exampleSchema := `{"$id":"/ros/testy","$schema":"https://json-schema.org/draft-07/schema#","properties":{"x":{"title":"/ros/testy/x","type":"number"},"y":{"title":"/ros/testy/y","type":"number"},"z":{"title":"/ros/testy/z","type":"number"}},"title":"/ros/testy","type":"object"}`
@@ -58,13 +58,13 @@ func RTTest(t *testing.T) {
 	//Declaring some sample data for serialization
 	d := dynamicMsg.Data()
 	d2 := nestedDynamicMsg.Data()
-	d2["x"] = float64(1)
-	d2["y"] = float64(2)
-	d2["z"] = float64(3)
+	d2["x"] = ros.JsonFloat64{F: 1.0}
+	d2["y"] = ros.JsonFloat64{F: 2.0}
+	d2["z"] = ros.JsonFloat64{F: 3.0}
 	d["angular"] = nestedDynamicMsg
 	d["linear"] = nestedDynamicMsg
 
-	//Using UnmasharlJSON method on a set of example bytes to compare with example Message
+	//Using UnmarshalJSON method on a set of example bytes to compare with example Message
 	err = dynamicBlankMsg.UnmarshalJSON([]byte(examplePayload))
 
 	//Serializing message into bytes buffer
@@ -101,19 +101,19 @@ func RTTest(t *testing.T) {
 	//Convert to string and compare to example JSON payload
 	rosgoPayload := fmt.Sprintf("%s", payloadMsg)
 	if rosgoPayload != examplePayload {
-		t.Error("Marshalled JSON incorrect; ", err)
+		t.Error("marshalled JSON incorrect: " + rosgoPayload + " vs " + examplePayload)
 		return
 	}
 
 	//Comparing byte slice arrays to check Serialization worked
 	res := bytes.Compare(exampleBytes, rosgoBytes)
 	if res != 0 {
-		t.Error("Serialized Message incorrect; ", err)
+		t.Error("Serialized Message incorrect: " + string(rosgoBytes) + " vs " + string(exampleBytes))
 		return
 	}
 	//Comparing deserialized ros messages to check Deserialization worked
 	if rosgoMsg != exampleMsg {
-		t.Error("Deserialized message incorrect; ", err)
+		t.Error("Deserialized message incorrect: " + rosgoMsg + " vs " + exampleMsg)
 		return
 	}
 	//Comparing unmarshalled payload to check unmarshalJSON worked

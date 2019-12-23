@@ -37,6 +37,10 @@ func (e *SyntaxError) Error() string {
 	return fmt.Sprintf("[%s@%d] %s", e.FullName, e.Line, e.Message)
 }
 
+func ConvertConstantValue(fieldType string, valueLiteral string) (interface{}, error) {
+	return convertConstantValue(fieldType, valueLiteral)
+}
+
 /// Convert constant literal to a Go object
 /// Original implementation (genmsg) depends on Python's literal syntax.
 func convertConstantValue(fieldType string, valueLiteral string) (interface{}, error) {
@@ -91,6 +95,10 @@ func convertConstantValue(fieldType string, valueLiteral string) (interface{}, e
 	default:
 		return nil, fmt.Errorf("Invalid constant type: [%s]", fieldType)
 	}
+}
+
+func PackageResourceName(name string) (string, string, error) {
+	return packageResourceName(name)
 }
 
 func packageResourceName(name string) (string, string, error) {

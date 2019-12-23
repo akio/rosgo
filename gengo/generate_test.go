@@ -2,11 +2,11 @@
 package main
 
 import (
-	// "fmt"
-	//	"math"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/edwinhayes/rosgo/libgengo"
 )
 
 func TestGenerateMessage(t *testing.T) {
@@ -48,20 +48,19 @@ Bar[] xva
 Bar[42] xfa
 `
 	rosPkgPath := os.Getenv("ROS_PACKAGE_PATH")
-	ctx, e := NewMsgContext(strings.Split(rosPkgPath, ":"))
+	ctx, e := libgengo.NewMsgContext(strings.Split(rosPkgPath, ":"))
 	if e != nil {
 		t.Errorf("Failed to create MsgContext.")
 	}
 
-	var spec *MsgSpec
+	var spec *libgengo.MsgSpec
 	spec, e = ctx.LoadMsgFromString(text, "foo/Foo")
 	if e != nil {
 		t.Errorf("Failed to parse: %v", e)
 	}
 
-	_, err := GenerateMessage(ctx, spec)
+	_, err := libgengo.GenerateMessage(ctx, spec)
 	if err != nil {
 		t.Errorf("Failed to generate message: %v", err)
 	}
-	// fmt.Printf(msg)
 }

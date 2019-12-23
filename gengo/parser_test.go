@@ -2,12 +2,12 @@
 package main
 
 import (
-	// "fmt"
-	//	"math"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/edwinhayes/rosgo/libgengo"
 )
 
 func TestConvertConstantValue(t *testing.T) {
@@ -62,7 +62,7 @@ func TestConvertConstantValue(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		result, e := convertConstantValue(test.fieldType, test.valueLiteral)
+		result, e := libgengo.ConvertConstantValue(test.fieldType, test.valueLiteral)
 		if test.expectError {
 			if e == nil {
 				t.Errorf("INPUT(%s : %s) | should fail but succeeded", test.valueLiteral, test.fieldType)
@@ -119,7 +119,7 @@ Bar[42] xfa
 `
 
 	rosPkgPath := os.Getenv("ROS_PACKAGE_PATH")
-	ctx, e := NewMsgContext(strings.Split(rosPkgPath, ":"))
+	ctx, e := libgengo.NewMsgContext(strings.Split(rosPkgPath, ":"))
 	if e != nil {
 		t.Errorf("Failed to create MsgContext.")
 	}
@@ -168,15 +168,15 @@ func TestMD5_std_msgs(t *testing.T) {
 	}
 
 	rosPkgPath := os.Getenv("ROS_PACKAGE_PATH")
-	ctx, e := NewMsgContext(strings.Split(rosPkgPath, ":"))
+	ctx, e := libgengo.NewMsgContext(strings.Split(rosPkgPath, ":"))
 	if e != nil {
 		t.Errorf("Failed to create MsgContext.")
 	} else {
 		for fullname, md5 := range std_msgs {
-			_, shortName, _ := packageResourceName(fullname)
+			_, shortName, _ := libgengo.PackageResourceName(fullname)
 
 			t.Run(shortName, func(t *testing.T) {
-				var spec *MsgSpec
+				var spec *libgengo.MsgSpec
 				spec, e := ctx.LoadMsg(fullname)
 				if e != nil {
 					t.Errorf("Failed to parse: %v", e)
@@ -221,16 +221,16 @@ func TestMD5_sensor_msgs(t *testing.T) {
 	}
 
 	rosPkgPath := os.Getenv("ROS_PACKAGE_PATH")
-	ctx, e := NewMsgContext(strings.Split(rosPkgPath, ":"))
+	ctx, e := libgengo.NewMsgContext(strings.Split(rosPkgPath, ":"))
 	if e != nil {
 		t.Errorf("Failed to create MsgContext.")
 	}
 
 	for fullname, md5 := range sensor_msgs {
-		_, shortName, _ := packageResourceName(fullname)
+		_, shortName, _ := libgengo.PackageResourceName(fullname)
 
 		t.Run(shortName, func(t *testing.T) {
-			var spec *MsgSpec
+			var spec *libgengo.MsgSpec
 			spec, e := ctx.LoadMsg(fullname)
 			if e != nil {
 				t.Errorf("Failed to parse: %v", e)

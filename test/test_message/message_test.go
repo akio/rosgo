@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/edwinhayes/rosgo/ros"
-	"rosgo_tests"
 	"std_msgs"
 	"testing"
 )
