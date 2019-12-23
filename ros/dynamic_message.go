@@ -546,7 +546,7 @@ func (m *DynamicMessage) UnmarshalJSON(buf []byte) error {
 				//We have a duration object
 				case "ros.Duration":
 					tmpDuration := Duration{}
-					sec, err := jsonparser.GetInt(value, "sec")
+					sec, err := jsonparser.GetInt(value, "Sec")
 					nsec, err := jsonparser.GetInt(value, "NSec")
 					if err == nil {
 						tmpDuration.Sec = uint32(sec)
