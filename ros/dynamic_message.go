@@ -363,7 +363,19 @@ func (m *DynamicMessage) UnmarshalJSON(buf []byte) error {
 		switch dataType.String() {
 		//We have a string array
 		case "string":
-			m.data[goField.Name] = append(m.data[goField.Name].([]string), string(key))
+			if goField.GoType == "float32" || goField.GoType == "float64" {
+				data, err = strconv.ParseFloat(string(key), 64)
+				if err != nil {
+					errors.Wrap(err, "Field: "+goField.Name)
+				}
+				if goField.GoType == "float32" {
+					m.data[goField.Name] = append(m.data[goField.Name].([]JsonFloat32), JsonFloat32{F: float32((data.(float64)))})
+				} else {
+					m.data[goField.Name] = append(m.data[goField.Name].([]JsonFloat64), JsonFloat64{F: data.(float64)})
+				}
+			} else {
+				m.data[goField.Name] = append(m.data[goField.Name].([]string), string(key))
+			}
 		//We have a number or int array.
 		case "number":
 			//We have a float to parse
@@ -482,17 +494,19 @@ func (m *DynamicMessage) UnmarshalJSON(buf []byte) error {
 						return errors.Wrap(err, "Byte Array Field: "+goField.Name)
 					}
 					m.data[goField.Name] = data
-				} else {
 					//Case where we have marshalled a special float as a string
-					if string(value) == "nan" || string(value) == "+inf" || string(value) == "-inf" {
-						data, err = strconv.ParseFloat(string(value), 64)
-						if err != nil {
-							errors.Wrap(err, "Field: "+goField.Name)
-						}
-						m.data[goField.Name] = JsonFloat64{F: data.(float64)}
-					} else {
-						m.data[goField.Name] = string(value)
+				} else if goField.GoType == "float32" || goField.GoType == "float64" {
+					data, err = strconv.ParseFloat(string(value), 64)
+					if err != nil {
+						errors.Wrap(err, "Field: "+goField.Name)
 					}
+					if goField.GoType == "float32" {
+						m.data[goField.Name] = JsonFloat32{F: float32(data.(float64))}
+					} else {
+						m.data[goField.Name] = JsonFloat64{F: data.(float64)}
+					}
+				} else {
+					m.data[goField.Name] = string(value)
 				}
 			//We have a JSON number or int
 			case "number":
