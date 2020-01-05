@@ -483,7 +483,16 @@ func (m *DynamicMessage) UnmarshalJSON(buf []byte) error {
 					}
 					m.data[goField.Name] = data
 				} else {
-					m.data[goField.Name] = string(value)
+					//Case where we have marshalled a special float as a string
+					if string(value) == "nan" || string(value) == "+inf" || string(value) == "-inf" {
+						data, err = strconv.ParseFloat(string(value), 64)
+						if err != nil {
+							errors.Wrap(err, "Field: "+goField.Name)
+						}
+						m.data[goField.Name] = JsonFloat64{F: data.(float64)}
+					} else {
+						m.data[goField.Name] = string(value)
+					}
 				}
 			//We have a JSON number or int
 			case "number":

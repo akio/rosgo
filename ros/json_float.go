@@ -36,9 +36,9 @@ func (f JsonFloat32) MarshalJSON() ([]byte, error) {
 	if math.IsNaN(float64(f.F)) {
 		return json.Marshal("nan")
 	} else if math.IsInf(float64(f.F), 1) {
-		return json.Marshal("inf+")
+		return json.Marshal("+inf")
 	} else if math.IsInf(float64(f.F), -1) {
-		return json.Marshal("inf-")
+		return json.Marshal("-inf")
 	}
 	return json.Marshal(f.F)
 }
@@ -51,9 +51,9 @@ func (f JsonFloat64) MarshalJSON() ([]byte, error) {
 	if math.IsNaN(f.F) {
 		return json.Marshal("nan")
 	} else if math.IsInf(f.F, 1) {
-		return json.Marshal("inf+")
+		return json.Marshal("+inf")
 	} else if math.IsInf(f.F, -1) {
-		return json.Marshal("inf-")
+		return json.Marshal("-inf")
 	}
 	return json.Marshal(f.F)
 }
