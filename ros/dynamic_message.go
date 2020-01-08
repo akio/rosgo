@@ -50,7 +50,8 @@ var context *libgengo.MsgContext // We'll try to preserve a single message conte
 func SetRuntimePackagePath(path string) {
 	// We're not going to check that the result is valid, we'll just accept it blindly.
 	rosPkgPath = path
-
+	// Reset the message context
+	ResetContext()
 	// All done.
 	return
 }
@@ -58,12 +59,17 @@ func SetRuntimePackagePath(path string) {
 // GetRuntimePackagePath returns the ROS package search path which will be used by DynamicMessage to look up ROS message definitions at runtime.  By default, this will
 // be equivalent to the ${ROS_PACKAGE_PATH} environment variable.
 func GetRuntimePackagePath() string {
-	// If a package path hasn't been set at the time of first use, by default we'll just use the ROS evironment default.
+	// If a package path hasn't been set at the time of first use, by default we'll just use the ROS environment default.
 	if rosPkgPath == "" {
 		rosPkgPath = os.Getenv("ROS_PACKAGE_PATH")
 	}
 	// All done.
 	return rosPkgPath
+}
+
+// ResetContext resets the package path context so that a new one will be generated
+func ResetContext() {
+	context = nil
 }
 
 // NewDynamicMessageType generates a DynamicMessageType corresponding to the specified typeName from the available ROS message definitions; typeName should be a fully-qualified
