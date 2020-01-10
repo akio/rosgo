@@ -49,3 +49,12 @@ func buildRosAPIResult(code int32, message string, value interface{}) interface{
 	result[2] = value
 	return result
 }
+
+// PingMasterURI is intended to return true if a dial to the ros master URI returns successfully
+func PingMasterURI(calleeURI string) bool {
+	_, err := callRosAPI(calleeURI, "getUri", calleeURI)
+	if err != nil {
+		return false
+	}
+	return true
+}
