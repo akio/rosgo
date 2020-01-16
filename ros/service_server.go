@@ -37,12 +37,14 @@ func newDefaultServiceServer(node *defaultNode, service string, srvType ServiceT
 	logger := node.logger
 	server := new(defaultServiceServer)
 	if listener, err := listenRandomPort(node.listenIP, 10); err != nil {
-		panic(err)
+		logger.Errorf("failed to listen to random port : %v", err)
+		return nil
 	} else {
 		if tcpListener, ok := listener.(*net.TCPListener); ok {
 			server.listener = tcpListener
 		} else {
-			panic(fmt.Errorf("Server listener is not TCPListener"))
+			logger.Errorf("Server listener is not TCPListener")
+			return nil
 		}
 	}
 	server.node = node
@@ -55,7 +57,8 @@ func newDefaultServiceServer(node *defaultNode, service string, srvType ServiceT
 	_, port, err := net.SplitHostPort(server.listener.Addr().String())
 	if err != nil {
 		// Not reached
-		panic(err)
+		logger.Errorf("failed to split host port : %v", err)
+		return nil
 	}
 	server.rosrpcAddr = fmt.Sprintf("rosrpc://%s:%s", node.hostname, port)
 	logger.Debugf("ServiceServer listen %s", server.rosrpcAddr)
@@ -186,7 +189,8 @@ func (s *remoteClientSession) start() {
 	conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
 	reqHeader, err := readConnectionHeader(conn)
 	if err != nil {
-		panic(err)
+		logger.Errorf("failed to read connection header : %v", err)
+		return
 	}
 	reqHeaderMap := make(map[string]string)
 	for _, h := range reqHeader {
@@ -206,7 +210,8 @@ func (s *remoteClientSession) start() {
 	}
 	conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
 	if err := writeConnectionHeader(headers, conn); err != nil {
-		panic(err)
+		logger.Errorf("failed to write connection header : %v", err)
+		return
 	}
 
 	if probe, ok := reqHeaderMap["probe"]; ok && probe == "1" {
@@ -215,7 +220,8 @@ func (s *remoteClientSession) start() {
 	}
 	if reqHeaderMap["service"] != service ||
 		reqHeaderMap["md5sum"] != md5sum {
-		logger.Fatalf("Incompatible message type!")
+		logger.Error("Incompatible message type!")
+		return
 	}
 
 	// 3. Read request

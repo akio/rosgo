@@ -46,7 +46,7 @@ func RTTest(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	node.Logger().SetSeverity(ros.LogLevelInfo)
+	node.SetLogLevel(1)
 	defer node.Shutdown()
 
 	subscription = 1

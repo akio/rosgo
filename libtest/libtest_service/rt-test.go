@@ -54,7 +54,7 @@ func RTTest(t *testing.T) {
 	quitThread := make(chan bool)
 	go spinServer(node2, quitThread)
 
-	node.Logger().SetSeverity(ros.LogLevelWarn)
+	node.SetLogLevel(1)
 	for node.OK() {
 		//Create  and call service request
 		service.Request.A = 10

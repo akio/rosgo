@@ -1,6 +1,7 @@
 package ros
 
 import (
+	"github.com/sirupsen/logrus"
 	"time"
 )
 
@@ -43,7 +44,8 @@ type Node interface {
 	GetPublishedTopics(subgraph string) ([]interface{}, error)
 	GetTopicTypes() []interface{}
 
-	Logger() Logger
+	Logger() *logrus.Logger
+	SetLogLevel(loglevel uint32)
 
 	NonRosArgs() []string
 }

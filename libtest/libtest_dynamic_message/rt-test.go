@@ -2,13 +2,15 @@ package libtest_dynamic_message
 
 import (
 	"github.com/edwinhayes/rosgo/ros"
-	"time"
 	"os"
 	"testing"
+	"time"
 )
 
 var message string
+
 const targetMessage string = "hello world"
+
 var chanRx chan string
 
 // callback retrieves data from ros.DynamicMessage.data
@@ -27,7 +29,7 @@ func RTTest(t *testing.T) {
 		t.Error("error instantiating node; ", err)
 		return
 	}
-	node.Logger().SetSeverity(ros.LogLevelWarn)
+	node.SetLogLevel(1)
 	defer node.Shutdown()
 
 	// Make a dynamicMessageType.
@@ -51,12 +53,12 @@ func RTTest(t *testing.T) {
 
 	chanRx = make(chan string, 1)
 	chanNodeStop := make(chan struct{})
-	defer func() { chanNodeStop <- struct{}{} ; <-chanNodeStop }()
+	defer func() { chanNodeStop <- struct{}{}; <-chanNodeStop }()
 
 	go func() {
 		for node.OK() {
 			select {
-			case <- chanNodeStop:
+			case <-chanNodeStop:
 				chanNodeStop <- struct{}{}
 				return
 			default:
@@ -71,8 +73,8 @@ func RTTest(t *testing.T) {
 
 	// Look for the rx callback to report something.
 	select {
-	case rx := <- chanRx:
-		if (rx == targetMessage) {
+	case rx := <-chanRx:
+		if rx == targetMessage {
 			// Test passes.
 			return
 		}
