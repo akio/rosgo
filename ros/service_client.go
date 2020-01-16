@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io"
 	"net"
 	"net/url"
@@ -12,14 +13,14 @@ import (
 )
 
 type defaultServiceClient struct {
-	logger    Logger
+	logger    *logrus.Logger
 	service   string
 	srvType   ServiceType
 	masterURI string
 	nodeID    string
 }
 
-func newDefaultServiceClient(logger Logger, nodeID string, masterURI string, service string, srvType ServiceType) *defaultServiceClient {
+func newDefaultServiceClient(logger *logrus.Logger, nodeID string, masterURI string, service string, srvType ServiceType) *defaultServiceClient {
 	client := new(defaultServiceClient)
 	client.logger = logger
 	client.service = service
@@ -83,7 +84,8 @@ func (c *defaultServiceClient) Call(srv Service) error {
 		logger.Debugf("  `%s` = `%s`", h.key, h.value)
 	}
 	if resHeaderMap["type"] != msgType || resHeaderMap["md5sum"] != md5sum {
-		logger.Fatalf("Incompatible message type!")
+		err = errors.New("incompatible message type")
+		return err
 	}
 	logger.Debug("Start receiving messages...")
 

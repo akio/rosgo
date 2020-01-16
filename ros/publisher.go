@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"net"
 	"sync"
 	"time"
@@ -167,7 +168,7 @@ type remoteSubscriberSession struct {
 	quitChan           chan struct{}
 	msgChan            chan []byte
 	errorChan          chan error
-	logger             Logger
+	logger             *logrus.Logger
 	connectCallback    func(SingleSubscriberPublisher)
 	disconnectCallback func(SingleSubscriberPublisher)
 }
@@ -280,7 +281,8 @@ func (session *remoteSubscriberSession) start() {
 	}
 	err = writeConnectionHeader(resHeaders, session.conn)
 	if err != nil {
-		panic(errors.New("failed to write response header"))
+		logger.Error("failed to write response header")
+		return
 	}
 
 	// 3. Start sending message
@@ -312,7 +314,7 @@ func (session *remoteSubscriberSession) start() {
 					continue
 				} else {
 					logger.Error(err)
-					panic(err)
+					return
 				}
 			}
 			logger.Debug(len(msg))
@@ -323,7 +325,7 @@ func (session *remoteSubscriberSession) start() {
 					continue
 				} else {
 					logger.Error(err)
-					panic(err)
+					return
 				}
 			}
 			logger.Debug(hex.EncodeToString(msg))

@@ -3,6 +3,8 @@ package ros
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/edwinhayes/rosgo/xmlrpc"
+	"github.com/sirupsen/logrus"
 	"math/rand"
 	"net"
 	"net/http"
@@ -14,8 +16,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/edwinhayes/rosgo/xmlrpc"
 )
 
 const (
@@ -71,7 +71,7 @@ type defaultNode struct {
 	jobChan          chan func()
 	interruptChan    chan os.Signal
 	enableInterrupts bool
-	logger           Logger
+	logger           *logrus.Logger
 	ok               bool
 	okMutex          sync.RWMutex
 	waitGroup        sync.WaitGroup
@@ -114,6 +114,17 @@ func newDefaultNode(name string, args []string) (*defaultNode, error) {
 	if homeDir := os.Getenv("ROS_HOME"); len(homeDir) > 0 {
 		node.homeDir = homeDir
 	}
+
+	logger := logrus.New()
+	if value, ok := specials["__ll"]; ok {
+		val, err := strconv.ParseInt(value, 10, 32)
+		if err == nil {
+			logger.SetLevel(logrus.Level(val))
+		}
+	} else {
+		logger.SetLevel(logrus.Level(1))
+	}
+	node.logger = logger
 
 	node.name = nodeName
 	if value, ok := specials["__name"]; ok {
@@ -171,9 +182,6 @@ func newDefaultNode(name string, args []string) (*defaultNode, error) {
 	node.servers = make(map[string]*defaultServiceServer)
 	node.interruptChan = make(chan os.Signal)
 	node.ok = true
-
-	logger := NewDefaultLogger()
-	node.logger = logger
 
 	// Install signal handler
 	if node.enableInterrupts == true {
@@ -234,6 +242,11 @@ func newDefaultNode(name string, args []string) (*defaultNode, error) {
 	go http.Serve(node.xmlrpcListener, node.xmlrpcHandler)
 	logger.Debugf("Started %s", node.qualifiedName)
 	return node, nil
+}
+
+func (node *defaultNode) SetLogLevel(loglevel uint32) {
+	node.logger.SetLevel(logrus.Level(loglevel))
+	node.logger.Debugf("Set node log level to %v", loglevel)
 }
 
 func (node *defaultNode) OK() bool {
@@ -587,7 +600,7 @@ func (node *defaultNode) DeleteParam(key string) error {
 	return err
 }
 
-func (node *defaultNode) Logger() Logger {
+func (node *defaultNode) Logger() *logrus.Logger {
 	return node.logger
 }
 
