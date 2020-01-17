@@ -7,10 +7,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 type remoteSubscriberSessionError struct {
@@ -61,7 +62,7 @@ func newDefaultPublisher(node *defaultNode,
 }
 
 func (pub *defaultPublisher) start(wg *sync.WaitGroup) {
-	logger := pub.node.logger
+	logger := pub.node.log
 	logger.Debugf("Publisher goroutine for %s started.", pub.topic)
 	wg.Add(1)
 	defer func() {
@@ -81,7 +82,7 @@ func (pub *defaultPublisher) start(wg *sync.WaitGroup) {
 				session.msgChan <- msg
 			}
 		case err := <-pub.listenerErrorChan:
-			logger.Debug("Listener closed unexpectedly: %s", err)
+			logger.Debugf("Listener closed unexpectedly: %s", err)
 			pub.listener.Close()
 			return
 		case s := <-pub.sessionChan:
@@ -116,7 +117,7 @@ func (pub *defaultPublisher) start(wg *sync.WaitGroup) {
 }
 
 func (pub *defaultPublisher) listenRemoteSubscriber() {
-	logger := pub.node.logger
+	logger := pub.node.log
 	logger.Debugf("Start listen %s.", pub.listener.Addr().String())
 	defer func() {
 		logger.Debug("defaultPublisher.listenRemoteSubscriber exit")
@@ -168,7 +169,7 @@ type remoteSubscriberSession struct {
 	quitChan           chan struct{}
 	msgChan            chan []byte
 	errorChan          chan error
-	logger             *logrus.Logger
+	logger             *logrus.Entry
 	connectCallback    func(SingleSubscriberPublisher)
 	disconnectCallback func(SingleSubscriberPublisher)
 }
@@ -184,7 +185,7 @@ func newRemoteSubscriberSession(pub *defaultPublisher, conn net.Conn) *remoteSub
 	session.quitChan = make(chan struct{})
 	session.msgChan = make(chan []byte, 10)
 	session.errorChan = pub.sessionErrorChan
-	session.logger = pub.node.logger
+	session.logger = pub.node.log
 	session.connectCallback = pub.connectCallback
 	session.disconnectCallback = pub.disconnectCallback
 	return session

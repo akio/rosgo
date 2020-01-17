@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"io"
 	"net"
 	"reflect"
 	"sync"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 type messageEvent struct {
@@ -46,7 +47,7 @@ func newDefaultSubscriber(topic string, msgType MessageType, callback interface{
 	return sub
 }
 
-func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeID string, nodeAPIURI string, masterURI string, jobChan chan func(), logger *logrus.Logger) {
+func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeID string, nodeAPIURI string, masterURI string, jobChan chan func(), logger *logrus.Entry) {
 	logger.Debugf("Subscriber goroutine for %s started.", sub.topic)
 	wg.Add(1)
 	defer wg.Done()
@@ -139,7 +140,7 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeID string, nodeAPIUR
 	}
 }
 
-func startRemotePublisherConn(logger *logrus.Logger,
+func startRemotePublisherConn(logger *logrus.Entry,
 	pubURI string, topic string, md5sum string,
 	msgType string, nodeID string,
 	msgChan chan messageEvent,

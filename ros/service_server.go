@@ -34,7 +34,7 @@ type defaultServiceServer struct {
 }
 
 func newDefaultServiceServer(node *defaultNode, service string, srvType ServiceType, handler interface{}) *defaultServiceServer {
-	logger := node.logger
+	logger := node.log
 	server := new(defaultServiceServer)
 	if listener, err := listenRandomPort(node.listenIP, 10); err != nil {
 		logger.Errorf("failed to listen to random port : %v", err)
@@ -82,7 +82,7 @@ func (s *defaultServiceServer) Shutdown() {
 
 // event loop
 func (s *defaultServiceServer) start() {
-	logger := s.node.logger
+	logger := s.node.log
 	logger.Debugf("service server '%s' start listen %s.", s.service, s.listener.Addr().String())
 	s.node.waitGroup.Add(1)
 	defer func() {
@@ -110,7 +110,7 @@ func (s *defaultServiceServer) start() {
 		select {
 		case ev := <-s.sessionCloseChan:
 			if ev.err != nil {
-				logger.Error("session error: %v", ev.err)
+				logger.Errorf("session error: %v", ev.err)
 			}
 			for e := s.sessions.Front(); e != nil; e = e.Next() {
 				if e.Value == ev.session {
@@ -126,7 +126,7 @@ func (s *defaultServiceServer) start() {
 			_, err := callRosAPI(s.node.masterURI, "unregisterService",
 				s.node.qualifiedName, s.service, s.rosrpcAddr)
 			if err != nil {
-				logger.Warn("Failed unregisterService(%s): %v", s.service, err)
+				logger.Warnf("Failed unregisterService(%s): %v", s.service, err)
 			}
 			logger.Debugf("Called unregisterService(%s)", s.service)
 			for e := s.sessions.Front(); e != nil; e = e.Next() {
@@ -160,7 +160,7 @@ func newRemoteClientSession(s *defaultServiceServer, conn net.Conn) *remoteClien
 }
 
 func (s *remoteClientSession) start() {
-	logger := s.server.node.logger
+	logger := s.server.node.log
 	conn := s.conn
 	nodeID := s.server.node.qualifiedName
 	service := s.server.service

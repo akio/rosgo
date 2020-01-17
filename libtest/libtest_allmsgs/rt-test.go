@@ -22,7 +22,7 @@ func RTTest(t *testing.T) {
 		t.Error("Failed to make node;", err)
 		return
 	}
-	node.Logger().SetSeverity(ros.LogLevelWarn)
+	node.SetLogLevel(1)
 	defer node.Shutdown()
 
 	//Generate a map of all message types

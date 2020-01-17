@@ -1,8 +1,9 @@
 package ros
 
 import (
-	"github.com/sirupsen/logrus"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 //Node interface which contains functions of a ROS Node
@@ -44,7 +45,7 @@ type Node interface {
 	GetPublishedTopics(subgraph string) ([]interface{}, error)
 	GetTopicTypes() []interface{}
 
-	Logger() *logrus.Logger
+	Logger() *logrus.Entry
 	SetLogLevel(loglevel uint32)
 
 	NonRosArgs() []string
@@ -53,6 +54,11 @@ type Node interface {
 //NewNode instantiates a newDefaultNode with name and arguments
 func NewNode(name string, args []string) (Node, error) {
 	return newDefaultNode(name, args)
+}
+
+//NewNodeWithLogs instantiates a newDefaultNode with a provided logger
+func NewNodeWithLogs(name string, logger *logrus.Entry, loglvl uint32, args []string) (Node, error) {
+	return newDefaultNodeWithLogs(name, logger, loglvl, args)
 }
 
 //Publisher is interface for publisher and shutdown function
