@@ -110,7 +110,7 @@ func (s *defaultServiceServer) start() {
 		select {
 		case ev := <-s.sessionCloseChan:
 			if ev.err != nil {
-				logger.Error("session error: %v", ev.err)
+				logger.Errorf("session error: %v", ev.err)
 			}
 			for e := s.sessions.Front(); e != nil; e = e.Next() {
 				if e.Value == ev.session {
@@ -126,7 +126,7 @@ func (s *defaultServiceServer) start() {
 			_, err := callRosAPI(s.node.masterURI, "unregisterService",
 				s.node.qualifiedName, s.service, s.rosrpcAddr)
 			if err != nil {
-				logger.Warn("Failed unregisterService(%s): %v", s.service, err)
+				logger.Warnf("Failed unregisterService(%s): %v", s.service, err)
 			}
 			logger.Debugf("Called unregisterService(%s)", s.service)
 			for e := s.sessions.Front(); e != nil; e = e.Next() {

@@ -2,6 +2,7 @@ package libtest_dynamic_message
 
 import (
 	"github.com/edwinhayes/rosgo/ros"
+	"github.com/sirupsen/logrus"
 	"os"
 	"testing"
 	"time"
@@ -29,7 +30,7 @@ func RTTest(t *testing.T) {
 		t.Error("error instantiating node; ", err)
 		return
 	}
-	node.SetLogLevel(1)
+	node.SetLogLevel(logrus.ErrorLevel)
 	defer node.Shutdown()
 
 	// Make a dynamicMessageType.

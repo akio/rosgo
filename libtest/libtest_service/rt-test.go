@@ -4,6 +4,7 @@ package libtest_service
 import (
 	"github.com/edwinhayes/rosgo/libtest/msgs/rospy_tutorials"
 	"github.com/edwinhayes/rosgo/ros"
+	"github.com/sirupsen/logrus"
 	"os"
 	"testing"
 )
@@ -54,7 +55,7 @@ func RTTest(t *testing.T) {
 	quitThread := make(chan bool)
 	go spinServer(node2, quitThread)
 
-	node.SetLogLevel(1)
+	node.SetLogLevel(logrus.ErrorLevel)
 	for node.OK() {
 		//Create  and call service request
 		service.Request.A = 10

@@ -5,22 +5,23 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"io"
 	"net"
 	"net/url"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 type defaultServiceClient struct {
-	logger    *logrus.Logger
+	logger    *logrus.Entry
 	service   string
 	srvType   ServiceType
 	masterURI string
 	nodeID    string
 }
 
-func newDefaultServiceClient(logger *logrus.Logger, nodeID string, masterURI string, service string, srvType ServiceType) *defaultServiceClient {
+func newDefaultServiceClient(logger *logrus.Entry, nodeID string, masterURI string, service string, srvType ServiceType) *defaultServiceClient {
 	client := new(defaultServiceClient)
 	client.logger = logger
 	client.service = service

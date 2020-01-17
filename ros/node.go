@@ -3,8 +3,6 @@ package ros
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/edwinhayes/rosgo/xmlrpc"
-	"github.com/sirupsen/logrus"
 	"math/rand"
 	"net"
 	"net/http"
@@ -16,6 +14,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/edwinhayes/rosgo/xmlrpc"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -71,7 +72,8 @@ type defaultNode struct {
 	jobChan          chan func()
 	interruptChan    chan os.Signal
 	enableInterrupts bool
-	logger           *logrus.Logger
+	logger           *logrus.Entry
+	log              *logrus.Logger
 	ok               bool
 	okMutex          sync.RWMutex
 	waitGroup        sync.WaitGroup
@@ -100,6 +102,20 @@ func listenRandomPort(address string, trialLimit int) (net.Listener, error) {
 	return nil, fmt.Errorf("listenRandomPort exceeds trial limit")
 }
 
+func newDefaultNodeWithLogs(name string, logger *logrus.Entry, loglevel uint32, args []string) (*defaultNode, error) {
+	rosLog := logger
+
+	node, err := newDefaultNode(name, args)
+	if err != nil {
+		logger.Errorf("could not instantiate newDefaultNode : %v", err)
+		return nil, err
+	}
+
+	node.log.SetLevel(logrus.Level(loglevel))
+	node.logger = rosLog.WithField("lib", "rosgo")
+	return node, nil
+}
+
 func newDefaultNode(name string, args []string) (*defaultNode, error) {
 	node := new(defaultNode)
 
@@ -122,9 +138,10 @@ func newDefaultNode(name string, args []string) (*defaultNode, error) {
 			logger.SetLevel(logrus.Level(val))
 		}
 	} else {
-		logger.SetLevel(logrus.Level(1))
+		logger.SetLevel(logrus.FatalLevel)
 	}
-	node.logger = logger
+	node.log = logger
+	node.logger = logrus.NewEntry(logger)
 
 	node.name = nodeName
 	if value, ok := specials["__name"]; ok {
@@ -244,8 +261,8 @@ func newDefaultNode(name string, args []string) (*defaultNode, error) {
 	return node, nil
 }
 
-func (node *defaultNode) SetLogLevel(loglevel uint32) {
-	node.logger.SetLevel(logrus.Level(loglevel))
+func (node *defaultNode) SetLogLevel(loglevel logrus.Level) {
+	node.log.SetLevel(loglevel)
 	node.logger.Debugf("Set node log level to %v", loglevel)
 }
 
@@ -356,7 +373,10 @@ func (node *defaultNode) requestTopic(callerID string, topic string, protocols [
 			if protocolName == "TCPROS" {
 				node.logger.Debug("TCPROS requested")
 				selectedProtocol = append(selectedProtocol, "TCPROS")
-				host, portStr := pub.(*defaultPublisher).hostAndPort()
+				host, portStr, err := pub.(*defaultPublisher).hostAndPort()
+				if err != nil {
+					return nil, err
+				}
 				p, err := strconv.ParseInt(portStr, 10, 32)
 				if err != nil {
 					return nil, err
@@ -383,14 +403,13 @@ func (node *defaultNode) NewPublisher(topic string, msgType MessageType) (Publis
 func (node *defaultNode) NewPublisherWithCallbacks(topic string, msgType MessageType, connectCallback, disconnectCallback func(SingleSubscriberPublisher)) (Publisher, error) {
 	name := node.nameResolver.remap(topic)
 	pub, ok := node.publishers.Load(topic)
-	logger := node.logger
 	if !ok {
 		_, err := callRosAPI(node.masterURI, "registerPublisher",
 			node.qualifiedName,
 			name, msgType.Name(),
 			node.xmlrpcURI)
 		if err != nil {
-			logger.Errorf("Failed to call registerPublisher(): %s", err)
+			node.logger.Errorf("Failed to call registerPublisher(): %s", err)
 			return nil, err
 		}
 
@@ -414,7 +433,7 @@ func (node *defaultNode) GetPublishedTopics(subgraph string) ([]interface{}, err
 	if !ok {
 		node.logger.Errorf("result is not []string but %s.", reflect.TypeOf(result).String())
 	}
-	node.logger.Debug("Result: ", list)
+	node.logger.Trace("Result: ", list)
 	return list, nil
 }
 
@@ -445,7 +464,6 @@ func (node *defaultNode) RemoveSubscriber(topic string) {
 func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callback interface{}) (Subscriber, error) {
 	name := node.nameResolver.remap(topic)
 	sub, ok := node.subscribers[name]
-	logger := node.logger
 	if !ok {
 		node.logger.Debug("Call Master API registerSubscriber")
 		result, err := callRosAPI(node.masterURI, "registerSubscriber",
@@ -454,32 +472,32 @@ func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callba
 			msgType.Name(),
 			node.xmlrpcURI)
 		if err != nil {
-			logger.Errorf("Failed to call registerSubscriber() for %s.", err)
+			node.logger.Errorf("Failed to call registerSubscriber() for %s.", err)
 			return nil, err
 		}
 		list, ok := result.([]interface{})
 		if !ok {
-			logger.Errorf("result is not []string but %s.", reflect.TypeOf(result).String())
+			node.logger.Errorf("result is not []string but %s.", reflect.TypeOf(result).String())
 		}
 		var publishers []string
 		for _, item := range list {
 			s, ok := item.(string)
 			if !ok {
-				logger.Error("Publisher list contains no string object")
+				node.logger.Error("Publisher list contains no string object")
 			}
 			publishers = append(publishers, s)
 		}
 
-		logger.Debugf("Publisher URI list: ", publishers)
+		node.logger.Debugf("Publisher URI list: %v", publishers)
 
 		sub = newDefaultSubscriber(name, msgType, callback)
 		node.subscribers[name] = sub
 
-		logger.Debugf("Start subscriber goroutine for topic '%s'", sub.topic)
-		go sub.start(&node.waitGroup, node.qualifiedName, node.xmlrpcURI, node.masterURI, node.jobChan, logger)
-		logger.Debugf("Done")
+		node.logger.Debugf("Start subscriber goroutine for topic '%s'", sub.topic)
+		go sub.start(&node.waitGroup, node.qualifiedName, node.xmlrpcURI, node.masterURI, node.jobChan, node.logger)
+		node.logger.Debugf("Done")
 		sub.pubListChan <- publishers
-		logger.Debugf("Update publisher list for topic '%s'", sub.topic)
+		node.logger.Debugf("Update publisher list for topic '%s'", sub.topic)
 	} else {
 		sub.callbacks = append(sub.callbacks, callback)
 	}
@@ -517,12 +535,11 @@ func (node *defaultNode) SpinOnce() {
 }
 
 func (node *defaultNode) Spin() {
-	logger := node.logger
 	for node.OK() {
 		timeoutChan := time.After(1000 * time.Millisecond)
 		select {
 		case job := <-node.jobChan:
-			logger.Debug("Execute job")
+			node.logger.Debug("Execute job")
 			job()
 		case <-timeoutChan:
 			break
@@ -600,7 +617,7 @@ func (node *defaultNode) DeleteParam(key string) error {
 	return err
 }
 
-func (node *defaultNode) Logger() *logrus.Logger {
+func (node *defaultNode) Logger() *logrus.Entry {
 	return node.logger
 }
 
