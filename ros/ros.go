@@ -46,7 +46,7 @@ type Node interface {
 	GetTopicTypes() []interface{}
 
 	Logger() *logrus.Entry
-	SetLogLevel(loglevel uint32)
+	SetLogLevel(loglevel logrus.Level)
 
 	NonRosArgs() []string
 }

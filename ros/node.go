@@ -261,8 +261,8 @@ func newDefaultNode(name string, args []string) (*defaultNode, error) {
 	return node, nil
 }
 
-func (node *defaultNode) SetLogLevel(loglevel uint32) {
-	node.logger.SetLevel(logrus.Level(loglevel))
+func (node *defaultNode) SetLogLevel(loglevel logrus.Level) {
+	node.logger.SetLevel(loglevel)
 	node.log.Debugf("Set node log level to %v", loglevel)
 }
 
