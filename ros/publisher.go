@@ -5,7 +5,6 @@ import (
 	"container/list"
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -117,7 +116,6 @@ func (pub *defaultPublisher) start(wg *sync.WaitGroup) {
 }
 
 func (pub *defaultPublisher) listenRemoteSubscriber() {
-	logger := pub.node.logger
 	logger.Debugf("Start listen %s.", pub.listener.Addr().String())
 	defer func() {
 		logger.Debug("defaultPublisher.listenRemoteSubscriber exit")
@@ -150,13 +148,14 @@ func (pub *defaultPublisher) Shutdown() {
 	pub.shutdownChan <- struct{}{}
 }
 
-func (pub *defaultPublisher) hostAndPort() (string, string) {
+func (pub *defaultPublisher) hostAndPort() (string, string, error) {
 	_, port, err := net.SplitHostPort(pub.listener.Addr().String())
 	if err != nil {
 		// Not reached
-		panic(err)
+		pub.node.logger.Error("failed to split host port")
+		return "", "", err
 	}
-	return pub.node.hostname, port
+	return pub.node.hostname, port, nil
 }
 
 type remoteSubscriberSession struct {
@@ -244,7 +243,8 @@ func (session *remoteSubscriberSession) start() {
 	// 1. Read connection header
 	headers, err := readConnectionHeader(session.conn)
 	if err != nil {
-		panic(errors.New("failed to read connection header"))
+		logger.Error("failed to read connection header")
+		return
 	}
 	logger.Debug("TCPROS Connection Header:")
 	headerMap := make(map[string]string)
@@ -254,13 +254,15 @@ func (session *remoteSubscriberSession) start() {
 	}
 
 	if headerMap["type"] != session.typeName && headerMap["type"] != "*" {
-		panic(fmt.Errorf("incompatible message type: does not match for topic %s: %s vs %s",
-			session.topic, session.typeName, headerMap["type"]))
+		logger.Errorf("incompatible message type: does not match for topic %s: %s vs %s",
+			session.topic, session.typeName, headerMap["type"])
+		return
 	}
 
 	if headerMap["md5sum"] != session.md5sum && headerMap["md5sum"] != "*" {
-		panic(fmt.Errorf("incompatible message md5: does not match for topic %s: %s vs %s",
-			session.topic, session.md5sum, headerMap["md5sum"]))
+		logger.Errorf("incompatible message md5: does not match for topic %s: %s vs %s",
+			session.topic, session.md5sum, headerMap["md5sum"])
+		return
 	}
 
 	ssp.subName = headerMap["callerid"]

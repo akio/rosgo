@@ -373,7 +373,10 @@ func (node *defaultNode) requestTopic(callerID string, topic string, protocols [
 			if protocolName == "TCPROS" {
 				node.logger.Debug("TCPROS requested")
 				selectedProtocol = append(selectedProtocol, "TCPROS")
-				host, portStr := pub.(*defaultPublisher).hostAndPort()
+				host, portStr, err := pub.(*defaultPublisher).hostAndPort()
+				if err != nil {
+					return nil, err
+				}
 				p, err := strconv.ParseInt(portStr, 10, 32)
 				if err != nil {
 					return nil, err
@@ -400,14 +403,13 @@ func (node *defaultNode) NewPublisher(topic string, msgType MessageType) (Publis
 func (node *defaultNode) NewPublisherWithCallbacks(topic string, msgType MessageType, connectCallback, disconnectCallback func(SingleSubscriberPublisher)) (Publisher, error) {
 	name := node.nameResolver.remap(topic)
 	pub, ok := node.publishers.Load(topic)
-	logger := node.logger
 	if !ok {
 		_, err := callRosAPI(node.masterURI, "registerPublisher",
 			node.qualifiedName,
 			name, msgType.Name(),
 			node.xmlrpcURI)
 		if err != nil {
-			logger.Errorf("Failed to call registerPublisher(): %s", err)
+			node.logger.Errorf("Failed to call registerPublisher(): %s", err)
 			return nil, err
 		}
 
@@ -462,27 +464,26 @@ func (node *defaultNode) RemoveSubscriber(topic string) {
 func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callback interface{}) (Subscriber, error) {
 	name := node.nameResolver.remap(topic)
 	sub, ok := node.subscribers[name]
-	logger := node.logger
 	if !ok {
-		logger.Debug("Call Master API registerSubscriber")
+		node.logger.Debug("Call Master API registerSubscriber")
 		result, err := callRosAPI(node.masterURI, "registerSubscriber",
 			node.qualifiedName,
 			name,
 			msgType.Name(),
 			node.xmlrpcURI)
 		if err != nil {
-			logger.Errorf("Failed to call registerSubscriber() for %s.", err)
+			node.logger.Errorf("Failed to call registerSubscriber() for %s.", err)
 			return nil, err
 		}
 		list, ok := result.([]interface{})
 		if !ok {
-			logger.Errorf("result is not []string but %s.", reflect.TypeOf(result).String())
+			node.logger.Errorf("result is not []string but %s.", reflect.TypeOf(result).String())
 		}
 		var publishers []string
 		for _, item := range list {
 			s, ok := item.(string)
 			if !ok {
-				logger.Error("Publisher list contains no string object")
+				node.logger.Error("Publisher list contains no string object")
 			}
 			publishers = append(publishers, s)
 		}
@@ -492,11 +493,11 @@ func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callba
 		sub = newDefaultSubscriber(name, msgType, callback)
 		node.subscribers[name] = sub
 
-		logger.Debugf("Start subscriber goroutine for topic '%s'", sub.topic)
+		node.logger.Debugf("Start subscriber goroutine for topic '%s'", sub.topic)
 		go sub.start(&node.waitGroup, node.qualifiedName, node.xmlrpcURI, node.masterURI, node.jobChan, node.logger)
-		logger.Debugf("Done")
+		node.logger.Debugf("Done")
 		sub.pubListChan <- publishers
-		logger.Debugf("Update publisher list for topic '%s'", sub.topic)
+		node.logger.Debugf("Update publisher list for topic '%s'", sub.topic)
 	} else {
 		sub.callbacks = append(sub.callbacks, callback)
 	}
@@ -534,12 +535,11 @@ func (node *defaultNode) SpinOnce() {
 }
 
 func (node *defaultNode) Spin() {
-	logger := node.logger
 	for node.OK() {
 		timeoutChan := time.After(1000 * time.Millisecond)
 		select {
 		case job := <-node.jobChan:
-			logger.Debug("Execute job")
+			node.logger.Debug("Execute job")
 			job()
 		case <-timeoutChan:
 			break
