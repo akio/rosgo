@@ -62,7 +62,7 @@ func newDefaultPublisher(node *defaultNode,
 }
 
 func (pub *defaultPublisher) start(wg *sync.WaitGroup) {
-	logger := pub.node.log
+	logger := pub.node.logger
 	logger.Debugf("Publisher goroutine for %s started.", pub.topic)
 	wg.Add(1)
 	defer func() {
@@ -117,7 +117,7 @@ func (pub *defaultPublisher) start(wg *sync.WaitGroup) {
 }
 
 func (pub *defaultPublisher) listenRemoteSubscriber() {
-	logger := pub.node.log
+	logger := pub.node.logger
 	logger.Debugf("Start listen %s.", pub.listener.Addr().String())
 	defer func() {
 		logger.Debug("defaultPublisher.listenRemoteSubscriber exit")
@@ -185,7 +185,7 @@ func newRemoteSubscriberSession(pub *defaultPublisher, conn net.Conn) *remoteSub
 	session.quitChan = make(chan struct{})
 	session.msgChan = make(chan []byte, 10)
 	session.errorChan = pub.sessionErrorChan
-	session.logger = pub.node.log
+	session.logger = pub.node.logger
 	session.connectCallback = pub.connectCallback
 	session.disconnectCallback = pub.disconnectCallback
 	return session

@@ -34,7 +34,7 @@ type defaultServiceServer struct {
 }
 
 func newDefaultServiceServer(node *defaultNode, service string, srvType ServiceType, handler interface{}) *defaultServiceServer {
-	logger := node.log
+	logger := node.logger
 	server := new(defaultServiceServer)
 	if listener, err := listenRandomPort(node.listenIP, 10); err != nil {
 		logger.Errorf("failed to listen to random port : %v", err)
@@ -82,7 +82,7 @@ func (s *defaultServiceServer) Shutdown() {
 
 // event loop
 func (s *defaultServiceServer) start() {
-	logger := s.node.log
+	logger := s.node.logger
 	logger.Debugf("service server '%s' start listen %s.", s.service, s.listener.Addr().String())
 	s.node.waitGroup.Add(1)
 	defer func() {
@@ -160,7 +160,7 @@ func newRemoteClientSession(s *defaultServiceServer, conn net.Conn) *remoteClien
 }
 
 func (s *remoteClientSession) start() {
-	logger := s.server.node.log
+	logger := s.server.node.logger
 	conn := s.conn
 	nodeID := s.server.node.qualifiedName
 	service := s.server.service

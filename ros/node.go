@@ -72,8 +72,8 @@ type defaultNode struct {
 	jobChan          chan func()
 	interruptChan    chan os.Signal
 	enableInterrupts bool
-	logger           *logrus.Logger
-	log              *logrus.Entry
+	logger           *logrus.Entry
+	log              *logrus.Logger
 	ok               bool
 	okMutex          sync.RWMutex
 	waitGroup        sync.WaitGroup
@@ -111,8 +111,8 @@ func newDefaultNodeWithLogs(name string, logger *logrus.Entry, loglevel uint32, 
 		return nil, err
 	}
 
-	node.logger.SetLevel(logrus.Level(loglevel))
-	node.log = rosLog.WithField("lib", "rosgo")
+	node.log.SetLevel(logrus.Level(loglevel))
+	node.logger = rosLog.WithField("lib", "rosgo")
 	return node, nil
 }
 
@@ -138,10 +138,10 @@ func newDefaultNode(name string, args []string) (*defaultNode, error) {
 			logger.SetLevel(logrus.Level(val))
 		}
 	} else {
-		logger.SetLevel(logrus.Level(1))
+		logger.SetLevel(logrus.FatalLevel)
 	}
-	node.logger = logger
-	node.log = logrus.NewEntry(logger)
+	node.log = logger
+	node.logger = logrus.NewEntry(logger)
 
 	node.name = nodeName
 	if value, ok := specials["__name"]; ok {
@@ -262,8 +262,8 @@ func newDefaultNode(name string, args []string) (*defaultNode, error) {
 }
 
 func (node *defaultNode) SetLogLevel(loglevel logrus.Level) {
-	node.logger.SetLevel(loglevel)
-	node.log.Debugf("Set node log level to %v", loglevel)
+	node.log.SetLevel(loglevel)
+	node.logger.Debugf("Set node log level to %v", loglevel)
 }
 
 func (node *defaultNode) OK() bool {
@@ -336,11 +336,11 @@ func (node *defaultNode) paramUpdate(callerID string, key string, value interfac
 }
 
 func (node *defaultNode) publisherUpdate(callerID string, topic string, publishers []interface{}) (interface{}, error) {
-	node.log.Debug("Slave API publisherUpdate() called.")
+	node.logger.Debug("Slave API publisherUpdate() called.")
 	var code int32
 	var message string
 	if sub, ok := node.subscribers[topic]; !ok {
-		node.log.Debug("publisherUpdate() called without subscribing topic.")
+		node.logger.Debug("publisherUpdate() called without subscribing topic.")
 		code = 0
 		message = "No such topic"
 	} else {
@@ -356,12 +356,12 @@ func (node *defaultNode) publisherUpdate(callerID string, topic string, publishe
 }
 
 func (node *defaultNode) requestTopic(callerID string, topic string, protocols []interface{}) (interface{}, error) {
-	node.log.Debugf("Slave API requestTopic(%s, %s, ...) called.", callerID, topic)
+	node.logger.Debugf("Slave API requestTopic(%s, %s, ...) called.", callerID, topic)
 	var code int32
 	var message string
 	var value interface{}
 	if pub, ok := node.publishers.Load(topic); !ok {
-		node.log.Debug("requestTopic() called with not publishing topic.")
+		node.logger.Debug("requestTopic() called with not publishing topic.")
 		code = 0
 		message = "No such topic"
 		value = nil
@@ -371,7 +371,7 @@ func (node *defaultNode) requestTopic(callerID string, topic string, protocols [
 			protocolParams := v.([]interface{})
 			protocolName := protocolParams[0].(string)
 			if protocolName == "TCPROS" {
-				node.log.Debug("TCPROS requested")
+				node.logger.Debug("TCPROS requested")
 				selectedProtocol = append(selectedProtocol, "TCPROS")
 				host, portStr := pub.(*defaultPublisher).hostAndPort()
 				p, err := strconv.ParseInt(portStr, 10, 32)
@@ -384,7 +384,7 @@ func (node *defaultNode) requestTopic(callerID string, topic string, protocols [
 				break
 			}
 		}
-		node.log.Debug(selectedProtocol)
+		node.logger.Debug(selectedProtocol)
 		code = 1
 		message = "Success"
 		value = selectedProtocol
@@ -400,7 +400,7 @@ func (node *defaultNode) NewPublisher(topic string, msgType MessageType) (Publis
 func (node *defaultNode) NewPublisherWithCallbacks(topic string, msgType MessageType, connectCallback, disconnectCallback func(SingleSubscriberPublisher)) (Publisher, error) {
 	name := node.nameResolver.remap(topic)
 	pub, ok := node.publishers.Load(topic)
-	logger := node.log
+	logger := node.logger
 	if !ok {
 		_, err := callRosAPI(node.masterURI, "registerPublisher",
 			node.qualifiedName,
@@ -419,34 +419,34 @@ func (node *defaultNode) NewPublisherWithCallbacks(topic string, msgType Message
 }
 
 func (node *defaultNode) GetPublishedTopics(subgraph string) ([]interface{}, error) {
-	node.log.Debug("Call Master API getPublishedTopics")
+	node.logger.Debug("Call Master API getPublishedTopics")
 	result, err := callRosAPI(node.masterURI, "getPublishedTopics",
 		node.qualifiedName,
 		subgraph)
 	if err != nil {
-		node.log.Errorf("Failed to call getPublishedTopics() for %s.", err)
+		node.logger.Errorf("Failed to call getPublishedTopics() for %s.", err)
 		return nil, err
 	}
 	list, ok := result.([]interface{})
 	if !ok {
-		node.log.Errorf("result is not []string but %s.", reflect.TypeOf(result).String())
+		node.logger.Errorf("result is not []string but %s.", reflect.TypeOf(result).String())
 	}
-	node.log.Trace("Result: ", list)
+	node.logger.Trace("Result: ", list)
 	return list, nil
 }
 
 func (node *defaultNode) GetTopicTypes() []interface{} {
-	node.log.Debug("Call Master API getTopicTypes")
+	node.logger.Debug("Call Master API getTopicTypes")
 	result, err := callRosAPI(node.masterURI, "getTopicTypes",
 		node.qualifiedName)
 	if err != nil {
-		node.log.Errorf("Failed to call getTopicTypes() for %s.", err)
+		node.logger.Errorf("Failed to call getTopicTypes() for %s.", err)
 	}
 	list, ok := result.([]interface{})
 	if !ok {
-		node.log.Errorf("result is not []string but %s.", reflect.TypeOf(result).String())
+		node.logger.Errorf("result is not []string but %s.", reflect.TypeOf(result).String())
 	}
-	node.log.Debug("Result: ", list)
+	node.logger.Debug("Result: ", list)
 	return list
 }
 
@@ -462,9 +462,9 @@ func (node *defaultNode) RemoveSubscriber(topic string) {
 func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callback interface{}) (Subscriber, error) {
 	name := node.nameResolver.remap(topic)
 	sub, ok := node.subscribers[name]
-	logger := node.log
+	logger := node.logger
 	if !ok {
-		node.log.Debug("Call Master API registerSubscriber")
+		logger.Debug("Call Master API registerSubscriber")
 		result, err := callRosAPI(node.masterURI, "registerSubscriber",
 			node.qualifiedName,
 			name,
@@ -493,7 +493,7 @@ func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callba
 		node.subscribers[name] = sub
 
 		logger.Debugf("Start subscriber goroutine for topic '%s'", sub.topic)
-		go sub.start(&node.waitGroup, node.qualifiedName, node.xmlrpcURI, node.masterURI, node.jobChan, node.log)
+		go sub.start(&node.waitGroup, node.qualifiedName, node.xmlrpcURI, node.masterURI, node.jobChan, node.logger)
 		logger.Debugf("Done")
 		sub.pubListChan <- publishers
 		logger.Debugf("Update publisher list for topic '%s'", sub.topic)
@@ -505,7 +505,7 @@ func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callba
 
 func (node *defaultNode) NewServiceClient(service string, srvType ServiceType) ServiceClient {
 	name := node.nameResolver.remap(service)
-	client := newDefaultServiceClient(node.log, node.qualifiedName, node.masterURI, name, srvType)
+	client := newDefaultServiceClient(node.logger, node.qualifiedName, node.masterURI, name, srvType)
 	return client
 }
 
@@ -534,7 +534,7 @@ func (node *defaultNode) SpinOnce() {
 }
 
 func (node *defaultNode) Spin() {
-	logger := node.log
+	logger := node.logger
 	for node.OK() {
 		timeoutChan := time.After(1000 * time.Millisecond)
 		select {
@@ -548,36 +548,36 @@ func (node *defaultNode) Spin() {
 }
 
 func (node *defaultNode) Shutdown() {
-	node.log.Debug("Shutting node down")
+	node.logger.Debug("Shutting node down")
 	node.okMutex.Lock()
 	node.ok = false
 	node.okMutex.Unlock()
-	node.log.Debug("Shutdown subscribers")
+	node.logger.Debug("Shutdown subscribers")
 	for _, s := range node.subscribers {
 		s.Shutdown()
 	}
-	node.log.Debug("Shutdown subscribers...done")
-	node.log.Debug("Shutdown publishers")
+	node.logger.Debug("Shutdown subscribers...done")
+	node.logger.Debug("Shutdown publishers")
 	node.publishers.Range(func(key interface{}, value interface{}) bool {
 		value.(*defaultPublisher).Shutdown()
 		return true
 	})
-	node.log.Debug("Shutdown publishers...done")
-	node.log.Debug("Shutdown servers")
+	node.logger.Debug("Shutdown publishers...done")
+	node.logger.Debug("Shutdown servers")
 	for _, s := range node.servers {
 		s.Shutdown()
 	}
-	node.log.Debug("Shutdown servers...done")
-	node.log.Debug("Wait all goroutines")
+	node.logger.Debug("Shutdown servers...done")
+	node.logger.Debug("Wait all goroutines")
 	node.waitGroup.Wait()
-	node.log.Debug("Wait all goroutines...Done")
-	node.log.Debug("Close XMLRPC lisetner")
+	node.logger.Debug("Wait all goroutines...Done")
+	node.logger.Debug("Close XMLRPC lisetner")
 	node.xmlrpcListener.Close()
-	node.log.Debug("Close XMLRPC done")
-	node.log.Debug("Wait XMLRPC server shutdown")
+	node.logger.Debug("Close XMLRPC done")
+	node.logger.Debug("Wait XMLRPC server shutdown")
 	node.xmlrpcHandler.WaitForShutdown()
-	node.log.Debug("Wait XMLRPC server shutdown...Done")
-	node.log.Debug("Shutting node down completed")
+	node.logger.Debug("Wait XMLRPC server shutdown...Done")
+	node.logger.Debug("Shutting node down completed")
 	return
 }
 
@@ -618,7 +618,7 @@ func (node *defaultNode) DeleteParam(key string) error {
 }
 
 func (node *defaultNode) Logger() *logrus.Entry {
-	return node.log
+	return node.logger
 }
 
 func (node *defaultNode) NonRosArgs() []string {
