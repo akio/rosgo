@@ -488,7 +488,7 @@ func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callba
 			publishers = append(publishers, s)
 		}
 
-		logger.Debugf("Publisher URI list: %v", publishers)
+		node.logger.Debugf("Publisher URI list: %v", publishers)
 
 		sub = newDefaultSubscriber(name, msgType, callback)
 		node.subscribers[name] = sub
