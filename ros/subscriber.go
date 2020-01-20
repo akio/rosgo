@@ -239,7 +239,10 @@ func startRemotePublisherConn(logger *logrus.Entry,
 					}
 				}
 				event.ReceiptTime = time.Now()
-				msgChan <- messageEvent{bytes: buffer, event: event}
+				select {
+				case msgChan <- messageEvent{bytes: buffer, event: event}:
+				case <-time.After(time.Duration(5) * time.Second):
+				}
 				readingSize = true
 			}
 		}
