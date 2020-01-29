@@ -94,6 +94,32 @@ func RTTest(t *testing.T) {
 	if _, ok := msgs["c5b/test"]; !ok { t.Error("didn't create c5b/test successfully") }
 	if _, ok := msgs["c6/test"]; !ok { t.Error("didn't create c6/test successfully") }
 	if _, ok := msgs["d6/test"]; ok { t.Error("created d6/test which shouldn't be possible") }
+	packagePaths = make([]string, 0)
+	packagePaths = append(packagePaths, filepath.Join(testDir, "a1"))
+	msgs, err = libgengo.FindAllMessages(packagePaths)
+	if err != nil { t.Error("error in FindAllMessages: " + err.Error()) }
+	if _, ok := msgs["d1/test"]; !ok { t.Error("didn't create d1/test successfully") }
+	packagePaths = make([]string, 0)
+	packagePaths = append(packagePaths, filepath.Join(testDir, "a1", "b1"))
+	msgs, err = libgengo.FindAllMessages(packagePaths)
+	if err != nil { t.Error("error in FindAllMessages: " + err.Error()) }
+	if _, ok := msgs["d1/test"]; !ok { t.Error("didn't create d1/test successfully") }
+	packagePaths = make([]string, 0)
+	packagePaths = append(packagePaths, filepath.Join(testDir, "a1", "b1", "c1"))
+	msgs, err = libgengo.FindAllMessages(packagePaths)
+	if err != nil { t.Error("error in FindAllMessages: " + err.Error()) }
+	if _, ok := msgs["d1/test"]; !ok { t.Error("didn't create d1/test successfully") }
+	packagePaths = make([]string, 0)
+	packagePaths = append(packagePaths, filepath.Join(testDir, "a1", "b1", "c1", "d1"))
+	msgs, err = libgengo.FindAllMessages(packagePaths)
+	if err != nil { t.Error("error in FindAllMessages: " + err.Error()) }
+	if _, ok := msgs["d1/test"]; !ok { t.Error("didn't create d1/test successfully") }
+	packagePaths = make([]string, 0)
+	packagePaths = append(packagePaths, filepath.Join(testDir, "a1", "b1", "c1", "d1", "msg"))
+	msgs, err = libgengo.FindAllMessages(packagePaths)
+	if err != nil { t.Error("error in FindAllMessages: " + err.Error()) }
+	if _, ok := msgs["d2/test"]; ok { t.Error("created d1/test which shouldn't be possible") }
+
 }
 
 func mkFile(path string, contents string) error {
