@@ -2,6 +2,7 @@ package libgengo
 
 import (
 	"bytes"
+	"os"
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
@@ -23,8 +24,62 @@ func isRosPackage(dir string) bool {
 	return false
 }
 
+
+
+
 func FindAllMessages(rosPkgPaths []string) (map[string]string, error) {
 	msgs := make(map[string]string)
+
+	recurseDirForMsgs := func(path string, info os.FileInfo, err error) error {
+		// Check whether this path is a directory.
+		if !info.IsDir() {
+			// It's not a directory, so we skip it; we only care about directories.
+			return nil
+		}
+		
+		// Check whether this directory is a ROS package.
+		if isRosPackage(path) {
+			// It's a ROS package.
+			pkgName := filepath.Base(path)
+			msgPath := filepath.Join(path, "msg")
+			msgPaths, err := filepath.Glob(msgPath + "/*.msg")
+			if err != nil {
+				return nil
+			}
+			for _, m := range msgPaths {
+				basename := filepath.Base(m)
+				rootname := basename[:len(basename) - 4] // This is chopping off the file extension.  Horribly.
+				fullname := pkgName + "/" + rootname
+				msgs[fullname] = m
+			}
+
+			// No point checking INSIDE this one, since it's already a package.
+			return filepath.SkipDir
+		}
+
+		// Else just keep walking.
+		return nil
+	}
+
+	// Iterate over the list of paths to search.
+	for _, p := range rosPkgPaths {
+		err := filepath.Walk(p, recurseDirForMsgs)
+		if err != nil {
+			// If someone complains, then we just skip searching the reset of this path.
+			continue
+		}
+	}
+
+	// Return whatever we found.
+	return msgs, nil
+}
+
+
+
+
+func FindAllMessagesOld(rosPkgPaths []string) (map[string]string, error) {
+	msgs := make(map[string]string)
+
 	for _, p := range rosPkgPaths {
 		files, err := ioutil.ReadDir(p)
 		if err != nil {
@@ -67,7 +122,59 @@ func FindAllMessages(rosPkgPaths []string) (map[string]string, error) {
 	return msgs, nil
 }
 
+
+
+
 func findAllServices(rosPkgPaths []string) (map[string]string, error) {
+	srvs := make(map[string]string)
+
+	recurseDirForMsgs := func(path string, info os.FileInfo, err error) error {
+		// Check whether this path is a directory.
+		if !info.IsDir() {
+			// It's not a directory, so we skip it; we only care about directories.
+			return nil
+		}
+		
+		// Check whether this directory is a ROS package.
+		if isRosPackage(path) {
+			// It's a ROS package.
+			pkgName := filepath.Base(path)
+			msgPath := filepath.Join(path, "srv")
+			msgPaths, err := filepath.Glob(msgPath + "/*.srv")
+			if err != nil {
+				return nil
+			}
+			for _, m := range msgPaths {
+				basename := filepath.Base(m)
+				rootname := basename[:len(basename) - 4] // This is chopping off the file extension.  Horribly.
+				fullname := pkgName + "/" + rootname
+				srvs[fullname] = m
+			}
+
+			// No point checking INSIDE this one, since it's already a package.
+			return filepath.SkipDir
+		}
+
+		// Else just keep walking.
+		return nil
+	}
+
+	// Iterate over the list of paths to search.
+	for _, p := range rosPkgPaths {
+		err := filepath.Walk(p, recurseDirForMsgs)
+		if err != nil {
+			// If someone complains, then we just skip searching the reset of this path.
+			continue
+		}
+	}
+
+	// Return whatever we found.
+	return srvs, nil
+}
+
+
+
+func findAllServicesOld(rosPkgPaths []string) (map[string]string, error) {
 	srvs := make(map[string]string)
 	for _, p := range rosPkgPaths {
 		files, err := ioutil.ReadDir(p)
