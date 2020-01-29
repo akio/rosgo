@@ -105,7 +105,8 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeID string, nodeAPIUR
 			logger.Debug(sub.topic, " : Receive msgChan")
 			callbacks := make([]interface{}, len(sub.callbacks))
 			copy(callbacks, sub.callbacks)
-			jobChan <- func() {
+			select {
+			case jobChan <- func() {
 				m := sub.msgType.NewMessage()
 				reader := bytes.NewReader(msgEvent.bytes)
 				if err := m.Deserialize(reader); err != nil {
@@ -119,8 +120,11 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeID string, nodeAPIUR
 						fun.Call(args[0:numArgsNeeded])
 					}
 				}
+			}:
+				logger.Debug(sub.topic, " : Callback job enqueued.")
+			case <-time.After(time.Duration(5) * time.Second):
+				logger.Debug(sub.topic, " : Callback job timed out.")
 			}
-			logger.Debug(sub.topic, " : Callback job enqueued.")
 		case pubURI := <-sub.disconnectedChan:
 			logger.Debug(sub.topic, " : Connection disconnected to ", pubURI)
 			delete(sub.connections, pubURI)
