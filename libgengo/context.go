@@ -31,6 +31,12 @@ func FindAllMessages(rosPkgPaths []string) (map[string]string, error) {
 	msgs := make(map[string]string)
 
 	recurseDirForMsgs := func(path string, info os.FileInfo, err error) error {
+		// Check whether we could open the path ok.
+		if err != nil {
+			// Just skip this item and try the next one.
+			return nil
+		}
+
 		// Check whether this path is a directory.
 		if !info.IsDir() {
 			// It's not a directory, so we skip it; we only care about directories.
@@ -74,61 +80,16 @@ func FindAllMessages(rosPkgPaths []string) (map[string]string, error) {
 	return msgs, nil
 }
 
-
-
-
-func FindAllMessagesOld(rosPkgPaths []string) (map[string]string, error) {
-	msgs := make(map[string]string)
-
-	for _, p := range rosPkgPaths {
-		files, err := ioutil.ReadDir(p)
-		if err != nil {
-			continue
-		}
-		for _, f := range files {
-			if !f.IsDir() {
-				continue
-			}
-			pkgPath := filepath.Join(p, f.Name())
-			files, err := ioutil.ReadDir(pkgPath)
-			if err != nil {
-				continue
-			}
-			for _, ff := range files {
-				if !f.IsDir() {
-					continue
-				}
-				subPkgPath := filepath.Join(p, f.Name(), ff.Name())
-				if isRosPackage(subPkgPath) {
-					pkgPath = subPkgPath
-				}
-				if isRosPackage(pkgPath) {
-					pkgName := filepath.Base(pkgPath)
-					msgPath := filepath.Join(pkgPath, "msg")
-					msgPaths, err := filepath.Glob(msgPath + "/*.msg")
-					if err != nil {
-						continue
-					}
-					for _, m := range msgPaths {
-						basename := filepath.Base(m)
-						rootname := basename[:len(basename)-4]
-						fullname := pkgName + "/" + rootname
-						msgs[fullname] = m
-					}
-				}
-			}
-		}
-	}
-	return msgs, nil
-}
-
-
-
-
 func findAllServices(rosPkgPaths []string) (map[string]string, error) {
 	srvs := make(map[string]string)
 
-	recurseDirForMsgs := func(path string, info os.FileInfo, err error) error {
+	recurseDirForSrvs := func(path string, info os.FileInfo, err error) error {
+		// Check whether we could open the path ok.
+		if err != nil {
+			// Just skip this item and try the next one.
+			return nil
+		}
+
 		// Check whether this path is a directory.
 		if !info.IsDir() {
 			// It's not a directory, so we skip it; we only care about directories.
@@ -161,7 +122,7 @@ func findAllServices(rosPkgPaths []string) (map[string]string, error) {
 
 	// Iterate over the list of paths to search.
 	for _, p := range rosPkgPaths {
-		err := filepath.Walk(p, recurseDirForMsgs)
+		err := filepath.Walk(p, recurseDirForSrvs)
 		if err != nil {
 			// If someone complains, then we just skip searching the reset of this path.
 			continue
@@ -169,39 +130,6 @@ func findAllServices(rosPkgPaths []string) (map[string]string, error) {
 	}
 
 	// Return whatever we found.
-	return srvs, nil
-}
-
-
-
-func findAllServicesOld(rosPkgPaths []string) (map[string]string, error) {
-	srvs := make(map[string]string)
-	for _, p := range rosPkgPaths {
-		files, err := ioutil.ReadDir(p)
-		if err != nil {
-			continue
-		}
-		for _, f := range files {
-			if !f.IsDir() {
-				continue
-			}
-			pkgPath := filepath.Join(p, f.Name())
-			if isRosPackage(pkgPath) {
-				pkgName := filepath.Base(pkgPath)
-				srvPath := filepath.Join(pkgPath, "srv")
-				srvPaths, err := filepath.Glob(srvPath + "/*.srv")
-				if err != nil {
-					continue
-				}
-				for _, m := range srvPaths {
-					basename := filepath.Base(m)
-					rootname := basename[:len(basename)-4]
-					fullname := pkgName + "/" + rootname
-					srvs[fullname] = m
-				}
-			}
-		}
-	}
 	return srvs, nil
 }
 

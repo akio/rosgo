@@ -32,6 +32,12 @@ uint32[] dyn_ary
 uint32[2] fix_ary`
 
 func RTTest(t *testing.T) {
+
+	// Test whether a bad path is handled ok.
+	msgs, err := libgengo.FindAllMessages([]string{"", " ", ":"})
+	if err != nil { t.Error("error in FindAllMessages: " + err.Error()) }
+	if len(msgs) != 0 { t.Errorf("wrong number of entries (should be 0, got %v)", len(msgs)) }
+
 	// Create a temporary directory structure to parse.
 
 	tmp := os.TempDir()
@@ -78,7 +84,7 @@ func RTTest(t *testing.T) {
 	// Try to parse the directory structure.
 	packagePaths := make([]string, 0)
 	packagePaths = append(packagePaths, testDir)
-	msgs, err := libgengo.FindAllMessages(packagePaths)
+	msgs, err = libgengo.FindAllMessages(packagePaths)
 	if err != nil { t.Error("error in FindAllMessages: " + err.Error()) }
 	if _, ok := msgs["d1/test"]; !ok { t.Error("didn't create d1/test successfully") }
 	if _, ok := msgs["d2/test"]; ok { t.Error("created d2/test which shouldn't be possible") }
