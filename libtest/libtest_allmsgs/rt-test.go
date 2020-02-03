@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/edwinhayes/rosgo/libgengo"
 	"github.com/edwinhayes/rosgo/ros"
-	"github.com/sirupsen/logrus"
 	"os"
 	"strings"
 	"testing"
@@ -23,7 +22,6 @@ func RTTest(t *testing.T) {
 		t.Error("Failed to make node;", err)
 		return
 	}
-	node.SetLogLevel(logrus.ErrorLevel)
 	defer node.Shutdown()
 
 	//Generate a map of all message types

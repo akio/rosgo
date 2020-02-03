@@ -10,20 +10,20 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	modular "github.com/edwinhayes/logrus-modular"
 )
 
 type defaultServiceClient struct {
-	logger    *logrus.Entry
+	logger    *modular.ModuleLogger
 	service   string
 	srvType   ServiceType
 	masterURI string
 	nodeID    string
 }
 
-func newDefaultServiceClient(logger *logrus.Entry, nodeID string, masterURI string, service string, srvType ServiceType) *defaultServiceClient {
+func newDefaultServiceClient(log *modular.ModuleLogger, nodeID string, masterURI string, service string, srvType ServiceType) *defaultServiceClient {
 	client := new(defaultServiceClient)
-	client.logger = logger
+	client.logger = log
 	client.service = service
 	client.srvType = srvType
 	client.masterURI = masterURI
@@ -32,7 +32,7 @@ func newDefaultServiceClient(logger *logrus.Entry, nodeID string, masterURI stri
 }
 
 func (c *defaultServiceClient) Call(srv Service) error {
-	logger := c.logger
+	logger := *c.logger
 
 	result, err := callRosAPI(c.masterURI, "lookupService", c.nodeID, c.service)
 	if err != nil {
