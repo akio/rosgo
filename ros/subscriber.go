@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	modular "github.com/edwinhayes/logrus-modular"
 )
 
 type messageEvent struct {
@@ -47,7 +47,8 @@ func newDefaultSubscriber(topic string, msgType MessageType, callback interface{
 	return sub
 }
 
-func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeID string, nodeAPIURI string, masterURI string, jobChan chan func(), logger *logrus.Entry) {
+func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeID string, nodeAPIURI string, masterURI string, jobChan chan func(), log *modular.ModuleLogger) {
+	logger := *log
 	logger.Debugf("Subscriber goroutine for %s started.", sub.topic)
 	wg.Add(1)
 	defer wg.Done()
@@ -85,7 +86,7 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeID string, nodeAPIUR
 					uri := fmt.Sprintf("%s:%d", addr, port)
 					quitChan := make(chan struct{}, 10)
 					sub.connections[pub] = quitChan
-					go startRemotePublisherConn(logger,
+					go startRemotePublisherConn(log,
 						uri, sub.topic,
 						sub.msgType.MD5Sum(),
 						sub.msgType.Name(), nodeID,
@@ -144,12 +145,14 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeID string, nodeAPIUR
 	}
 }
 
-func startRemotePublisherConn(logger *logrus.Entry,
+func startRemotePublisherConn(log *modular.ModuleLogger,
 	pubURI string, topic string, md5sum string,
 	msgType string, nodeID string,
 	msgChan chan messageEvent,
 	quitChan chan struct{},
 	disconnectedChan chan string, msgTypeProper MessageType) {
+
+	logger := *log
 	logger.Debug(topic, " : startRemotePublisherConn()")
 
 	defer func() {

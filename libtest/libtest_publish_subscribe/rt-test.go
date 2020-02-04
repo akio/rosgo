@@ -3,7 +3,6 @@ package libtest_publish_subscribe
 import (
 	"github.com/edwinhayes/rosgo/libtest/msgs/std_msgs"
 	"github.com/edwinhayes/rosgo/ros"
-	"github.com/sirupsen/logrus"
 	"os"
 	"testing"
 )
@@ -47,7 +46,6 @@ func RTTest(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	node.SetLogLevel(logrus.ErrorLevel)
 	defer node.Shutdown()
 
 	subscription = 1

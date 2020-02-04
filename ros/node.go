@@ -17,6 +17,7 @@ import (
 
 	"github.com/edwinhayes/rosgo/xmlrpc"
 	"github.com/sirupsen/logrus"
+	modular "github.com/edwinhayes/logrus-modular"
 )
 
 const (
@@ -72,8 +73,7 @@ type defaultNode struct {
 	jobChan          chan func()
 	interruptChan    chan os.Signal
 	enableInterrupts bool
-	logger           *logrus.Entry
-	log              *logrus.Logger
+	logger           modular.ModuleLogger
 	ok               bool
 	okMutex          sync.RWMutex
 	waitGroup        sync.WaitGroup
@@ -102,17 +102,14 @@ func listenRandomPort(address string, trialLimit int) (net.Listener, error) {
 	return nil, fmt.Errorf("listenRandomPort exceeds trial limit")
 }
 
-func newDefaultNodeWithLogs(name string, logger *logrus.Entry, loglevel uint32, args []string) (*defaultNode, error) {
-	rosLog := logger
-
+func newDefaultNodeWithLogs(name string, logger *modular.ModuleLogger, args []string) (*defaultNode, error) {
 	node, err := newDefaultNode(name, args)
 	if err != nil {
-		logger.Errorf("could not instantiate newDefaultNode : %v", err)
+		(*logger).Errorf("could not instantiate newDefaultNode : %v", err)
 		return nil, err
 	}
 
-	node.log.SetLevel(logrus.Level(loglevel))
-	node.logger = rosLog.WithField("lib", "rosgo")
+	node.logger = (*logger).(modular.ModuleLogger)
 	return node, nil
 }
 
@@ -132,6 +129,7 @@ func newDefaultNode(name string, args []string) (*defaultNode, error) {
 	}
 
 	logger := logrus.New()
+	rootLogger := modular.NewRootLogger(logger)
 	if value, ok := specials["__ll"]; ok {
 		val, err := strconv.ParseInt(value, 10, 32)
 		if err == nil {
@@ -140,8 +138,7 @@ func newDefaultNode(name string, args []string) (*defaultNode, error) {
 	} else {
 		logger.SetLevel(logrus.FatalLevel)
 	}
-	node.log = logger
-	node.logger = logrus.NewEntry(logger)
+	node.logger = rootLogger
 
 	node.name = nodeName
 	if value, ok := specials["__name"]; ok {
@@ -259,11 +256,6 @@ func newDefaultNode(name string, args []string) (*defaultNode, error) {
 	go http.Serve(node.xmlrpcListener, node.xmlrpcHandler)
 	logger.Debugf("Started %s", node.qualifiedName)
 	return node, nil
-}
-
-func (node *defaultNode) SetLogLevel(loglevel logrus.Level) {
-	node.log.SetLevel(loglevel)
-	node.logger.Debugf("Set node log level to %v", loglevel)
 }
 
 func (node *defaultNode) OK() bool {
@@ -494,7 +486,7 @@ func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callba
 		node.subscribers[name] = sub
 
 		node.logger.Debugf("Start subscriber goroutine for topic '%s'", sub.topic)
-		go sub.start(&node.waitGroup, node.qualifiedName, node.xmlrpcURI, node.masterURI, node.jobChan, node.logger)
+		go sub.start(&node.waitGroup, node.qualifiedName, node.xmlrpcURI, node.masterURI, node.jobChan, &node.logger)
 		node.logger.Debugf("Done")
 		sub.pubListChan <- publishers
 		node.logger.Debugf("Update publisher list for topic '%s'", sub.topic)
@@ -506,7 +498,7 @@ func (node *defaultNode) NewSubscriber(topic string, msgType MessageType, callba
 
 func (node *defaultNode) NewServiceClient(service string, srvType ServiceType) ServiceClient {
 	name := node.nameResolver.remap(service)
-	client := newDefaultServiceClient(node.logger, node.qualifiedName, node.masterURI, name, srvType)
+	client := newDefaultServiceClient(&node.logger, node.qualifiedName, node.masterURI, name, srvType)
 	return client
 }
 
@@ -617,8 +609,8 @@ func (node *defaultNode) DeleteParam(key string) error {
 	return err
 }
 
-func (node *defaultNode) Logger() *logrus.Entry {
-	return node.logger
+func (node *defaultNode) Logger() *modular.ModuleLogger {
+	return &node.logger
 }
 
 func (node *defaultNode) NonRosArgs() []string {

@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	modular "github.com/edwinhayes/logrus-modular"
 )
 
 type remoteSubscriberSessionError struct {
@@ -169,7 +169,7 @@ type remoteSubscriberSession struct {
 	quitChan           chan struct{}
 	msgChan            chan []byte
 	errorChan          chan error
-	logger             *logrus.Entry
+	logger             *modular.ModuleLogger
 	connectCallback    func(SingleSubscriberPublisher)
 	disconnectCallback func(SingleSubscriberPublisher)
 }
@@ -185,7 +185,7 @@ func newRemoteSubscriberSession(pub *defaultPublisher, conn net.Conn) *remoteSub
 	session.quitChan = make(chan struct{})
 	session.msgChan = make(chan []byte, 10)
 	session.errorChan = pub.sessionErrorChan
-	session.logger = pub.node.logger
+	session.logger = &pub.node.logger
 	session.connectCallback = pub.connectCallback
 	session.disconnectCallback = pub.disconnectCallback
 	return session
@@ -212,7 +212,7 @@ func (ssp *singleSubPub) GetTopic() string {
 }
 
 func (session *remoteSubscriberSession) start() {
-	logger := session.logger
+	logger := *session.logger
 	logger.Debug("remoteSubscriberSession.start enter")
 
 	ssp := &singleSubPub{
