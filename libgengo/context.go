@@ -2,13 +2,14 @@ package libgengo
 
 import (
 	"bytes"
-	"os"
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 func isRosPackage(dir string) bool {
@@ -23,9 +24,6 @@ func isRosPackage(dir string) bool {
 	}
 	return false
 }
-
-
-
 
 func FindAllMessages(rosPkgPaths []string) (map[string]string, error) {
 	msgs := make(map[string]string)
@@ -134,9 +132,10 @@ func findAllServices(rosPkgPaths []string) (map[string]string, error) {
 }
 
 type MsgContext struct {
-	msgPathMap  map[string]string
-	srvPathMap  map[string]string
-	msgRegistry map[string]*MsgSpec
+	msgPathMap      map[string]string
+	srvPathMap      map[string]string
+	msgRegistry     map[string]*MsgSpec
+	msgRegistryLock sync.Mutex
 }
 
 func NewMsgContext(rosPkgPaths []string) (*MsgContext, error) {
@@ -157,7 +156,9 @@ func NewMsgContext(rosPkgPaths []string) (*MsgContext, error) {
 }
 
 func (ctx *MsgContext) Register(fullname string, spec *MsgSpec) {
+	ctx.msgRegistryLock.Lock()
 	ctx.msgRegistry[fullname] = spec
+	ctx.msgRegistryLock.Unlock()
 }
 
 func (ctx *MsgContext) LoadMsgFromString(text string, fullname string) (*MsgSpec, error) {
@@ -208,15 +209,20 @@ func (ctx *MsgContext) LoadMsgFromFile(filePath string, fullname string) (*MsgSp
 }
 
 func (ctx *MsgContext) LoadMsg(fullname string) (*MsgSpec, error) {
+	ctx.msgRegistryLock.RLock()
 	if spec, ok := ctx.msgRegistry[fullname]; ok {
+		ctx.msgRegistryLock.RUnlock()
 		return spec, nil
 	} else {
+		ctx.msgRegistryLock.RUnlock()
 		if path, ok := ctx.msgPathMap[fullname]; ok {
 			spec, err := ctx.LoadMsgFromFile(path, fullname)
 			if err != nil {
 				return nil, err
 			} else {
+				ctx.msgRegistryLock.Lock()
 				ctx.msgRegistry[fullname] = spec
+				ctx.msgRegistryLock.Unlock()
 				return spec, nil
 			}
 		} else {
