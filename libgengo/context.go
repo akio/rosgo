@@ -341,5 +341,8 @@ func (ctx *MsgContext) ComputeSrvMD5(spec *SrvSpec) (string, error) {
 }
 
 func (ctx *MsgContext) GetMsgs() map[string]*MsgSpec {
-	return ctx.msgRegistry
+	ctx.msgRegistryLock.RLock()
+	msgs := ctx.msgRegistry
+	ctx.msgRegistryLock.RUnlock()
+	return msgs
 }
