@@ -135,7 +135,7 @@ type MsgContext struct {
 	msgPathMap      map[string]string
 	srvPathMap      map[string]string
 	msgRegistry     map[string]*MsgSpec
-	msgRegistryLock sync.Mutex
+	msgRegistryLock sync.RWMutex
 }
 
 func NewMsgContext(rosPkgPaths []string) (*MsgContext, error) {
