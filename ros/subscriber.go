@@ -123,7 +123,7 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeID string, nodeAPIUR
 				}
 			}:
 				logger.Debug(sub.topic, " : Callback job enqueued.")
-			case <-time.After(time.Duration(5) * time.Second):
+			case <-time.After(time.Duration(1) * time.Second):
 				logger.Debug(sub.topic, " : Callback job timed out.")
 			}
 		case pubURI := <-sub.disconnectedChan:
@@ -248,7 +248,7 @@ func startRemotePublisherConn(log *modular.ModuleLogger,
 				event.ReceiptTime = time.Now()
 				select {
 				case msgChan <- messageEvent{bytes: buffer, event: event}:
-				case <-time.After(time.Duration(5) * time.Second):
+				case <-time.After(time.Duration(1) * time.Second):
 				}
 				readingSize = true
 			}
