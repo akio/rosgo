@@ -75,6 +75,6 @@ func RTTest(t *testing.T) {
 			t.Error("Incorrect response recieved from server")
 		}
 		//Spin client node
-		node.SpinOnce()
+		_ = node.SpinOnce()
 	}
 }

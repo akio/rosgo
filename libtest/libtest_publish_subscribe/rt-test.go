@@ -51,7 +51,7 @@ func RTTest(t *testing.T) {
 	subscription = 1
 
 	for node.OK() {
-		node.SpinOnce()
+		_ = node.SpinOnce()
 
 		// Try to publish a message.
 		if subscription == 1 {

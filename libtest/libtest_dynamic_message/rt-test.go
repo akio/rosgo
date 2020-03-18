@@ -65,7 +65,7 @@ func RTTest(t *testing.T) {
 				msg := ros.Message(dynamicMsg)
 				pub.Publish(msg)
 
-				node.SpinOnce()
+				_ = node.SpinOnce()
 			}
 		}
 	}()
