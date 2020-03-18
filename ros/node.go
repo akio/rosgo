@@ -516,14 +516,16 @@ func (node *defaultNode) NewServiceServer(service string, srvType ServiceType, h
 	return server
 }
 
-func (node *defaultNode) SpinOnce() {
+func (node *defaultNode) SpinOnce() bool {
 	timeoutChan := time.After(10 * time.Millisecond)
 	select {
 	case job := <-node.jobChan:
 		job()
+		return false
 	case <-timeoutChan:
 		break
 	}
+	return true
 }
 
 func (node *defaultNode) Spin() {

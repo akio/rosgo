@@ -31,7 +31,7 @@ type Node interface {
 	RemovePublisher(topic string)
 
 	OK() bool
-	SpinOnce()
+	SpinOnce() bool
 	Spin()
 	Shutdown()
 	Name() string
