@@ -310,23 +310,24 @@ func (session *remoteSubscriberSession) start() {
 		case msg := <-queue:
 			logger.Debug("writing")
 			logger.Debug(hex.EncodeToString(msg))
-			session.conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
+			session.conn.SetDeadline(time.Now().Add(30 * time.Millisecond))
 			size := uint32(len(msg))
 			if err := binary.Write(session.conn, binary.LittleEndian, size); err != nil {
 				if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
 					logger.Debug("timeout")
-					continue
+					// TODO : Make this trigger a faster reconnect
+					return
 				} else {
 					logger.Error(err)
 					return
 				}
 			}
 			logger.Debug(len(msg))
-			session.conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
+			session.conn.SetDeadline(time.Now().Add(30 * time.Millisecond))
 			if _, err := session.conn.Write(msg); err != nil {
 				if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
 					logger.Debug("timeout")
-					continue
+					return
 				} else {
 					logger.Error(err)
 					return
