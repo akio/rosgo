@@ -113,6 +113,7 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeID string, nodeAPIUR
 				if err := m.Deserialize(reader); err != nil {
 					logger.Error(sub.topic, " : ", err)
 				}
+				// TODO: Investigate this
 				args := []reflect.Value{reflect.ValueOf(m), reflect.ValueOf(msgEvent.event)}
 				for _, callback := range callbacks {
 					fun := reflect.ValueOf(callback)
@@ -123,7 +124,7 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeID string, nodeAPIUR
 				}
 			}:
 				logger.Debug(sub.topic, " : Callback job enqueued.")
-			case <-time.After(time.Duration(1) * time.Second):
+			case <-time.After(time.Duration(3) * time.Second):
 				logger.Debug(sub.topic, " : Callback job timed out.")
 			}
 		case pubURI := <-sub.disconnectedChan:
@@ -159,12 +160,23 @@ func startRemotePublisherConn(log *modular.ModuleLogger,
 		logger.Debug(topic, " : startRemotePublisherConn() exit")
 	}()
 
-	conn, err := net.Dial("tcp", pubURI)
-	if err != nil {
-		logger.Error(topic, " : Failed to connect to ", pubURI)
-		return
-	}
+	// Dial loop for a subscriber
+dial:
+	var conn net.Conn
+	var err error
 
+	select {
+		case <-time.After(time.Duration(3000) * time.Millisecond):
+			logger.Error(topic, " : Failed to connect to ", pubURI, "timed out")
+			return
+		default:
+		conn, err = net.Dial("tcp", pubURI)
+		if err != nil {
+			logger.Error(topic, " : Failed to connect to ", pubURI, "- error: ", err)
+			return
+		}
+	}
+	
 	// 1. Write connection header
 	var headers []header
 	headers = append(headers, header{"topic", topic})
@@ -204,7 +216,7 @@ func startRemotePublisherConn(log *modular.ModuleLogger,
 		PublisherName:    resHeaderMap["callerid"],
 		ConnectionHeader: resHeaderMap,
 	}
-
+	
 	// 3. Start reading messages
 	readingSize := true
 	var msgSize uint32 = 0
@@ -222,15 +234,23 @@ func startRemotePublisherConn(log *modular.ModuleLogger,
 					if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
 						// Timed out
 						//logger.Debug(neterr)
-						continue
+						conn.Close()
+						goto dial
 					} else {
 						logger.Error(topic, " : Failed to read a message size")
 						disconnectedChan <- pubURI
 						return
 					}
 				}
-				buffer = make([]byte, int(msgSize))
-				readingSize = false
+				// Taking out the trash
+				if int(msgSize) < 256000000 {
+					buffer = make([]byte, int(msgSize))
+					readingSize = false
+				} else {
+					//logger.Debug("tcp cluttered - reconnecting")
+					conn.Close()
+					goto dial
+				}
 			} else {
 				//logger.Debug("Reading message body...")
 				_, err = io.ReadFull(conn, buffer)
@@ -238,7 +258,8 @@ func startRemotePublisherConn(log *modular.ModuleLogger,
 					if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
 						// Timed out
 						//logger.Debug(neterr)
-						continue
+						conn.Close()
+						goto dial
 					} else {
 						logger.Error(topic, " : Failed to read a message body")
 						disconnectedChan <- pubURI
@@ -248,12 +269,14 @@ func startRemotePublisherConn(log *modular.ModuleLogger,
 				event.ReceiptTime = time.Now()
 				select {
 				case msgChan <- messageEvent{bytes: buffer, event: event}:
-				case <-time.After(time.Duration(1) * time.Second):
+				case <-time.After(time.Duration(30) * time.Millisecond):
+					//logger.Debug("dropping message")
 				}
 				readingSize = true
 			}
 		}
 	}
+	
 }
 
 func setDifference(lhs []string, rhs []string) []string {
