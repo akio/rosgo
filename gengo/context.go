@@ -30,28 +30,33 @@ func findAllMessages(rosPkgPaths []string) (map[string]string, error) {
 		if err != nil {
 			return nil, err
 		}
+		processPath(p, msgs)
 		for _, f := range files {
 			if !f.IsDir() {
 				continue
 			}
 			pkgPath := filepath.Join(p, f.Name())
-			if isRosPackage(pkgPath) {
-				pkgName := filepath.Base(pkgPath)
-				msgPath := filepath.Join(pkgPath, "msg")
-				msgPaths, err := filepath.Glob(msgPath + "/*.msg")
-				if err != nil {
-					continue
-				}
-				for _, m := range msgPaths {
-					basename := filepath.Base(m)
-					rootname := basename[:len(basename)-4]
-					fullname := pkgName + "/" + rootname
-					msgs[fullname] = m
-				}
-			}
+			processPath(pkgPath, msgs)
 		}
 	}
 	return msgs, nil
+}
+
+func processPath(pkgPath string, msgs map[string]string) {
+	if isRosPackage(pkgPath) {
+		pkgName := filepath.Base(pkgPath)
+		msgPath := filepath.Join(pkgPath, "msg")
+		msgPaths, err := filepath.Glob(msgPath + "/*.msg")
+		if err != nil {
+			return
+		}
+		for _, m := range msgPaths {
+			basename := filepath.Base(m)
+			rootname := basename[:len(basename)-4]
+			fullname := pkgName + "/" + rootname
+			msgs[fullname] = m
+		}
+	}
 }
 
 func findAllServices(rosPkgPaths []string) (map[string]string, error) {
@@ -151,11 +156,11 @@ func (ctx *MsgContext) LoadMsgFromString(text string, fullname string) (*MsgSpec
 }
 
 func (ctx *MsgContext) LoadMsgFromFile(filePath string, fullname string) (*MsgSpec, error) {
-	bytes, e := ioutil.ReadFile(filePath)
+	fbytes, e := ioutil.ReadFile(filePath)
 	if e != nil {
 		return nil, e
 	}
-	text := string(bytes)
+	text := string(fbytes)
 	return ctx.LoadMsgFromString(text, fullname)
 }
 
@@ -213,11 +218,11 @@ func (ctx *MsgContext) LoadSrvFromString(text string, fullname string) (*SrvSpec
 }
 
 func (ctx *MsgContext) LoadSrvFromFile(filePath string, fullname string) (*SrvSpec, error) {
-	bytes, e := ioutil.ReadFile(filePath)
+	fbytes, e := ioutil.ReadFile(filePath)
 	if e != nil {
 		return nil, e
 	}
-	text := string(bytes)
+	text := string(fbytes)
 	return ctx.LoadSrvFromString(text, fullname)
 }
 

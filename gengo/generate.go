@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"strings"
 	"text/template"
 )
 
@@ -322,7 +323,7 @@ func GenerateMessage(context *MsgContext, spec *MsgSpec) (string, error) {
 	}
 
 	var buffer bytes.Buffer
-
+	filterGen(&gen)
 	err = tmpl.Execute(&buffer, gen)
 	if err != nil {
 		return "", err
@@ -330,6 +331,24 @@ func GenerateMessage(context *MsgContext, spec *MsgSpec) (string, error) {
 	return buffer.String(), err
 }
 
+func remove(l []string, item string) []string {
+	for i, other := range l {
+		if other == item {
+			return append(l[:i], l[i+1:]...)
+		}
+	}
+	return l
+}
+
+func filterGen(gen *MsgGen) {
+	gen.Imports = remove(gen.Imports, gen.MsgSpec.Package)
+	for i, field := range gen.Fields {
+		if field.Package == gen.MsgSpec.Package {
+			gen.Fields[i].GoType = strings.TrimLeft(field.GoType, gen.MsgSpec.Package+".")
+			gen.Fields[i].ZeroValue = strings.TrimLeft(field.ZeroValue, gen.MsgSpec.Package+".")
+		}
+	}
+}
 func GenerateService(context *MsgContext, spec *SrvSpec) (string, string, string, error) {
 	reqCode, err := GenerateMessage(context, spec.Request)
 	if err != nil {
