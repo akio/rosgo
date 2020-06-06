@@ -15,9 +15,9 @@ import (
 	"sync"
 	"time"
 
+	modular "github.com/edwinhayes/logrus-modular"
 	"github.com/edwinhayes/rosgo/xmlrpc"
 	"github.com/sirupsen/logrus"
-	modular "github.com/edwinhayes/logrus-modular"
 )
 
 const (
@@ -116,11 +116,6 @@ func newDefaultNodeWithLogs(name string, logger *modular.ModuleLogger, args []st
 func newDefaultNode(name string, args []string) (*defaultNode, error) {
 	node := new(defaultNode)
 
-	namespace, nodeName, err := qualifyNodeName(name)
-	if err != nil {
-		return nil, err
-	}
-
 	remapping, params, specials, rest := processArguments(args)
 
 	node.homeDir = filepath.Join(os.Getenv("HOME"), ".ros")
@@ -140,17 +135,26 @@ func newDefaultNode(name string, args []string) (*defaultNode, error) {
 	}
 	node.logger = rootLogger
 
-	node.name = nodeName
+	// Parse the name, since if it's an absolute name, then technically it actually contains the namespace also.
+	rawname := name
 	if value, ok := specials["__name"]; ok {
-		node.name = value
+		rawname = value
+	}
+	var namespace string
+	var err error
+	namespace, node.name, err = qualifyNodeName(rawname)
+	if err != nil {
+		return nil, err
 	}
 
 	node.namespace = namespace
 	if ns := os.Getenv("ROS_NAMESPACE"); len(ns) > 0 {
-		node.namespace = ns
+		// Namespaces should all be absolute, so make sure it starts with a slash.
+		node.namespace = GlobalNS + strings.TrimPrefix(ns, GlobalNS)
 	}
-	if value, ok := specials["__ns"]; ok {
-		node.namespace = value
+	if ns, ok := specials["__ns"]; ok {
+		// Namespaces should all be absolute, so make sure it starts with a slash.
+		node.namespace = GlobalNS + strings.TrimPrefix(ns, GlobalNS)
 	}
 	if value, ok := specials["__si"]; ok {
 		val, err := strconv.ParseBool(value)
@@ -191,7 +195,11 @@ func newDefaultNode(name string, args []string) (*defaultNode, error) {
 	node.nameResolver = newNameResolver(node.namespace, node.name, remapping)
 	node.nonRosArgs = rest
 
-	node.qualifiedName = node.namespace + node.name
+	if node.namespace != GlobalNS {
+		node.qualifiedName = node.namespace + Sep + node.name
+	} else {
+		node.qualifiedName = node.namespace + node.name
+	}
 	node.subscribers = make(map[string]*defaultSubscriber)
 	node.servers = make(map[string]*defaultServiceServer)
 	node.interruptChan = make(chan os.Signal)
@@ -275,6 +283,14 @@ func (node *defaultNode) RemovePublisher(topic string) {
 
 func (node *defaultNode) Name() string {
 	return node.name
+}
+
+func (node *defaultNode) Namespace() string {
+	return node.namespace
+}
+
+func (node *defaultNode) QualifiedName() string {
+	return node.qualifiedName
 }
 
 func (node *defaultNode) getBusStats(callerID string) (interface{}, error) {
