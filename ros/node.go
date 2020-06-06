@@ -285,6 +285,14 @@ func (node *defaultNode) Name() string {
 	return node.name
 }
 
+func (node *defaultNode) Namespace() string {
+	return node.namespace
+}
+
+func (node *defaultNode) QualifiedName() string {
+	return node.qualifiedName
+}
+
 func (node *defaultNode) getBusStats(callerID string) (interface{}, error) {
 	return buildRosAPIResult(-1, "Not implemented", 0), nil
 }
