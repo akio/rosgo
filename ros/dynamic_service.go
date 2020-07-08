@@ -11,14 +11,20 @@ import (
 
 // DEFINE PUBLIC STRUCTURES.
 
+// DynamicServiceType abstracts the schema of a ROS Service whose schema is only known at runtime.
+// DynamicServiceType implements the rosgo ServiceType interface, allowing it to be used throughout rosgo in the same manner as message schemas generated
+// at compiletime by gengo.
 type DynamicServiceType struct {
 	name    string
 	md5sum  string
 	text    string
 	reqType MessageType
 	resType MessageType
-	//spec *libgengo.SrvSpec - This may be less convenient?
 }
+
+// DynamicService abstracts an instance of a ROS Service whose type is only known at runtime.  The schema of the message is denoted by the referenced DynamicServiceType, while the
+// Request and Response references the rosgo Messages it implements.  DynamicService implements the rosgo Service interface, allowing
+// it to be used throughout rosgo in the same manner as service types generated at compiletime by gengo.
 
 type DynamicService struct {
 	dynamicType *DynamicServiceType
@@ -26,10 +32,26 @@ type DynamicService struct {
 	Response    Message
 }
 
+// DEFINE PRIVATE STRUCTURES.
+
+// DEFINE PUBLIC GLOBALS.
+
+// DEFINE PRIVATE GLOBALS.
+
+// DEFINE PUBLIC STATIC FUNCTIONS.
+
+// NewDynamicServiceType generates a DynamicServiceType corresponding to the specified typeName from the available ROS service definitions; typeName should be a fully-qualified
+// ROS service type name.  The first time the function is run, a message/service 'context' is created by searching through the available ROS definitions, then the ROS service to
+// be used for the definition is looked up by name.  On subsequent calls, the ROS service type is looked up directly from the existing context.
+
 func NewDynamicServiceType(typeName string) (*DynamicServiceType, error) {
 	return newDynamicServiceTypeNested(typeName, "")
 }
 
+// newDynamicServiceTypeNested generates a DynamicServiceType from the available ROS definitions.  The first time the function is run, a message/service 'context' is created by
+// searching through the available ROS definitions, then the ROS service type to use for the defintion is looked up by name.  On subsequent calls, the ROS service type
+// is looked up directly from the existing context.  This 'nested' version of the function is able to be called recursively, where packageName should be the typeName of the
+// parent ROS services; this is used internally for handling complex ROS services.
 func newDynamicServiceTypeNested(typeName string, packageName string) (*DynamicServiceType, error) {
 	// Create an empty message type.
 	m := new(DynamicServiceType)
@@ -80,14 +102,21 @@ func newDynamicServiceTypeNested(typeName string, packageName string) (*DynamicS
 
 }
 
+// DEFINE PUBLIC RECEIVER FUNCTIONS.
+
+//	DynamicMessageType
+
+// MD5Sum returns the ROS compatible MD5 sum of the service type; required for ros.ServiceType.
 func (t *DynamicServiceType) MD5Sum() string {
 	return t.md5sum
 }
 
+// Name returns the full ROS name of the service type; required for ros.ServiceType.
 func (t *DynamicServiceType) Name() string {
 	return t.name
 }
 
+// NewService creates a new DynamicService instantiating the service type; required for ros.ServiceType.
 func (t *DynamicServiceType) NewService() Service {
 	// Don't instantiate services for incomplete types.
 	if t == nil {
@@ -101,22 +130,35 @@ func (t *DynamicServiceType) NewService() Service {
 	return d
 }
 
+// RequestType returns the MessageType of the request message of DynamicServiceType; required for ros.ServiceType.
 func (t *DynamicServiceType) RequestType() MessageType {
 	return t.reqType
 }
 
+// ResponseType returns the MessageType of the response message of DynamicServiceType; required for ros.ServiceType.
 func (t *DynamicServiceType) ResponseType() MessageType {
 	return t.resType
 }
 
+//	DynamicService
+
+// ReqMessage returns the request message of the DynamicService; required for ros.Service.
 func (s *DynamicService) ReqMessage() Message {
 	return s.Request
 }
 
+// ResMessage returns the response message of the DynamicService; required for ros.Service.
 func (s *DynamicService) ResMessage() Message {
 	return s.Response
 }
 
+// Type returns the ROS type of a dynamic service; not required for ros.Service.
 func (s *DynamicService) Type() ServiceType {
 	return s.dynamicType
 }
+
+// DEFINE PRIVATE STATIC FUNCTIONS.
+
+// DEFINE PRIVATE RECEIVER FUNCTIONS.
+
+// ALL DONE.
