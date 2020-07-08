@@ -116,3 +116,7 @@ func (s *DynamicService) ReqMessage() Message {
 func (s *DynamicService) ResMessage() Message {
 	return s.Response
 }
+
+func (s *DynamicService) Type() ServiceType {
+	return s.dynamicType
+}
