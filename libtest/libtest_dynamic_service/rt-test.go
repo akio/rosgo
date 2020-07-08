@@ -77,7 +77,6 @@ func RTTest(t *testing.T) {
 		res := service.ResMessage().(*ros.DynamicMessage)
 		if res.Data()["success"] == true {
 			// Succeeded
-			t.Errorf("Succeeded: %v", res.Data()["message"])
 			cli.Shutdown()
 			defer close(quitThread)
 			return
