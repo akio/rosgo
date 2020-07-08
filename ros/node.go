@@ -86,6 +86,15 @@ type defaultNode struct {
 	nonRosArgs       []string
 }
 
+// serviceheader is the header returned from probing a ros service, containing all type information
+type serviceHeader struct {
+	callerid     string
+	md5sum       string
+	requestType  string
+	responseType string
+	serviceType  string
+}
+
 func listenRandomPort(address string, trialLimit int) (net.Listener, error) {
 	var listener net.Listener
 	var err error
@@ -431,7 +440,7 @@ func (node *defaultNode) GetSystemState() ([]interface{}, error) {
 }
 
 // GetServiceTypes uses getSystemState, and probes the services to return service types
-func (node *defaultNode) GetServiceTypes() (map[string]map[string]string, error) {
+func (node *defaultNode) GetServiceTypes() (map[string]*serviceHeader, error) {
 	// Get the system state
 	sysState, err := node.GetSystemState()
 	if err != nil {
@@ -439,7 +448,7 @@ func (node *defaultNode) GetServiceTypes() (map[string]map[string]string, error)
 		return nil, err
 	}
 	// result map
-	serviceTypes := make(map[string]map[string]string)
+	serviceTypes := make(map[string]*serviceHeader)
 	// Get the service list
 	services := sysState[2].([]interface{})
 	for _, s := range services {
@@ -486,8 +495,14 @@ func (node *defaultNode) GetServiceTypes() (map[string]map[string]string, error)
 		for _, h := range resHeaders {
 			resHeaderMap[h.key] = h.value
 		}
-
-		serviceTypes[serviceName] = resHeaderMap
+		srvHeader := serviceHeader{
+			callerid:     resHeaderMap["callerid"],
+			md5sum:       resHeaderMap["md5sum"],
+			requestType:  resHeaderMap["request_type"],
+			responseType: resHeaderMap["response_type"],
+			serviceType:  resHeaderMap["type"],
+		}
+		serviceTypes[serviceName] = &srvHeader
 	}
 	return serviceTypes, nil
 }
