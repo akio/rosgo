@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -412,6 +413,7 @@ func (node *defaultNode) NewPublisherWithCallbacks(topic string, msgType Message
 	return pub.(*defaultPublisher), nil
 }
 
+// Master API for getSystemState
 func (node *defaultNode) GetSystemState() ([]interface{}, error) {
 	node.logger.Debug("Call Master API getSystemState")
 	result, err := callRosAPI(node.masterURI, "getSystemState",
@@ -428,6 +430,69 @@ func (node *defaultNode) GetSystemState() ([]interface{}, error) {
 	return list, nil
 }
 
+// GetServiceTypes uses getSystemState, and probes the services to return service types
+func (node *defaultNode) GetServiceTypes() (map[string]map[string]string, error) {
+	// Get the system state
+	sysState, err := node.GetSystemState()
+	if err != nil {
+		node.logger.Errorf("Failed to call getSystemState() for %s.", err)
+		return nil, err
+	}
+	// result map
+	serviceTypes := make(map[string]map[string]string)
+	// Get the service list
+	services := sysState[2].([]interface{})
+	for _, s := range services {
+		serviceItem := s.([]interface{})
+		serviceName := serviceItem[0].(string)
+		// Probe the service
+		result, err := callRosAPI(node.masterURI, "lookupService", node.qualifiedName, serviceName)
+		if err != nil {
+			return nil, err
+		}
+
+		serviceRawURL, converted := result.(string)
+		if !converted {
+			return nil, fmt.Errorf("Result of 'lookupService' is not a string")
+		}
+		var serviceURL *url.URL
+		if serviceURL, err = url.Parse(serviceRawURL); err != nil {
+			return nil, err
+		}
+		var conn net.Conn
+		if conn, err = net.Dial("tcp", serviceURL.Host); err != nil {
+			return nil, err
+		}
+
+		// Write connection header
+		var headers []header
+		headers = append(headers, header{"probe", "1"})
+		headers = append(headers, header{"md5sum", "*"})
+		headers = append(headers, header{"callerid", node.qualifiedName})
+		headers = append(headers, header{"service", serviceName})
+
+		conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
+		if err := writeConnectionHeader(headers, conn); err != nil {
+			return nil, err
+		}
+		// Read reponse header
+		conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
+		resHeaders, err := readConnectionHeader(conn)
+		if err != nil {
+			return nil, err
+		}
+		// Convert headers to map
+		resHeaderMap := make(map[string]string)
+		for _, h := range resHeaders {
+			resHeaderMap[h.key] = h.value
+		}
+
+		serviceTypes[serviceName] = resHeaderMap
+	}
+	return serviceTypes, nil
+}
+
+// Master API call for getPublishedTopics
 func (node *defaultNode) GetPublishedTopics(subgraph string) ([]interface{}, error) {
 	node.logger.Debug("Call Master API getPublishedTopics")
 	result, err := callRosAPI(node.masterURI, "getPublishedTopics",
@@ -445,6 +510,7 @@ func (node *defaultNode) GetPublishedTopics(subgraph string) ([]interface{}, err
 	return list, nil
 }
 
+// Master API call for getTopicTypes
 func (node *defaultNode) GetTopicTypes() []interface{} {
 	node.logger.Debug("Call Master API getTopicTypes")
 	result, err := callRosAPI(node.masterURI, "getTopicTypes",
