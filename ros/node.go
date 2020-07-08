@@ -15,9 +15,9 @@ import (
 	"sync"
 	"time"
 
+	modular "github.com/edwinhayes/logrus-modular"
 	"github.com/edwinhayes/rosgo/xmlrpc"
 	"github.com/sirupsen/logrus"
-	modular "github.com/edwinhayes/logrus-modular"
 )
 
 const (
@@ -410,6 +410,22 @@ func (node *defaultNode) NewPublisherWithCallbacks(topic string, msgType Message
 		go pub.(*defaultPublisher).start(&node.waitGroup)
 	}
 	return pub.(*defaultPublisher), nil
+}
+
+func (node *defaultNode) GetSystemState() ([]interface{}, error) {
+	node.logger.Debug("Call Master API getSystemState")
+	result, err := callRosAPI(node.masterURI, "getSystemState",
+		node.qualifiedName)
+	if err != nil {
+		node.logger.Errorf("Failed to call getSystemState() for %s.", err)
+		return nil, err
+	}
+	list, ok := result.([]interface{})
+	if !ok {
+		node.logger.Errorf("result is not []string but %s.", reflect.TypeOf(result).String())
+	}
+	node.logger.Trace("Result: ", list)
+	return list, nil
 }
 
 func (node *defaultNode) GetPublishedTopics(subgraph string) ([]interface{}, error) {

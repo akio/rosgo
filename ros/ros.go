@@ -42,6 +42,7 @@ type Node interface {
 	SearchParam(name string) (string, error)
 	DeleteParam(name string) error
 
+	GetSystemState() ([]interface{}, error)
 	GetPublishedTopics(subgraph string) ([]interface{}, error)
 	GetTopicTypes() []interface{}
 
