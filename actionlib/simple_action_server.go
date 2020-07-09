@@ -7,7 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fetchrobotics/rosgo/ros"
+	modular "github.com/edwinhayes/logrus-modular"
+	"github.com/edwinhayes/rosgo/ros"
 )
 
 type simpleActionServer struct {
@@ -18,7 +19,7 @@ type simpleActionServer struct {
 	newGoal               bool
 	preemptRequest        bool
 	newGoalPreemptRequest bool
-	logger                ros.Logger
+	logger                *modular.ModuleLogger
 	goalCallback          interface{}
 	preemptCallback       interface{}
 	executeCb             interface{}
@@ -60,6 +61,7 @@ func (s *simpleActionServer) IsPreemptRequested() bool {
 }
 
 func (s *simpleActionServer) AcceptNewGoal() (ros.Message, error) {
+	logger := *s.logger
 	s.goalMutex.Lock()
 	defer s.goalMutex.Unlock()
 
@@ -73,7 +75,7 @@ func (s *simpleActionServer) AcceptNewGoal() (ros.Message, error) {
 			"This goal was canceled because another goal was received by the simple action server")
 	}
 
-	s.logger.Debug("Accepting a new goal")
+	logger.Debug("Accepting a new goal")
 
 	// accept the next goal
 	s.currentGoal = s.nextGoal
@@ -161,8 +163,9 @@ func (s *simpleActionServer) RegisterPreemptCallback(cb interface{}) {
 }
 
 func (s *simpleActionServer) internalGoalCallback(ag ActionGoal) {
+	logger := *s.logger
 	goalHandler := s.actionServer.getHandler(ag.GetGoalId().Id)
-	s.logger.Infof("[SimpleActionServer] Server received new goal with id %s", goalHandler.GetGoalId().Id)
+	logger.Infof("[SimpleActionServer] Server received new goal with id %s", goalHandler.GetGoalId().Id)
 
 	var goalStamp, nextGoalStamp ros.Time
 	goalStamp = goalHandler.GetGoalId().Stamp
@@ -191,19 +194,19 @@ func (s *simpleActionServer) internalGoalCallback(ag ActionGoal) {
 		if s.IsActive() {
 			s.preemptRequest = true
 			if err := s.runCallback("preempt", args); err != nil {
-				s.logger.Error(err)
+				logger.Error(err)
 			}
 		}
 
 		if err := s.runCallback("goal", args); err != nil {
-			s.logger.Error(err)
+			logger.Error(err)
 		}
 
 		// notify executor that a new goal is available
 		select {
 		case s.executorCh <- struct{}{}:
 		default:
-			s.logger.Error("[SimpleActionServer] Exectuor new goal notification error: Channel full.")
+			logger.Error("[SimpleActionServer] Exectuor new goal notification error: Channel full.")
 		}
 	} else {
 		goalHandler.SetCancelled(s.GetDefaultResult(),
@@ -214,9 +217,10 @@ func (s *simpleActionServer) internalGoalCallback(ag ActionGoal) {
 func (s *simpleActionServer) internalPreemptCallback(gID *actionlib_msgs.GoalID) {
 	s.goalMutex.Lock()
 	defer s.goalMutex.Unlock()
+	logger := *s.logger
 
 	goalHandler := s.actionServer.getHandler(gID.Id)
-	s.logger.Infof("[SimpleActionServer] Server received preempt call for goal with id %s",
+	logger.Infof("[SimpleActionServer] Server received preempt call for goal with id %s",
 		goalHandler.GetGoalId().Id)
 
 	if goalHandler.GetGoalId().Id == s.currentGoal.GetGoalId().Id {
@@ -224,7 +228,7 @@ func (s *simpleActionServer) internalPreemptCallback(gID *actionlib_msgs.GoalID)
 		goal := goalHandler.GetGoal()
 		args := []reflect.Value{reflect.ValueOf(goal)}
 		if err := s.runCallback("preempt", args); err != nil {
-			s.logger.Error(err)
+			logger.Error(err)
 		}
 	} else {
 		s.newGoalPreemptRequest = true
@@ -233,19 +237,20 @@ func (s *simpleActionServer) internalPreemptCallback(gID *actionlib_msgs.GoalID)
 
 func (s *simpleActionServer) goalExecutor() {
 	intervalCh := time.NewTicker(1 * time.Second)
+	logger := *s.logger
 	defer intervalCh.Stop()
 
 	for s.actionServer.node.OK() {
 		select {
 		case <-s.executorCh:
 			if err := s.execute(); err != nil {
-				s.logger.Error(err)
+				logger.Error(err)
 				return
 			}
 
 		case <-intervalCh.C:
 			if err := s.execute(); err != nil {
-				s.logger.Error(err)
+				logger.Error(err)
 				return
 			}
 		}
@@ -256,7 +261,7 @@ func (s *simpleActionServer) execute() error {
 	if s.IsActive() {
 		return fmt.Errorf("should never reach this code with an active goal")
 	}
-
+	logger := *s.logger
 	if s.IsNewGoalAvailable() {
 		goal, err := s.AcceptNewGoal()
 		if err != nil {
@@ -273,7 +278,7 @@ func (s *simpleActionServer) execute() error {
 		}
 
 		if s.IsActive() {
-			s.logger.Warn("Your executeCallback did not set the goal to a terminal status." +
+			logger.Warn("Your executeCallback did not set the goal to a terminal status." +
 				"This is a bug in your ActionServer implementation. Fix your code!" +
 				"For now, the ActionServer will set this goal to aborted")
 			if err := s.SetAborted(nil, ""); err != nil {

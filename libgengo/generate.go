@@ -93,7 +93,7 @@ type {{ .ShortName }} struct {
 {{- end }}
 }
 
-func (m *{{ .ShortName }}) GetType() ros.MessageType {
+func (m *{{ .ShortName }}) Type() ros.MessageType {
 	return Msg{{ .ShortName }}
 }
 
@@ -271,7 +271,7 @@ var srvTemplate = `
 // Package {{ .Package }} is automatically generated from the message definition "{{ .FullName }}.srv"
 package {{ .Package }}
 import (
-    "github.com/fetchrobotics/rosgo/ros"
+    "github.com/edwinhayes/rosgo/ros"
 )
 
 // Service type metadata
@@ -316,8 +316,8 @@ var actionTemplate = `
 // Automatically generated from the message definition "{{ .FullName }}.action"
 package {{ .Package }}
 import (
-    "github.com/fetchrobotics/rosgo/actionlib"
-    "github.com/fetchrobotics/rosgo/ros"
+    "github.com/edwinhayes/rosgo/actionlib"
+    "github.com/edwinhayes/rosgo/ros"
 )
 
 // Service type metadata

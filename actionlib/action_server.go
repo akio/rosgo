@@ -4,11 +4,12 @@ import (
 	"actionlib_msgs"
 	"fmt"
 	"reflect"
-	"std_msgs"
 	"sync"
 	"time"
 
-	"github.com/fetchrobotics/rosgo/ros"
+	"github.com/edwinhayes/rosgo/libtest/msgs/std_msgs"
+
+	"github.com/edwinhayes/rosgo/ros"
 )
 
 type defaultActionServer struct {
@@ -79,15 +80,15 @@ func (as *defaultActionServer) init() {
 	as.pubQueueSize = 50
 	as.subQueueSize = 50
 
-	as.goalSub = as.node.NewSubscriber(fmt.Sprintf("%s/goal", as.action), as.actionType.GoalType(), as.internalGoalCallback)
-	as.cancelSub = as.node.NewSubscriber(fmt.Sprintf("%s/cancel", as.action), actionlib_msgs.MsgGoalID, as.internalCancelCallback)
-	as.resultPub = as.node.NewPublisher(fmt.Sprintf("%s/result", as.action), as.actionType.ResultType())
-	as.feedbackPub = as.node.NewPublisher(fmt.Sprintf("%s/feedback", as.action), as.actionType.FeedbackType())
-	as.statusPub = as.node.NewPublisher(fmt.Sprintf("%s/status", as.action), actionlib_msgs.MsgGoalStatusArray)
+	as.goalSub, _ = as.node.NewSubscriber(fmt.Sprintf("%s/goal", as.action), as.actionType.GoalType(), as.internalGoalCallback)
+	as.cancelSub, _ = as.node.NewSubscriber(fmt.Sprintf("%s/cancel", as.action), actionlib_msgs.MsgGoalID, as.internalCancelCallback)
+	as.resultPub, _ = as.node.NewPublisher(fmt.Sprintf("%s/result", as.action), as.actionType.ResultType())
+	as.feedbackPub, _ = as.node.NewPublisher(fmt.Sprintf("%s/feedback", as.action), as.actionType.FeedbackType())
+	as.statusPub, _ = as.node.NewPublisher(fmt.Sprintf("%s/status", as.action), actionlib_msgs.MsgGoalStatusArray)
 }
 
 func (as *defaultActionServer) Start() {
-	logger := as.node.Logger()
+	logger := *as.node.Logger()
 	defer func() {
 		logger.Debug("defaultActionServer.start exit")
 		as.started = false
@@ -170,7 +171,7 @@ func (as *defaultActionServer) internalCancelCallback(goalID *actionlib_msgs.Goa
 	defer as.handlersMutex.Unlock()
 
 	goalFound := false
-	logger := as.node.Logger()
+	logger := *as.node.Logger()
 	logger.Debug("Action server has received a new cancel request")
 
 	for id, gh := range as.handlers {
@@ -215,7 +216,7 @@ func (as *defaultActionServer) internalGoalCallback(goal ActionGoal, event ros.M
 	as.handlersMutex.Lock()
 	defer as.handlersMutex.Unlock()
 
-	logger := as.node.Logger()
+	logger := *as.node.Logger()
 	goalID := goal.GetGoalId()
 
 	for id, gh := range as.handlers {

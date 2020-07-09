@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/fetchrobotics/rosgo/ros"
+	"github.com/edwinhayes/rosgo/ros"
 )
 
 type goalIDGenerator struct {

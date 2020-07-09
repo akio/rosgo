@@ -5,8 +5,8 @@ RUN apt-get update && apt-get install -y wget
 
 VOLUME /usr/local/go
 
-RUN mkdir -p src/github.com/fetchrobotics/rosgo
-COPY . src/github.com/fetchrobotics/rosgo
+RUN mkdir -p src/github.com/edwinhayes/rosgo
+COPY . src/github.com/edwinhayes/rosgo
 COPY .travis/entrypoint.sh ./entrypoint.sh
 
 CMD ./entrypoint.sh

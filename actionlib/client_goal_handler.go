@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/fetchrobotics/rosgo/ros"
+	modular "github.com/edwinhayes/logrus-modular"
+	"github.com/edwinhayes/rosgo/ros"
 )
 
 type clientGoalHandler struct {
@@ -15,7 +16,7 @@ type clientGoalHandler struct {
 	actionGoalID string
 	transitionCb interface{}
 	feedbackCb   interface{}
-	logger       ros.Logger
+	logger       *modular.ModuleLogger
 }
 
 func newClientGoalHandler(ac *defaultActionClient, ag ActionGoal, transitionCb, feedbackCb interface{}) *clientGoalHandler {
@@ -67,12 +68,13 @@ func (gh *clientGoalHandler) GetGoalStatusText() (string, error) {
 }
 
 func (gh *clientGoalHandler) GetTerminalState() (uint8, error) {
+	logger := *gh.actionClient.logger
 	if gh.stateMachine == nil {
 		return 0, fmt.Errorf("trying to get goal status on inactive clientGoalHandler")
 	}
 
 	if gh.stateMachine.state != Done {
-		gh.actionClient.logger.Warnf("Asking for terminal state when we are in state %v", gh.stateMachine.state)
+		logger.Warnf("Asking for terminal state when we are in state %v", gh.stateMachine.state)
 	}
 
 	// implement get status
@@ -87,7 +89,7 @@ func (gh *clientGoalHandler) GetTerminalState() (uint8, error) {
 		return goalStatus, nil
 	}
 
-	gh.actionClient.logger.Warnf("Asking for terminal state when latest goal is in %v", goalStatus)
+	logger.Warnf("Asking for terminal state when latest goal is in %v", goalStatus)
 	return actionlib_msgs.LOST, nil
 }
 
@@ -190,6 +192,7 @@ func (gh *clientGoalHandler) updateResult(result ActionResult) error {
 }
 
 func (gh *clientGoalHandler) updateStatus(statusArr *actionlib_msgs.GoalStatusArray) error {
+	logger := *gh.logger
 	state := gh.stateMachine.getState()
 	if state == Done {
 		return nil
@@ -201,7 +204,7 @@ func (gh *clientGoalHandler) updateStatus(statusArr *actionlib_msgs.GoalStatusAr
 			state != WaitingForResult &&
 			state != Done {
 
-			gh.logger.Warn("Transitioning goal to `Lost`")
+			logger.Warn("Transitioning goal to `Lost`")
 			gh.stateMachine.setAsLost()
 			gh.stateMachine.transitionTo(Done, gh, gh.transitionCb)
 		}

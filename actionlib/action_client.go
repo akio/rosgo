@@ -3,10 +3,12 @@ package actionlib
 import (
 	"actionlib_msgs"
 	"fmt"
-	"std_msgs"
 	"sync"
 
-	"github.com/fetchrobotics/rosgo/ros"
+	modular "github.com/edwinhayes/logrus-modular"
+	"github.com/edwinhayes/rosgo/libtest/msgs/std_msgs"
+
+	"github.com/edwinhayes/rosgo/ros"
 )
 
 type defaultActionClient struct {
@@ -23,7 +25,7 @@ type defaultActionClient struct {
 	resultSub        ros.Subscriber
 	feedbackSub      ros.Subscriber
 	statusSub        ros.Subscriber
-	logger           ros.Logger
+	logger           *modular.ModuleLogger
 	handlers         []*clientGoalHandler
 	handlersMutex    sync.RWMutex
 	goalIDGen        *goalIDGenerator
@@ -44,18 +46,19 @@ func newDefaultActionClient(node ros.Node, action string, actType ActionType) *d
 		goalIDGen:      newGoalIDGenerator(node.Name()),
 	}
 
-	ac.goalPub = node.NewPublisher(fmt.Sprintf("%s/goal", action), actType.GoalType())
-	ac.cancelPub = node.NewPublisher(fmt.Sprintf("%s/cancel", action), actionlib_msgs.MsgGoalID)
-	ac.resultSub = node.NewSubscriber(fmt.Sprintf("%s/result", action), actType.ResultType(), ac.internalResultCallback)
-	ac.feedbackSub = node.NewSubscriber(fmt.Sprintf("%s/feedback", action), actType.FeedbackType(), ac.internalFeedbackCallback)
-	ac.statusSub = node.NewSubscriber(fmt.Sprintf("%s/status", action), actionlib_msgs.MsgGoalStatusArray, ac.internalStatusCallback)
+	ac.goalPub, _ = node.NewPublisher(fmt.Sprintf("%s/goal", action), actType.GoalType())
+	ac.cancelPub, _ = node.NewPublisher(fmt.Sprintf("%s/cancel", action), actionlib_msgs.MsgGoalID)
+	ac.resultSub, _ = node.NewSubscriber(fmt.Sprintf("%s/result", action), actType.ResultType(), ac.internalResultCallback)
+	ac.feedbackSub, _ = node.NewSubscriber(fmt.Sprintf("%s/feedback", action), actType.FeedbackType(), ac.internalFeedbackCallback)
+	ac.statusSub, _ = node.NewSubscriber(fmt.Sprintf("%s/status", action), actionlib_msgs.MsgGoalStatusArray, ac.internalStatusCallback)
 
 	return ac
 }
 
 func (ac *defaultActionClient) SendGoal(goal ros.Message, transitionCb, feedbackCb interface{}) ClientGoalHandler {
+	logger := *ac.logger
 	if !ac.started {
-		ac.logger.Error("[ActionClient] Trying to send a goal on an inactive ActionClient")
+		logger.Error("[ActionClient] Trying to send a goal on an inactive ActionClient")
 	}
 
 	ag := ac.actionType.GoalType().NewMessage().(ActionGoal)
@@ -77,8 +80,9 @@ func (ac *defaultActionClient) SendGoal(goal ros.Message, transitionCb, feedback
 }
 
 func (ac *defaultActionClient) CancelAllGoals() {
+	logger := *ac.logger
 	if !ac.started {
-		ac.logger.Error("[ActionClient] Trying to cancel goals on an inactive ActionClient")
+		logger.Error("[ActionClient] Trying to cancel goals on an inactive ActionClient")
 		return
 	}
 
@@ -86,8 +90,9 @@ func (ac *defaultActionClient) CancelAllGoals() {
 }
 
 func (ac *defaultActionClient) CancelAllGoalsBeforeTime(stamp ros.Time) {
+	logger := *ac.logger
 	if !ac.started {
-		ac.logger.Error("[ActionClient] Trying to cancel goals on an inactive ActionClient")
+		logger.Error("[ActionClient] Trying to cancel goals on an inactive ActionClient")
 		return
 	}
 
@@ -121,8 +126,9 @@ func (ac *defaultActionClient) PublishCancel(cancel *actionlib_msgs.GoalID) {
 }
 
 func (ac *defaultActionClient) WaitForServer(timeout ros.Duration) bool {
+	logger := *ac.logger
 	started := false
-	ac.logger.Info("[ActionClient] Waiting action server to start")
+	logger.Info("[ActionClient] Waiting action server to start")
 	rate := ros.CycleTime(ros.NewDuration(0, 10000000))
 	waitStart := ros.Now()
 
@@ -165,12 +171,13 @@ func (ac *defaultActionClient) DeleteGoalHandler(gh *clientGoalHandler) {
 }
 
 func (ac *defaultActionClient) internalResultCallback(result ActionResult, event ros.MessageEvent) {
+	logger := *ac.logger
 	ac.handlersMutex.RLock()
 	defer ac.handlersMutex.RUnlock()
 
 	for _, h := range ac.handlers {
 		if err := h.updateResult(result); err != nil {
-			ac.logger.Error(err)
+			logger.Error(err)
 		}
 	}
 }
@@ -185,20 +192,21 @@ func (ac *defaultActionClient) internalFeedbackCallback(feedback ActionFeedback,
 }
 
 func (ac *defaultActionClient) internalStatusCallback(statusArr *actionlib_msgs.GoalStatusArray, event ros.MessageEvent) {
+	logger := *ac.logger
 	ac.handlersMutex.RLock()
 	defer ac.handlersMutex.RUnlock()
 
 	if !ac.statusReceived {
 		ac.statusReceived = true
-		ac.logger.Debug("Recieved first status message from action server ")
+		logger.Debug("Recieved first status message from action server ")
 	} else if ac.callerID != event.PublisherName {
-		ac.logger.Debug("Previously received status from %s, now from %s. Did the action server change", ac.callerID, event.PublisherName)
+		logger.Debug("Previously received status from %s, now from %s. Did the action server change", ac.callerID, event.PublisherName)
 	}
 
 	ac.callerID = event.PublisherName
 	for _, h := range ac.handlers {
 		if err := h.updateStatus(statusArr); err != nil {
-			ac.logger.Error(err)
+			logger.Error(err)
 		}
 	}
 }

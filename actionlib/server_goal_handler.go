@@ -6,7 +6,7 @@ import (
 	"hash/fnv"
 	"sync"
 
-	"github.com/fetchrobotics/rosgo/ros"
+	"github.com/edwinhayes/rosgo/ros"
 )
 
 type serverGoalHandler struct {

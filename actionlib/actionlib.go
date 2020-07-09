@@ -3,7 +3,7 @@ package actionlib
 import (
 	"actionlib_msgs"
 
-	"github.com/fetchrobotics/rosgo/ros"
+	"github.com/edwinhayes/rosgo/ros"
 )
 
 func NewActionClient(node ros.Node, action string, actionType ActionType) ActionClient {

@@ -6,7 +6,8 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/fetchrobotics/rosgo/ros"
+	modular "github.com/edwinhayes/logrus-modular"
+	"github.com/edwinhayes/rosgo/ros"
 )
 
 const (
@@ -23,7 +24,7 @@ type simpleActionClient struct {
 	activeCb    interface{}
 	feedbackCb  interface{}
 	doneChan    chan struct{}
-	logger      ros.Logger
+	logger      *modular.ModuleLogger
 }
 
 func newSimpleActionClient(node ros.Node, action string, actionType ActionType) *simpleActionClient {
@@ -46,14 +47,15 @@ func (sc *simpleActionClient) SendGoal(goal ros.Message, doneCb, activeCb, feedb
 }
 
 func (sc *simpleActionClient) SendGoalAndWait(goal ros.Message, executeTimeout, preeptTimeout ros.Duration) (uint8, error) {
+	logger := *sc.logger
 	sc.SendGoal(goal, nil, nil, nil)
 	if !sc.WaitForResult(executeTimeout) {
-		sc.logger.Debug("Cancelling goal")
+		logger.Debug("Cancelling goal")
 		sc.CancelGoal()
 		if sc.WaitForResult(preeptTimeout) {
-			sc.logger.Debug("Preempt finished within specified timeout")
+			logger.Debug("Preempt finished within specified timeout")
 		} else {
-			sc.logger.Debug("Preempt did not finish within specified timeout")
+			logger.Debug("Preempt did not finish within specified timeout")
 		}
 	}
 
@@ -65,8 +67,9 @@ func (sc *simpleActionClient) WaitForServer(timeout ros.Duration) bool {
 }
 
 func (sc *simpleActionClient) WaitForResult(timeout ros.Duration) bool {
+	logger := *sc.logger
 	if sc.gh == nil {
-		sc.logger.Errorf("[SimpleActionClient] Called WaitForResult when no goal exists")
+		logger.Errorf("[SimpleActionClient] Called WaitForResult when no goal exists")
 		return false
 	}
 
@@ -145,9 +148,10 @@ func (sc *simpleActionClient) StopTrackingGoal() {
 }
 
 func (sc *simpleActionClient) transitionHandler(gh ClientGoalHandler) {
+	logger := *sc.logger
 	commState, err := gh.GetCommState()
 	if err != nil {
-		sc.logger.Errorf("Error getting CommState: %v", err)
+		logger.Errorf("Error getting CommState: %v", err)
 		return
 	}
 
@@ -164,13 +168,13 @@ func (sc *simpleActionClient) transitionHandler(gh ClientGoalHandler) {
 			callbackType = "active"
 
 		case SimpleStateDone:
-			sc.logger.Errorf("[SimpleActionClient] %v", errMsg)
+			logger.Errorf("[SimpleActionClient] %v", errMsg)
 		}
 
 	case Recalling:
 		switch sc.simpleState {
 		case SimpleStateActive, SimpleStateDone:
-			sc.logger.Errorf("[SimpleActionClient] %v", errMsg)
+			logger.Errorf("[SimpleActionClient] %v", errMsg)
 		}
 
 	case Preempting:
@@ -180,7 +184,7 @@ func (sc *simpleActionClient) transitionHandler(gh ClientGoalHandler) {
 			callbackType = "active"
 
 		case SimpleStateDone:
-			sc.logger.Errorf("[SimpleActionClient] %v", errMsg)
+			logger.Errorf("[SimpleActionClient] %v", errMsg)
 		}
 
 	case Done:
@@ -195,13 +199,13 @@ func (sc *simpleActionClient) transitionHandler(gh ClientGoalHandler) {
 
 			status, err := gh.GetGoalStatus()
 			if err != nil {
-				sc.logger.Errorf("[SimpleActionClient] Error getting status: %v", err)
+				logger.Errorf("[SimpleActionClient] Error getting status: %v", err)
 				break
 			}
 
 			result, err := gh.GetResult()
 			if err != nil {
-				sc.logger.Errorf("[SimpleActionClient] Error getting result: %v", err)
+				logger.Errorf("[SimpleActionClient] Error getting result: %v", err)
 				break
 			}
 
@@ -210,7 +214,7 @@ func (sc *simpleActionClient) transitionHandler(gh ClientGoalHandler) {
 			args = append(args, reflect.ValueOf(result))
 
 		case SimpleStateDone:
-			sc.logger.Errorf("[SimpleActionClient] received DONE twice")
+			logger.Errorf("[SimpleActionClient] received DONE twice")
 		}
 	}
 
@@ -220,10 +224,11 @@ func (sc *simpleActionClient) transitionHandler(gh ClientGoalHandler) {
 }
 
 func (sc *simpleActionClient) sendDone() {
+	logger := *sc.logger
 	select {
 	case sc.doneChan <- struct{}{}:
 	default:
-		sc.logger.Errorf("[SimpleActionClient] Error sending done notification. Channel full.")
+		logger.Errorf("[SimpleActionClient] Error sending done notification. Channel full.")
 	}
 }
 
@@ -236,12 +241,14 @@ func (sc *simpleActionClient) feedbackHandler(gh ClientGoalHandler, msg ros.Mess
 }
 
 func (sc *simpleActionClient) setSimpleState(state uint8) {
-	sc.logger.Debugf("[SimpleActionClient] Transitioning from %d to %d", sc.simpleState, state)
+	logger := *sc.logger
+	logger.Debugf("[SimpleActionClient] Transitioning from %d to %d", sc.simpleState, state)
 	sc.simpleState = state
 }
 
 func (sc *simpleActionClient) runCallback(cbType string, args []reflect.Value) {
 	var callback interface{}
+	logger := *sc.logger
 	switch cbType {
 	case "active":
 		callback = sc.activeCb
@@ -250,7 +257,7 @@ func (sc *simpleActionClient) runCallback(cbType string, args []reflect.Value) {
 	case "done":
 		callback = sc.doneCb
 	default:
-		sc.logger.Errorf("[SimpleActionClient] Unknown callback %s", cbType)
+		logger.Errorf("[SimpleActionClient] Unknown callback %s", cbType)
 	}
 
 	if callback == nil {
@@ -261,12 +268,12 @@ func (sc *simpleActionClient) runCallback(cbType string, args []reflect.Value) {
 	numArgsNeeded := fun.Type().NumIn()
 
 	if numArgsNeeded > len(args) {
-		sc.logger.Errorf("[SimpleActionClient] Unexpected arguments:"+
+		logger.Errorf("[SimpleActionClient] Unexpected arguments:"+
 			"callback %s expects %d arguments but %d arguments provided", cbType, numArgsNeeded, len(args))
 		return
 	}
 
-	sc.logger.Debugf("[SimpleActionClient] Calling %s callback with %d arguments", cbType, len(args))
+	logger.Debugf("[SimpleActionClient] Calling %s callback with %d arguments", cbType, len(args))
 
 	fun.Call(args[0:numArgsNeeded])
 }

@@ -2,9 +2,10 @@ package actionlib
 
 import (
 	"actionlib_msgs"
-	"std_msgs"
 
-	"github.com/fetchrobotics/rosgo/ros"
+	"github.com/edwinhayes/rosgo/libtest/msgs/std_msgs"
+
+	"github.com/edwinhayes/rosgo/ros"
 )
 
 type ActionType interface {
