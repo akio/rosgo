@@ -1,6 +1,5 @@
 package libtest_dynamic_service
 
-//go:generate gengo srv rospy_tutorials/AddTwoInts
 import (
 	"os"
 	"testing"
