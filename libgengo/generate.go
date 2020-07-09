@@ -371,9 +371,9 @@ type MsgGen struct {
 }
 
 func (gen *MsgGen) analyzeImports() {
-	fullpath := ""
-	if len(*importPath) != 0 {
-		fullpath = *importPath + "/"
+	imp_path := ""
+	if (import_path != nil) && (len(*import_path) != 0) {
+		imp_path = *import_path + "/"
 	}
 
 LOOP:
@@ -385,11 +385,11 @@ LOOP:
 			gen.Fields[i].ZeroValue = field.Type + "{}"
 		} else {
 			for _, imp := range gen.Imports {
-				if imp == fullpath+field.Package {
+				if imp == imp_path+field.Package {
 					continue LOOP
 				}
 			}
-			gen.Imports = append(gen.Imports, fullpath+field.Package)
+			gen.Imports = append(gen.Imports, imp_path+field.Package)
 		}
 
 		// Binary is required to read the size of array

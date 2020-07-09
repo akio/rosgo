@@ -21,11 +21,7 @@ type defaultServiceClient struct {
 	nodeID    string
 }
 
-<<<<<<< HEAD
 func newDefaultServiceClient(log *modular.ModuleLogger, nodeID string, masterURI string, service string, srvType ServiceType) *defaultServiceClient {
-=======
-func newDefaultServiceClient(logger Logger, nodeID string, masterURI string, service string, srvType ServiceType) *defaultServiceClient {
->>>>>>> 24a6463ff109d57010e214746b042cd6742395da
 	client := new(defaultServiceClient)
 	client.logger = log
 	client.service = service
@@ -114,14 +110,6 @@ func (c *defaultServiceClient) Call(srv Service) error {
 	conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
 	if err := binary.Read(conn, binary.LittleEndian, &ok); err != nil {
 		return err
-<<<<<<< HEAD
-	}
-	if ok == 0 {
-		var size uint32
-		conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
-		if err := binary.Read(conn, binary.LittleEndian, &size); err != nil {
-			return err
-=======
 	} else {
 		if ok == 0 {
 			var size uint32
@@ -136,7 +124,6 @@ func (c *defaultServiceClient) Call(srv Service) error {
 			} else {
 				return errors.New(string(errMsg))
 			}
->>>>>>> 24a6463ff109d57010e214746b042cd6742395da
 		}
 		errMsg := make([]byte, int(size))
 		conn.SetDeadline(time.Now().Add(10 * time.Millisecond))

@@ -36,14 +36,9 @@ type defaultServiceServer struct {
 func newDefaultServiceServer(node *defaultNode, service string, srvType ServiceType, handler interface{}) *defaultServiceServer {
 	logger := node.logger
 	server := new(defaultServiceServer)
-<<<<<<< HEAD
 	if listener, err := listenRandomPort(node.listenIP, 10); err != nil {
 		logger.Errorf("failed to listen to random port : %v", err)
 		return nil
-=======
-	if listener, err := net.Listen("tcp", ":0"); err != nil {
-		panic(err)
->>>>>>> 24a6463ff109d57010e214746b042cd6742395da
 	} else {
 		if tcpListener, ok := listener.(*net.TCPListener); ok {
 			server.listener = tcpListener

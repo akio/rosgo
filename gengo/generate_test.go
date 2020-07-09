@@ -105,7 +105,7 @@ Bar[42] xfa
 		t.Errorf("Failed to parse: %v", e)
 	}
 
-	_, _, _, _, _, _, _, err := libgengo.GenerateAction(ctx, spec)
+	_, _, err := libgengo.GenerateAction(ctx, spec)
 	if err != nil {
 		t.Errorf("Failed to generate message: %v", err)
 	}
@@ -161,7 +161,7 @@ Bar[42] xfa
 		t.Errorf("Failed to parse: %v", e)
 	}
 
-	_, err := libgengo.GenerateMessage(ctx, spec)
+	_, err := libgengo.GenerateMessage(ctx, spec, false)
 	if err != nil {
 		t.Errorf("Failed to generate message: %v", err)
 	}

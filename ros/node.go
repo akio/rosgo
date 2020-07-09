@@ -249,7 +249,7 @@ func newDefaultNode(name string, args []string) (*defaultNode, error) {
 	m := map[string]xmlrpc.Method{
 		"getBusStats":      func(callerID string) (interface{}, error) { return node.getBusStats(callerID) },
 		"getBusInfo":       func(callerID string) (interface{}, error) { return node.getBusInfo(callerID) },
-		"getMasterUri":     func(callerID string) (interface{}, error) { return node.getmasterURI(callerID) },
+		"getMasterUri":     func(callerID string) (interface{}, error) { return node.getMasterURI(callerID) },
 		"shutdown":         func(callerID string, msg string) (interface{}, error) { return node.shutdown(callerID, msg) },
 		"getPid":           func(callerID string) (interface{}, error) { return node.getPid(callerID) },
 		"getSubscriptions": func(callerID string) (interface{}, error) { return node.getSubscriptions(callerID) },
@@ -278,11 +278,16 @@ func (node *defaultNode) OK() bool {
 }
 
 func (node *defaultNode) RemovePublisher(topic string) {
+	node.publishersMutex.RLock()
+	defer node.publishersMutex.RUnlock()
+
 	name := node.nameResolver.remap(topic)
-	if pub, ok := node.publishers.Load(name); ok {
-		pub.(*defaultPublisher).Shutdown()
-		node.publishers.Delete(name)
+
+	if pub, ok := node.publishers[name]; ok {
+		pub.Shutdown()
+		delete(node.publishers, name)
 	}
+
 }
 
 func (node *defaultNode) Name() string {
@@ -386,7 +391,10 @@ func (node *defaultNode) requestTopic(callerID string, topic string, protocols [
 		if protocolName == "TCPROS" {
 			node.logger.Debug("TCPROS requested")
 			selectedProtocol = append(selectedProtocol, "TCPROS")
-			host, portStr := pub.hostAndPort()
+			host, portStr, err := pub.hostAndPort()
+			if err != nil {
+				return nil, err
+			}
 			p, err := strconv.ParseInt(portStr, 10, 32)
 			if err != nil {
 				return nil, err
@@ -427,7 +435,7 @@ func (node *defaultNode) NewPublisherWithCallbacks(topic string, msgType Message
 		node.publishers[name] = pub
 		go pub.start(&node.waitGroup)
 	}
-	return pub.(*defaultPublisher), nil
+	return pub, nil
 }
 
 func (node *defaultNode) GetPublishedTopics(subgraph string) ([]interface{}, error) {
@@ -642,10 +650,6 @@ func (node *defaultNode) Logger() *modular.ModuleLogger {
 
 func (node *defaultNode) NonRosArgs() []string {
 	return node.nonRosArgs
-}
-
-func (node *defaultNode) Name() string {
-	return node.name
 }
 
 func loadParamFromString(s string) (interface{}, error) {

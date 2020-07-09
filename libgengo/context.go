@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 func isRosPackage(dir string) bool {
@@ -88,10 +89,11 @@ func FindAllActions(rosPkgPaths []string) (map[string]string, error) {
 }
 
 type MsgContext struct {
-	msgPathMap    map[string]string
-	srvPathMap    map[string]string
-	actionPathMap map[string]string
-	msgRegistry   map[string]*MsgSpec
+	msgPathMap      map[string]string
+	srvPathMap      map[string]string
+	actionPathMap   map[string]string
+	msgRegistry     map[string]*MsgSpec
+	msgRegistryLock sync.RWMutex
 }
 
 func NewMsgContext(rosPkgPaths []string) (*MsgContext, error) {

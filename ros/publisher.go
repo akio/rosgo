@@ -53,11 +53,7 @@ func newDefaultPublisher(node *defaultNode,
 	pub.sessionErrorChan = make(chan error, 10)
 	pub.connectCallback = connectCallback
 	pub.disconnectCallback = disconnectCallback
-<<<<<<< HEAD
 	if listener, err := listenRandomPort(node.listenIP, 10); err != nil {
-=======
-	if listener, err := net.Listen("tcp", ":0"); err != nil {
->>>>>>> 24a6463ff109d57010e214746b042cd6742395da
 		panic(err)
 	} else {
 		pub.listener = listener
@@ -174,10 +170,7 @@ type remoteSubscriberSession struct {
 	id                 int
 	conn               net.Conn
 	nodeID             string
-<<<<<<< HEAD
-=======
 	callerID           string
->>>>>>> 24a6463ff109d57010e214746b042cd6742395da
 	topic              string
 	typeText           string
 	md5sum             string
@@ -267,12 +260,8 @@ func (session *remoteSubscriberSession) start() {
 	// 1. Read connection header
 	headers, err := readConnectionHeader(session.conn)
 	if err != nil {
-<<<<<<< HEAD
 		logger.Error("failed to read connection header")
 		return
-=======
-		panic(errors.New("failed to read connection header"))
->>>>>>> 24a6463ff109d57010e214746b042cd6742395da
 	}
 	logger.Debug("TCPROS Connection Header:")
 	headerMap := make(map[string]string)
@@ -312,12 +301,8 @@ func (session *remoteSubscriberSession) start() {
 	}
 	err = writeConnectionHeader(resHeaders, session.conn)
 	if err != nil {
-<<<<<<< HEAD
 		logger.Error("failed to write response header")
 		return
-=======
-		panic(errors.New("failed to write response header"))
->>>>>>> 24a6463ff109d57010e214746b042cd6742395da
 	}
 
 	// 3. Start sending message

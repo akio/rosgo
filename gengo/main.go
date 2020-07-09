@@ -76,7 +76,7 @@ func main() {
 			os.Exit(-1)
 		}
 		var code string
-		code, err = libgengo.GenerateMessage(context, spec)
+		code, err = libgengo.GenerateMessage(context, spec, false)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(-1)
@@ -122,7 +122,7 @@ func main() {
 			os.Exit(-1)
 		}
 	} else if mode == "action" {
-		var spec *ActionSpec
+		var spec *libgengo.ActionSpec
 		var err error
 
 		if len(os.Args) == 3 {
@@ -135,7 +135,7 @@ func main() {
 			os.Exit(-1)
 		}
 
-		actionCode, codeMap, err := GenerateAction(context, spec)
+		actionCode, codeMap, err := libgengo.GenerateAction(context, spec)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(-1)
