@@ -34,7 +34,6 @@ type Node interface {
 	SpinOnce() bool
 	Spin()
 	Shutdown()
-	Name() string
 	Namespace() string
 	QualifiedName() string
 
@@ -50,6 +49,7 @@ type Node interface {
 	Logger() *modular.ModuleLogger
 
 	NonRosArgs() []string
+	Name() string
 }
 
 //NewNode instantiates a newDefaultNode with name and arguments
@@ -65,6 +65,7 @@ func NewNodeWithLogs(name string, logger *modular.ModuleLogger, args []string) (
 //Publisher is interface for publisher and shutdown function
 type Publisher interface {
 	Publish(msg Message)
+	GetNumSubscribers() int
 	Shutdown()
 }
 

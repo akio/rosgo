@@ -29,7 +29,6 @@ func getNamespace(name string) string {
 		return Sep
 	}
 	return result
-
 }
 
 func qualifyNodeName(nodeName string) (string, string, error) {

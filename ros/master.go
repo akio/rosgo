@@ -2,6 +2,7 @@ package ros
 
 import (
 	"fmt"
+
 	"github.com/edwinhayes/rosgo/xmlrpc"
 )
 

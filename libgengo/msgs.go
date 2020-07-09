@@ -213,7 +213,11 @@ func ToGoType(pkg string, typeName string) string {
 	return goType
 }
 
-func ToGoName(name string) string {
+func ToGoName(name string, constant bool) string {
+	if constant {
+		return strings.ToUpper(name)
+	}
+
 	var buffer []string
 	words := strings.Split(name, "_")
 	for _, word := range words {
@@ -271,7 +275,7 @@ func GetZeroValue(pkg string, typeName string) string {
 }
 
 func NewConstant(fieldType string, name string, value interface{}, valueText string) *Constant {
-	goName := ToGoName(name)
+	goName := ToGoName(name, true)
 	return &Constant{fieldType, name, value, valueText, goName}
 }
 
@@ -293,7 +297,7 @@ type Field struct {
 
 func NewField(pkg string, fieldType string, name string, isArray bool, arrayLen int) *Field {
 	goType := ToGoType(pkg, fieldType)
-	goName := ToGoName(name)
+	goName := ToGoName(name, false)
 	zeroValue := GetZeroValue(pkg, fieldType)
 	isBuiltin := isBuiltinType(fieldType)
 	return &Field{pkg, fieldType, name, isBuiltin, isArray, arrayLen, goName, goType, zeroValue}
@@ -330,13 +334,17 @@ type SrvSpec struct {
 }
 
 type ActionSpec struct {
-	ShortName string
-	FullName  string
-	Text      string
-	MD5Sum    string
-	Goal      *MsgSpec
-	Feedback  *MsgSpec
-	Result    *MsgSpec
+	Package        string
+	ShortName      string
+	FullName       string
+	Text           string
+	MD5Sum         string
+	Goal           *MsgSpec
+	Feedback       *MsgSpec
+	Result         *MsgSpec
+	ActionGoal     *MsgSpec
+	ActionFeedback *MsgSpec
+	ActionResult   *MsgSpec
 }
 
 type OptionMsgSpec func(*MsgSpec) error

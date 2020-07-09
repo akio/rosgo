@@ -627,28 +627,28 @@ func TestParseFault(t *testing.T) {
 }
 
 func TestClient(t *testing.T) {
-	masterUri := os.Getenv("ROS_MASTER_URI")
-	t.Log("Master URI: ", masterUri)
+	masterURI := os.Getenv("ROS_MASTER_URI")
+	t.Log("Master URI: ", masterURI)
 
-	value, e := Call(masterUri, "getPublishedTopics", "not_a_node", "")
+	value, e := Call(masterURI, "getPublishedTopics", "not_a_node", "")
 	if e != nil {
 		t.Error(e)
 	}
 	t.Log(value)
 
-	value, e = Call(masterUri, "getTopicTypes", "not_a_node")
+	value, e = Call(masterURI, "getTopicTypes", "not_a_node")
 	if e != nil {
 		t.Error(e)
 	}
 	t.Log(value)
 
-	value, e = Call(masterUri, "getSystemState", "not_a_node")
+	value, e = Call(masterURI, "getSystemState", "not_a_node")
 	if e != nil {
 		t.Error(e)
 	}
 	t.Log(value)
 
-	value, e = Call(masterUri, "getUri", "not_a_node")
+	value, e = Call(masterURI, "getUri", "not_a_node")
 	if e != nil {
 		t.Error(e)
 	}

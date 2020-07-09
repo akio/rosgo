@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 )
 
 func isRosPackage(dir string) bool {
@@ -25,8 +24,8 @@ func isRosPackage(dir string) bool {
 	return false
 }
 
-func FindAllMessages(rosPkgPaths []string) (map[string]string, error) {
-	msgs := make(map[string]string)
+func findPackages(pkgType string, rosPkgPaths []string) (map[string]string, error) {
+	pkgs := make(map[string]string)
 
 	recurseDirForMsgs := func(path string, info os.FileInfo, err error) error {
 		// Check whether we could open the path ok.
@@ -40,21 +39,21 @@ func FindAllMessages(rosPkgPaths []string) (map[string]string, error) {
 			// It's not a directory, so we skip it; we only care about directories.
 			return nil
 		}
-		
+
 		// Check whether this directory is a ROS package.
 		if isRosPackage(path) {
 			// It's a ROS package.
 			pkgName := filepath.Base(path)
-			msgPath := filepath.Join(path, "msg")
-			msgPaths, err := filepath.Glob(msgPath + "/*.msg")
+			pkgPath := filepath.Join(path, pkgType)
+			pkgPaths, err := filepath.Glob(pkgPath + fmt.Sprintf("/*.%s", pkgType))
 			if err != nil {
 				return nil
 			}
-			for _, m := range msgPaths {
-				basename := filepath.Base(m)
-				rootname := basename[:len(basename) - 4] // This is chopping off the file extension.  Horribly.
+			for _, p := range pkgPaths {
+				basename := filepath.Base(p)
+				rootname := basename[:len(basename)-4] // This is chopping off the file extension.  Horribly.
 				fullname := pkgName + "/" + rootname
-				msgs[fullname] = m
+				pkgs[fullname] = p
 			}
 
 			// No point checking INSIDE this one, since it's already a package.
@@ -73,69 +72,26 @@ func FindAllMessages(rosPkgPaths []string) (map[string]string, error) {
 			continue
 		}
 	}
-
-	// Return whatever we found.
-	return msgs, nil
+	return pkgs, nil
 }
 
-func findAllServices(rosPkgPaths []string) (map[string]string, error) {
-	srvs := make(map[string]string)
+func FindAllMessages(rosPkgPaths []string) (map[string]string, error) {
+	return findPackages("msg", rosPkgPaths)
+}
 
-	recurseDirForSrvs := func(path string, info os.FileInfo, err error) error {
-		// Check whether we could open the path ok.
-		if err != nil {
-			// Just skip this item and try the next one.
-			return nil
-		}
+func FindAllServices(rosPkgPaths []string) (map[string]string, error) {
+	return findPackages("srv", rosPkgPaths)
+}
 
-		// Check whether this path is a directory.
-		if !info.IsDir() {
-			// It's not a directory, so we skip it; we only care about directories.
-			return nil
-		}
-		
-		// Check whether this directory is a ROS package.
-		if isRosPackage(path) {
-			// It's a ROS package.
-			pkgName := filepath.Base(path)
-			msgPath := filepath.Join(path, "srv")
-			msgPaths, err := filepath.Glob(msgPath + "/*.srv")
-			if err != nil {
-				return nil
-			}
-			for _, m := range msgPaths {
-				basename := filepath.Base(m)
-				rootname := basename[:len(basename) - 4] // This is chopping off the file extension.  Horribly.
-				fullname := pkgName + "/" + rootname
-				srvs[fullname] = m
-			}
-
-			// No point checking INSIDE this one, since it's already a package.
-			return filepath.SkipDir
-		}
-
-		// Else just keep walking.
-		return nil
-	}
-
-	// Iterate over the list of paths to search.
-	for _, p := range rosPkgPaths {
-		err := filepath.Walk(p, recurseDirForSrvs)
-		if err != nil {
-			// If someone complains, then we just skip searching the reset of this path.
-			continue
-		}
-	}
-
-	// Return whatever we found.
-	return srvs, nil
+func FindAllActions(rosPkgPaths []string) (map[string]string, error) {
+	return findPackages("action", rosPkgPaths)
 }
 
 type MsgContext struct {
-	msgPathMap      map[string]string
-	srvPathMap      map[string]string
-	msgRegistry     map[string]*MsgSpec
-	msgRegistryLock sync.RWMutex
+	msgPathMap    map[string]string
+	srvPathMap    map[string]string
+	actionPathMap map[string]string
+	msgRegistry   map[string]*MsgSpec
 }
 
 func NewMsgContext(rosPkgPaths []string) (*MsgContext, error) {
@@ -146,11 +102,18 @@ func NewMsgContext(rosPkgPaths []string) (*MsgContext, error) {
 	}
 	ctx.msgPathMap = msgs
 
-	srvs, err := findAllServices(rosPkgPaths)
+	srvs, err := FindAllServices(rosPkgPaths)
 	if err != nil {
 		return nil, err
 	}
 	ctx.srvPathMap = srvs
+
+	acts, err := FindAllActions(rosPkgPaths)
+	if err != nil {
+		return nil, err
+	}
+	ctx.actionPathMap = acts
+
 	ctx.msgRegistry = make(map[string]*MsgSpec)
 	return ctx, nil
 }
@@ -288,6 +251,91 @@ func (ctx *MsgContext) LoadSrv(fullname string) (*SrvSpec, error) {
 	}
 }
 
+func (ctx *MsgContext) LoadActionFromString(text string, fullname string) (*ActionSpec, error) {
+	packageName, shortName, err := packageResourceName(fullname)
+	if err != nil {
+		return nil, err
+	}
+
+	components := strings.Split(text, "---")
+	if len(components) != 3 {
+		return nil, fmt.Errorf("Syntax error: missing '---'")
+	}
+
+	goalText := components[0]
+	resultText := components[1]
+	feedbackText := components[2]
+	goalSpec, err := ctx.LoadMsgFromString(goalText, fullname+"Goal")
+	if err != nil {
+		return nil, err
+	}
+	actionGoalText := "Header header\nactionlib_msgs/GoalID goal_id\n" + fullname + "Goal goal\n"
+	actionGoalSpec, err := ctx.LoadMsgFromString(actionGoalText, fullname+"ActionGoal")
+	if err != nil {
+		return nil, err
+	}
+	feedbackSpec, err := ctx.LoadMsgFromString(feedbackText, fullname+"Feedback")
+	if err != nil {
+		return nil, err
+	}
+	actionFeedbackText := "Header header\nactionlib_msgs/GoalStatus status\n" + fullname + "Feedback feedback"
+	actionFeedbackSpec, err := ctx.LoadMsgFromString(actionFeedbackText, fullname+"ActionFeedback")
+	if err != nil {
+		return nil, err
+	}
+	resultSpec, err := ctx.LoadMsgFromString(resultText, fullname+"Result")
+	if err != nil {
+		return nil, err
+	}
+	actionResultText := "Header header\nactionlib_msgs/GoalStatus status\n" + fullname + "Result result"
+	actionResultSpec, err := ctx.LoadMsgFromString(actionResultText, fullname+"ActionResult")
+	if err != nil {
+		return nil, err
+	}
+
+	spec := &ActionSpec{
+		Package:        packageName,
+		ShortName:      shortName,
+		FullName:       fullname,
+		Text:           text,
+		Goal:           goalSpec,
+		Feedback:       feedbackSpec,
+		Result:         resultSpec,
+		ActionGoal:     actionGoalSpec,
+		ActionFeedback: actionFeedbackSpec,
+		ActionResult:   actionResultSpec,
+	}
+
+	md5sum, err := ctx.ComputeActionMD5(spec)
+	if err != nil {
+		return nil, err
+	}
+	spec.MD5Sum = md5sum
+	return spec, nil
+}
+
+func (ctx *MsgContext) LoadActionFromFile(filePath string, fullname string) (*ActionSpec, error) {
+	bytes, e := ioutil.ReadFile(filePath)
+	if e != nil {
+		return nil, e
+	}
+	text := string(bytes)
+	return ctx.LoadActionFromString(text, fullname)
+}
+
+func (ctx *MsgContext) LoadAction(fullname string) (*ActionSpec, error) {
+	if path, ok := ctx.actionPathMap[fullname]; ok {
+		spec, err := ctx.LoadActionFromFile(path, fullname)
+		if err != nil {
+			return nil, err
+		} else {
+			return spec, nil
+		}
+	} else {
+		return nil, fmt.Errorf("Action definition of `%s` is not found", fullname)
+	}
+}
+
 func (ctx *MsgContext) ComputeMD5Text(spec *MsgSpec) (string, error) {
 	var buf bytes.Buffer
 	for _, c := range spec.Constants {
@@ -318,6 +366,28 @@ func (ctx *MsgContext) ComputeMsgMD5(spec *MsgSpec) (string, error) {
 	}
 	hash := md5.New()
 	hash.Write([]byte(md5text))
+	sum := hash.Sum(nil)
+	md5sum := hex.EncodeToString(sum)
+	return md5sum, nil
+}
+
+func (ctx *MsgContext) ComputeActionMD5(spec *ActionSpec) (string, error) {
+	goalText, err := ctx.ComputeMD5Text(spec.ActionGoal)
+	if err != nil {
+		return "", err
+	}
+	feedbackText, err := ctx.ComputeMD5Text(spec.ActionFeedback)
+	if err != nil {
+		return "", err
+	}
+	resultText, err := ctx.ComputeMD5Text(spec.ActionResult)
+	if err != nil {
+		return "", err
+	}
+	hash := md5.New()
+	hash.Write([]byte(goalText))
+	hash.Write([]byte(feedbackText))
+	hash.Write([]byte(resultText))
 	sum := hash.Sum(nil)
 	md5sum := hex.EncodeToString(sum)
 	return md5sum, nil

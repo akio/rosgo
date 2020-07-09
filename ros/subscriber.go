@@ -68,6 +68,7 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeID string, nodeAPIUR
 				quitChan <- struct{}{}
 				delete(sub.connections, pub)
 			}
+
 			for _, pub := range newPubs {
 				protocols := []interface{}{[]interface{}{"TCPROS"}}
 				result, err := callRosAPI(pub, "requestTopic", nodeID, sub.topic, protocols)
@@ -75,10 +76,12 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeID string, nodeAPIUR
 					logger.Error(sub.topic, " : ", err)
 					continue
 				}
+
 				protocolParams := result.([]interface{})
 				for _, x := range protocolParams {
 					logger.Debug(sub.topic, " : ", x)
 				}
+
 				name := protocolParams[0].(string)
 				if name == "TCPROS" {
 					addr := protocolParams[1].(string)
@@ -98,9 +101,11 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeID string, nodeAPIUR
 					logger.Warn(sub.topic, " : rosgo does not support protocol: ", name)
 				}
 			}
+
 		case callback := <-sub.addCallbackChan:
 			logger.Debug(sub.topic, " : Receive addCallbackChan")
 			sub.callbacks = append(sub.callbacks, callback)
+
 		case msgEvent := <-sub.msgChan:
 			// Pop received message then bind callbacks and enqueue to the job channle.
 			logger.Debug(sub.topic, " : Receive msgChan")
@@ -127,9 +132,12 @@ func (sub *defaultSubscriber) start(wg *sync.WaitGroup, nodeID string, nodeAPIUR
 			case <-time.After(time.Duration(3) * time.Second):
 				logger.Debug(sub.topic, " : Callback job timed out.")
 			}
+			logger.Debug("Callback job enqueued.")
+
 		case pubURI := <-sub.disconnectedChan:
-			logger.Debug(sub.topic, " : Connection disconnected to ", pubURI)
+			logger.Debugf("Connection to %s was disconnected.", pubURI)
 			delete(sub.connections, pubURI)
+
 		case <-sub.shutdownChan:
 			// Shutdown subscription goroutine
 			logger.Debug(sub.topic, " : Receive shutdownChan")
@@ -166,17 +174,17 @@ dial:
 	var err error
 
 	select {
-		case <-time.After(time.Duration(3000) * time.Millisecond):
-			logger.Error(topic, " : Failed to connect to ", pubURI, "timed out")
-			return
-		default:
+	case <-time.After(time.Duration(3000) * time.Millisecond):
+		logger.Error(topic, " : Failed to connect to ", pubURI, "timed out")
+		return
+	default:
 		conn, err = net.Dial("tcp", pubURI)
 		if err != nil {
 			logger.Error(topic, " : Failed to connect to ", pubURI, "- error: ", err)
 			return
 		}
 	}
-	
+
 	// 1. Write connection header
 	var headers []header
 	headers = append(headers, header{"topic", topic})
@@ -216,10 +224,10 @@ dial:
 		PublisherName:    resHeaderMap["callerid"],
 		ConnectionHeader: resHeaderMap,
 	}
-	
+
 	// 3. Start reading messages
 	readingSize := true
-	var msgSize uint32 = 0
+	var msgSize uint32
 	var buffer []byte
 	for {
 		select {
@@ -231,6 +239,11 @@ dial:
 				//logger.Debug("Reading message size...")
 				err := binary.Read(conn, binary.LittleEndian, &msgSize)
 				if err != nil {
+					if err == io.EOF {
+						logger.Infof("Publisher %s on topic %s disconnected", pubURI, topic)
+						disconnectedChan <- pubURI
+						return
+					}
 					if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
 						// Timed out
 						//logger.Debug(neterr)
@@ -255,6 +268,11 @@ dial:
 				//logger.Debug("Reading message body...")
 				_, err = io.ReadFull(conn, buffer)
 				if err != nil {
+					if err == io.EOF {
+						logger.Info("Publisher disconnected")
+						disconnectedChan <- pubURI
+						return
+					}
 					if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
 						// Timed out
 						//logger.Debug(neterr)
@@ -276,7 +294,7 @@ dial:
 			}
 		}
 	}
-	
+
 }
 
 func setDifference(lhs []string, rhs []string) []string {

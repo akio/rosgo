@@ -3,17 +3,18 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/edwinhayes/rosgo/libgengo"
 	"go/format"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/edwinhayes/rosgo/libgengo"
 )
 
 var (
-	out         = flag.String("out", "vendor", "Directory to generate files in")
-	import_path = flag.String("import_path", "", "Specify import path/prefix for nested types")
+	out        = flag.String("out", "vendor", "Directory to generate files in")
+	importPath = flag.String("import_path", "", "Specify import path/prefix for nested types")
 )
 
 func writeCode(fullname string, code string) error {
@@ -46,7 +47,7 @@ func main() {
 	}
 
 	if flag.NArg() < 2 {
-		fmt.Println("USAGE: gengo [-out=] [-import_path=] msg|srv <NAME> [<FILE>]")
+		fmt.Println("USAGE: gengo [-out=] [-import_path=] msg|srv|action <NAME> [<FILE>]")
 		os.Exit(-1)
 	}
 
@@ -120,6 +121,40 @@ func main() {
 			fmt.Println(err)
 			os.Exit(-1)
 		}
+	} else if mode == "action" {
+		var spec *ActionSpec
+		var err error
+
+		if len(os.Args) == 3 {
+			spec, err = context.LoadAction(fullname)
+		} else {
+			spec, err = context.LoadActionFromFile(os.Args[3], fullname)
+		}
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(-1)
+		}
+
+		actionCode, codeMap, err := GenerateAction(context, spec)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(-1)
+		}
+
+		err = writeCode(fullname, actionCode)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(-1)
+		}
+
+		for name, code := range codeMap {
+			err = writeCode(name, code)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(-1)
+			}
+		}
+
 	} else {
 		fmt.Println("USAGE: gengo <MSG>")
 		os.Exit(-1)
