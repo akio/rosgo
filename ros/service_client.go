@@ -125,13 +125,6 @@ func (c *defaultServiceClient) Call(srv Service) error {
 				return errors.New(string(errMsg))
 			}
 		}
-		errMsg := make([]byte, int(size))
-		conn.SetDeadline(time.Now().Add(10 * time.Millisecond))
-		if _, err := io.ReadFull(conn, errMsg); err != nil {
-			return err
-		}
-		return errors.New(string(errMsg))
-
 	}
 
 	// 5. Receive response
