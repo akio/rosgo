@@ -166,17 +166,17 @@ dial:
 	var err error
 
 	select {
-		case <-time.After(time.Duration(3000) * time.Millisecond):
-			logger.Error(topic, " : Failed to connect to ", pubURI, "timed out")
-			return
-		default:
+	case <-time.After(time.Duration(3000) * time.Millisecond):
+		logger.Error(topic, " : Failed to connect to ", pubURI, "timed out")
+		return
+	default:
 		conn, err = net.Dial("tcp", pubURI)
 		if err != nil {
 			logger.Error(topic, " : Failed to connect to ", pubURI, "- error: ", err)
 			return
 		}
 	}
-	
+
 	// 1. Write connection header
 	var headers []header
 	headers = append(headers, header{"topic", topic})
@@ -216,7 +216,7 @@ dial:
 		PublisherName:    resHeaderMap["callerid"],
 		ConnectionHeader: resHeaderMap,
 	}
-	
+
 	// 3. Start reading messages
 	readingSize := true
 	var msgSize uint32 = 0
@@ -234,8 +234,7 @@ dial:
 					if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
 						// Timed out
 						//logger.Debug(neterr)
-						conn.Close()
-						goto dial
+						continue
 					} else {
 						logger.Error(topic, " : Failed to read a message size")
 						disconnectedChan <- pubURI
@@ -276,7 +275,7 @@ dial:
 			}
 		}
 	}
-	
+
 }
 
 func setDifference(lhs []string, rhs []string) []string {
