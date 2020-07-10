@@ -247,8 +247,7 @@ dial:
 					if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
 						// Timed out
 						//logger.Debug(neterr)
-						conn.Close()
-						goto dial
+						continue
 					} else {
 						logger.Error(topic, " : Failed to read a message size")
 						disconnectedChan <- pubURI
